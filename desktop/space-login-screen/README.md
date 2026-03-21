@@ -1,0 +1,18 @@
+# Login Screen
+
+A Construct space.
+
+## Development
+
+```bash
+bun install
+construct space dev
+```
+
+## Build
+
+```bash
+construct space build
+```
+
+Output goes to `dist/`.

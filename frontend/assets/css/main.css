@@ -1,0 +1,240 @@
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* Import custom styles */
+@import "./custom.css";
+
+/* Define custom font */
+@theme static {
+  --font-sans: 'Rubik', ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * Register app colors as Tailwind theme tokens so opacity modifiers work:
+ *   bg-app-accent/10  border-app-accent/30  ring-app-accent/20
+ *   bg-app-muted/30   text-app-muted/50     etc.
+ * "inline" means the values are resolved at runtime via CSS variables.
+ */
+@theme inline {
+  --color-app-accent: var(--app-accent);
+  --color-app-muted: var(--app-muted);
+  --color-app-border: var(--app-border);
+  --color-app-foreground: var(--app-foreground);
+  --color-app-background: var(--app-background);
+  --color-app-canvas: var(--app-canvas-bg);
+  --color-app-status: var(--app-status-bg);
+}
+
+/* App-wide theme variables (set by useAppTheme composable) */
+:root {
+  /* App theme colors - defaults for light mode */
+  --app-background: #ffffff;
+  --app-foreground: #1e293b;
+  --app-muted: #94a3b8;
+  --app-accent: #FF2D55;
+  --app-accent-foreground: #ffffff;
+  --app-border: #e2e8f0;
+  /* Canvas-specific colors */
+  --app-canvas-bg: #f1f5f9;
+  --app-status-bg: #f8fafc;
+}
+
+:root.dark {
+  /* App theme colors - defaults for dark mode */
+  --app-background: #18181b;
+  --app-foreground: #fafafa;
+  --app-muted: #71717a;
+  --app-accent: #FF2D55;
+  --app-accent-foreground: #ffffff;
+  --app-border: #27272a;
+  /* Canvas-specific colors */
+  --app-canvas-bg: #09090b;
+  --app-status-bg: #18181b;
+}
+
+/* App theme utility classes */
+@layer utilities {
+
+  /* Backgrounds */
+  .bg-app {
+    background-color: var(--app-background);
+  }
+
+  .bg-app-canvas {
+    background-color: var(--app-canvas-bg);
+  }
+
+  .bg-app-status {
+    background-color: var(--app-status-bg);
+  }
+
+  .bg-app-accent {
+    background-color: var(--app-accent);
+  }
+
+  .bg-app-muted {
+    background-color: var(--app-muted);
+  }
+
+  /* Semantic surface backgrounds (used across spaces) */
+  .bg-app-panel {
+    background-color: var(--app-status-bg);
+  }
+
+  .bg-app-subtle {
+    background-color: color-mix(in srgb, var(--app-muted) 8%, transparent);
+  }
+
+  .bg-app-hover {
+    background-color: color-mix(in srgb, var(--app-muted) 12%, transparent);
+  }
+
+  /* Text */
+  .text-app {
+    color: var(--app-foreground);
+  }
+
+  .text-app-muted {
+    color: var(--app-muted);
+  }
+
+  .text-app-accent {
+    color: var(--app-accent);
+  }
+
+  .text-app-accent-foreground {
+    color: var(--app-accent-foreground);
+  }
+
+  /* Borders */
+  .border-app {
+    border-color: var(--app-border);
+  }
+
+  .border-app-border {
+    border-color: var(--app-border);
+  }
+}
+
+/* ==========================================
+   Theme-aware component overrides
+   ========================================== */
+
+/* Switch - Override checked state to use accent color */
+[data-state="checked"].bg-primary,
+[data-state="checked"].bg-neutral,
+button[role="switch"][data-state="checked"] {
+  background-color: var(--app-accent) !important;
+}
+
+/* Checkbox - Override checked state to use accent color */
+button[role="checkbox"][data-state="checked"],
+[role="checkbox"][data-state="checked"] {
+  background-color: var(--app-accent) !important;
+  border-color: var(--app-accent) !important;
+}
+
+/* Slider - Override track and thumb colors */
+[data-radix-slider-range],
+[role="slider"] [data-orientation]>span:first-child {
+  background-color: var(--app-accent) !important;
+}
+
+[data-radix-slider-thumb],
+[role="slider"] span[role="slider"] {
+  border-color: var(--app-accent) !important;
+}
+
+/* Form labels - uppercase and bold */
+label,
+[data-part="label"] {
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+/* Input/Textarea/Select - Override focus ring */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[data-part="input"]:focus-visible {
+  --tw-ring-offset-width: 0px !important;
+  --tw-ring-width: 0px !important;
+  --tw-ring-color: transparent !important;
+  box-shadow: none !important;
+  border-color: var(--app-accent) !important;
+  outline: none !important;
+}
+
+/* Native range input - Theme-aware styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--app-muted) 30%, transparent);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--app-accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--app-accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* DropdownMenu - Consistent item backgrounds */
+[data-radix-popper-content-wrapper] [role="menuitem"],
+[data-radix-popper-content-wrapper] [role="menuitemcheckbox"],
+[data-radix-popper-content-wrapper] [data-type="label"] {
+  background-color: transparent !important;
+}
+
+[data-radix-popper-content-wrapper] [role="menuitem"][data-highlighted],
+[data-radix-popper-content-wrapper] [role="menuitemcheckbox"][data-highlighted],
+[data-radix-popper-content-wrapper] [data-active="true"] {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Input/Textarea - Force theme text colors with high specificity */
+html body input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html body input[type="text"],
+html body input[type="number"],
+html body input[type="email"],
+html body input[type="password"],
+html body input[type="search"],
+html body input[type="tel"],
+html body input[type="url"],
+html body textarea,
+html body select,
+html body [data-part="input"],
+html body .relative input,
+html body div input {
+  color: var(--app-foreground) !important;
+  -webkit-text-fill-color: var(--app-foreground) !important;
+  caret-color: var(--app-foreground) !important;
+}
+
+html body input::placeholder,
+html body textarea::placeholder,
+html body [data-part="input"]::placeholder {
+  color: var(--app-muted) !important;
+  -webkit-text-fill-color: var(--app-muted) !important;
+  opacity: 1 !important;
+}

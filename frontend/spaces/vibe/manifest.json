@@ -1,0 +1,7 @@
+{
+  "id": "vibe",
+  "name": "Vibe",
+  "description": "General-purpose AI coding assistant with full tool access",
+  "icon": "lucide:zap",
+  "version": "1.0.0"
+}

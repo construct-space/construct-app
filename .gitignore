@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.bun/
+
+# Build output
+dist/
+.output/
+
+# Tauri
+src-tauri/target/
+src-tauri/bin/
+
+# Auto-generated
+src/auto-imports.d.ts
+src/components.d.ts
+
+# Environment
+.env
+.env.local
+.env.production.local
+
+# Claude Code request logs
+claude-code-requests.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+context/bin/
+
+# Logs
+*.log

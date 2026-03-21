@@ -1,0 +1,7 @@
+{
+  "id": "architect",
+  "name": "Architect",
+  "description": "Plans project structure and generates technical specifications",
+  "icon": "lucide:compass",
+  "version": "1.0.0"
+}

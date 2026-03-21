@@ -1,0 +1,11 @@
+{
+  "hooks": [
+    {
+      "id": "architect-read-only",
+      "type": "pre_tool",
+      "tools": ["write_file", "edit_file"],
+      "command": "echo '{\"block\":true,\"message\":\"Architect agent is read-only. Use the Vibe or Project agent to make changes.\"}'",
+      "source": "space:architect"
+    }
+  ]
+}

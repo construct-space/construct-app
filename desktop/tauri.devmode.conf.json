@@ -1,0 +1,24 @@
+{
+  "productName": "Construct DEV",
+  "identifier": "space.construct.personal.dev",
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "construct-dev"
+        ]
+      }
+    }
+  },
+  "build": {
+    "beforeDevCommand": "TAURI=true exec bun run dev -- --port 3051",
+    "devUrl": "http://localhost:3051"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Construct DEV"
+      }
+    ]
+  }
+}

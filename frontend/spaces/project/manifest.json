@@ -1,0 +1,7 @@
+{
+  "id": "project",
+  "name": "Project",
+  "description": "Project-aware agent that knows your codebase, tools, and context",
+  "icon": "lucide:folder-open",
+  "version": "1.0.0"
+}

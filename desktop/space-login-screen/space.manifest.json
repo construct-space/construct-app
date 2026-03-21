@@ -1,0 +1,37 @@
+{
+  "id": "login-screen",
+  "name": "Login Screen",
+  "version": "0.1.0",
+  "description": "Login Screen space for Construct",
+  "author": {
+    "name": "Your Name"
+  },
+  "icon": "i-lucide-box",
+  "scope": "both",
+  "minConstructVersion": "0.2.0",
+  "navigation": {
+    "label": "Login Screen",
+    "icon": "i-lucide-box",
+    "to": "login-screen",
+    "order": 100
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Home",
+      "icon": "i-lucide-home",
+      "default": true
+    }
+  ],
+  "toolbar": [
+    {
+      "id": "login-screen-new",
+      "icon": "i-lucide-plus",
+      "label": "New Login Screen",
+      "action": "createLoginScreen"
+    }
+  ],
+  "keywords": ["login-screen"],
+  "agent": "agent/config.md",
+  "skills": ["agent/skills/default.md"]
+}

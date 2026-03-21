@@ -1,0 +1,250 @@
+/* Custom utility classes using Tailwind @layer */
+
+@layer utilities {
+  /* Card variants — use CSS variables instead of hardcoded grays */
+  .card {
+    background-color: color-mix(in srgb, var(--app-background) 90%, var(--app-canvas-bg) 10%);
+    border: 1px solid var(--app-border);
+    border-radius: 0.5rem;
+  }
+
+  .card-hover {
+    background-color: color-mix(in srgb, var(--app-background) 90%, var(--app-canvas-bg) 10%);
+    border: 1px solid var(--app-border);
+    border-radius: 0.5rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    cursor: pointer;
+  }
+  .card-hover:hover {
+    border-color: color-mix(in srgb, var(--app-muted) 50%, transparent);
+  }
+
+  .glass-card {
+    backdrop-filter: blur(12px);
+    background-color: color-mix(in srgb, var(--app-background) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--app-border) 60%, transparent);
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Panel — design tool side panel container */
+  .panel {
+    background-color: var(--app-background);
+    border: 1px solid var(--app-border);
+    border-radius: 0.375rem;
+    overflow: hidden;
+  }
+
+  /* Button styles */
+  .btn-primary {
+    background-color: var(--app-accent);
+    color: var(--app-accent-foreground);
+    font-weight: 500;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    transition: opacity 0.15s;
+    cursor: pointer;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+
+  .btn-secondary {
+    background-color: color-mix(in srgb, var(--app-muted) 15%, transparent);
+    color: var(--app-foreground);
+    font-weight: 500;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    transition: background-color 0.15s;
+    cursor: pointer;
+  }
+  .btn-secondary:hover {
+    background-color: color-mix(in srgb, var(--app-muted) 25%, transparent);
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--app-foreground);
+    font-weight: 500;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    transition: background-color 0.15s;
+    cursor: pointer;
+  }
+  .btn-ghost:hover {
+    background-color: color-mix(in srgb, var(--app-muted) 12%, transparent);
+  }
+
+  .btn-danger {
+    background-color: #ef4444;
+    color: #ffffff;
+    font-weight: 500;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    transition: background-color 0.15s;
+    cursor: pointer;
+  }
+  .btn-danger:hover { background-color: #dc2626; }
+
+  /* Sidebar link styles */
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.375rem;
+    color: var(--app-muted);
+    font-size: 0.8125rem;
+    transition: background-color 0.15s, color 0.15s;
+    cursor: pointer;
+  }
+  .sidebar-link:hover {
+    background-color: color-mix(in srgb, var(--app-muted) 10%, transparent);
+    color: var(--app-foreground);
+  }
+
+  .sidebar-link-active {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    background-color: color-mix(in srgb, var(--app-accent) 12%, transparent);
+    color: var(--app-accent);
+    cursor: pointer;
+  }
+}
+
+/* Custom scrollbar - uses app theme colors */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: color-mix(in srgb, var(--app-background) 90%, var(--app-muted) 10%);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--app-muted);
+  border-radius: 0.375rem;
+  opacity: 0.5;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--app-accent);
+}
+
+/* Vue transition animations */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* Markdown/AI response styles */
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+.markdown-content h1 { font-size: 1.5em; }
+.markdown-content h2 { font-size: 1.25em; }
+.markdown-content h3 { font-size: 1.125em; }
+
+.markdown-content p {
+  margin-bottom: 0.75em;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.markdown-content ul {
+  list-style-type: disc;
+}
+
+.markdown-content ol {
+  list-style-type: decimal;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25em;
+}
+
+.markdown-content code {
+  background-color: color-mix(in srgb, var(--app-background) 80%, var(--app-muted) 20%);
+  padding: 0.125em 0.375em;
+  border-radius: 0.25em;
+  font-size: 0.875em;
+  font-family: ui-monospace, monospace;
+}
+
+.markdown-content pre {
+  background-color: var(--app-background);
+  color: var(--app-foreground);
+  padding: 1em;
+  border-radius: 0.5em;
+  overflow-x: auto;
+  margin-bottom: 0.75em;
+  border: 1px solid color-mix(in srgb, var(--app-muted) 30%, transparent 70%);
+}
+
+.markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+.markdown-content a {
+  color: var(--app-accent);
+  text-decoration: underline;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid var(--app-muted);
+  padding-left: 1em;
+  margin-left: 0;
+  font-style: italic;
+  color: var(--app-muted);
+}

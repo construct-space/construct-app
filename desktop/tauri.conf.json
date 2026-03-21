@@ -1,0 +1,94 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Construct",
+  "version": "0.6.0",
+  "identifier": "space.construct.personal",
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVEODJEMzhCQzM1MEJBRUMKUldUc3VsRERpOU9DWGVDYy9ZRmtrYkhOb1lIWSt0UElFR0RDa2xnOEZyOHZsajhDK0dRZnpZeTEK",
+      "endpoints": [
+        "https://github.com/construct-space/releases/releases/latest/download/latest.json"
+      ]
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "construct",
+          "antigravity"
+        ]
+      }
+    }
+  },
+  "build": {
+    "beforeDevCommand": "TAURI=true exec bun run dev",
+    "devUrl": "http://localhost:60200",
+    "beforeBuildCommand": "TAURI=true bun run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "title": "Construct",
+        "width": 1440,
+        "height": 810,
+        "resizable": true,
+        "fullscreen": false,
+        "minWidth": 1024,
+        "minHeight": 576,
+        "maxWidth": 3840,
+        "maxHeight": 2160,
+        "titleBarStyle": "Overlay",
+        "dragDropEnabled": true,
+        "hiddenTitle": true
+      },
+      {
+        "label": "standalone-assistant",
+        "title": "Operator",
+        "url": "/assistant",
+        "width": 480,
+        "height": 700,
+        "resizable": true,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "theme": "Dark",
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "bin/construct-operator"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "frameworks": [],
+      "entitlements": null
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "timestampUrl": null,
+      "wix": null,
+      "nsis": null
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
+  }
+}

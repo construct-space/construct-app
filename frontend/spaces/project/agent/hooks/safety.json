@@ -1,0 +1,11 @@
+{
+  "hooks": [
+    {
+      "id": "project-no-force-push",
+      "type": "pre_tool",
+      "tools": ["bash"],
+      "command": "if echo \"$TOOL_INPUT\" | grep -qE 'git\\s+push\\s+--force'; then\n  echo '{\"block\":true,\"message\":\"Force push is not allowed in project space\"}'\nfi",
+      "source": "space:project"
+    }
+  ]
+}

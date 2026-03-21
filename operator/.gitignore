@@ -1,0 +1,7 @@
+bin/
+/operator
+/tui
+*.exe
+.DS_Store
+.gocache/
+.gocache

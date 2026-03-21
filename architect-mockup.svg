@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" font-family="Inter, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#262335"/>
+      <stop offset="100%" stop-color="#221f30"/>
+    </linearGradient>
+    <!-- Thinking glow -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1400" height="900" fill="url(#bg)"/>
+
+  <!-- Top bar -->
+  <rect x="0" y="0" width="1400" height="52" fill="#1e1b2e"/>
+  <line x1="0" y1="52" x2="1400" y2="52" stroke="#3a3450" stroke-width="1"/>
+
+  <!-- Red pill icon -->
+  <ellipse cx="36" cy="26" rx="8" ry="5" fill="#ef4444"/>
+
+  <!-- Title -->
+  <text x="58" y="31" fill="#fff" font-size="16" font-weight="700" letter-spacing="1">ARCHITECT</text>
+
+  <!-- Divider between panels -->
+  <line x1="720" y1="52" x2="720" y2="900" stroke="#3a3450" stroke-width="1"/>
+
+  <!-- ==================== LEFT: QUESTIONS FLOW ==================== -->
+
+  <!-- Question 1: What are we building? (answered) -->
+  <rect x="72" y="90" width="568" height="100" rx="12" fill="#2e2a40"/>
+  <path d="M64,92 Q54,92 54,106 L54,176 Q54,190 64,190" fill="none" stroke="#ff7edb" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+  <text x="92" y="116" fill="#ff7edb" font-size="14" font-weight="600">What are we building?</text>
+
+  <!-- Option pills -->
+  <rect x="92" y="132" width="120" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="152" y="155" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">DASHBOARD</text>
+
+  <rect x="224" y="132" width="140" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="294" y="155" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">E-COMMERCE</text>
+
+  <rect x="376" y="132" width="110" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="431" y="155" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">CHAT APP</text>
+
+  <rect x="498" y="132" width="80" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="538" y="155" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">BLOG</text>
+
+  <!-- User answer (no bg, just text) -->
+  <text x="60" y="224" fill="#848bbd" font-size="12" font-weight="500" letter-spacing="0.5">DASHBOARD</text>
+
+  <!-- Question 2: Framework? (answered) -->
+  <rect x="72" y="242" width="568" height="100" rx="12" fill="#2e2a40"/>
+  <path d="M64,244 Q54,244 54,258 L54,328 Q54,342 64,342" fill="none" stroke="#ff7edb" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+  <text x="92" y="268" fill="#ff7edb" font-size="14" font-weight="600">Framework?</text>
+
+  <rect x="92" y="284" width="90" height="36" rx="8" fill="#ff7edb" opacity="0.12" stroke="#ff7edb" stroke-width="1.5"/>
+  <text x="137" y="307" text-anchor="middle" fill="#ff7edb" font-size="13" font-weight="600">NUXT 3</text>
+
+  <rect x="194" y="284" width="100" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="244" y="307" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">NEXT.JS</text>
+
+  <rect x="306" y="284" width="110" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="361" y="307" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">SVELTEKIT</text>
+
+  <rect x="428" y="284" width="90" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="473" y="307" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">REMIX</text>
+
+  <!-- User answer -->
+  <text x="60" y="376" fill="#848bbd" font-size="12" font-weight="500" letter-spacing="0.5">NUXT 3</text>
+
+  <!-- Question 3: Authentication? (current — active) -->
+  <rect x="72" y="394" width="568" height="110" rx="12" fill="#2e2a40"/>
+  <path d="M64,396 Q54,396 54,410 L54,490 Q54,504 64,504" fill="none" stroke="#ff7edb" stroke-width="2.5" stroke-linecap="round" filter="url(#glow)">
+    <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/>
+  </path>
+  <text x="92" y="420" fill="#ff7edb" font-size="14" font-weight="600">How should users sign in?</text>
+  <text x="92" y="440" fill="#848bbd" font-size="12">Select one or more</text>
+
+  <rect x="92" y="454" width="150" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="167" y="477" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">EMAIL + PASSWORD</text>
+
+  <rect x="254" y="454" width="90" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="299" y="477" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">OAUTH</text>
+
+  <rect x="356" y="454" width="110" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="411" y="477" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">MAGIC LINK</text>
+
+  <rect x="478" y="454" width="100" height="36" rx="8" fill="#362f4e" stroke="#4a4268" stroke-width="1"/>
+  <text x="528" y="477" text-anchor="middle" fill="#ccc" font-size="13" font-weight="500">PASSKEYS</text>
+
+  <!-- ==================== THINKING ANIMATION ==================== -->
+  <!-- Appears below current question while AI processes next -->
+  <g opacity="0.7">
+    <rect x="72" y="530" width="200" height="44" rx="12" fill="#2e2a40"/>
+    <path d="M64,532 Q54,532 54,540 L54,566 Q54,574 64,574" fill="none" stroke="#ff7edb" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+
+    <!-- Three dots bouncing -->
+    <circle cx="100" cy="552" r="4" fill="#ff7edb" opacity="0.6">
+      <animate attributeName="cy" values="556;548;556" dur="0.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.3;0.8;0.3" dur="0.8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="118" cy="552" r="4" fill="#ff7edb" opacity="0.6">
+      <animate attributeName="cy" values="556;548;556" dur="0.8s" begin="0.15s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.3;0.8;0.3" dur="0.8s" begin="0.15s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="136" cy="552" r="4" fill="#ff7edb" opacity="0.6">
+      <animate attributeName="cy" values="556;548;556" dur="0.8s" begin="0.3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.3;0.8;0.3" dur="0.8s" begin="0.3s" repeatCount="indefinite"/>
+    </circle>
+
+    <text x="154" y="557" fill="#848bbd" font-size="11" font-style="italic">thinking...</text>
+  </g>
+
+  <!-- Upcoming questions (dimmed) -->
+  <rect x="72" y="596" width="568" height="44" rx="12" fill="#2a2640" opacity="0.4"/>
+  <path d="M64,598 Q54,598 54,606 L54,632 Q54,638 64,638" fill="none" stroke="#4a4268" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+  <text x="92" y="623" fill="#4a4268" font-size="13">Database preference?</text>
+
+  <rect x="72" y="652" width="568" height="44" rx="12" fill="#2a2640" opacity="0.25"/>
+  <path d="M64,654 Q54,654 54,662 L54,688 Q54,694 64,694" fill="none" stroke="#3a3450" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+  <text x="92" y="679" fill="#3a3450" font-size="13">Styling approach?</text>
+
+  <rect x="72" y="708" width="568" height="44" rx="12" fill="#2a2640" opacity="0.12"/>
+  <path d="M64,710 Q54,710 54,718 L54,744 Q54,750 64,750" fill="none" stroke="#302c42" stroke-width="2" stroke-linecap="round" opacity="0.15"/>
+  <text x="92" y="735" fill="#302c42" font-size="13">Deployment target?</text>
+
+  <!-- Input area at bottom -->
+  <rect x="0" y="820" width="720" height="80" fill="#1e1b2e"/>
+  <line x1="0" y1="820" x2="720" y2="820" stroke="#3a3450" stroke-width="1"/>
+
+  <!-- Plus button -->
+  <circle cx="46" cy="855" r="20" fill="none" stroke="#4a4268" stroke-width="1.5"/>
+  <line x1="36" y1="855" x2="56" y2="855" stroke="#848bbd" stroke-width="2"/>
+  <line x1="46" y1="845" x2="46" y2="865" stroke="#848bbd" stroke-width="2"/>
+
+  <!-- Text input -->
+  <rect x="80" y="835" width="560" height="42" rx="21" fill="#2e2a40" stroke="#4a4268" stroke-width="1"/>
+  <text x="104" y="861" fill="#848bbd" font-size="14" opacity="0.5">or type your own answer...</text>
+
+  <!-- Expand button inside input -->
+  <rect x="510" y="843" width="66" height="26" rx="6" fill="#ff7edb" opacity="0.1" stroke="#ff7edb" stroke-width="1" opacity="0.3"/>
+  <text x="543" y="860" text-anchor="middle" fill="#ff7edb" font-size="10" font-weight="500">✦ Expand</text>
+
+  <!-- Send button -->
+  <polygon points="668,845 688,855 668,865" fill="#4a4268" stroke="none"/>
+
+  <!-- ==================== RIGHT: PROJECT SUMMARY ==================== -->
+
+  <!-- Summary header -->
+  <text x="760" y="88" fill="#848bbd" font-size="11" font-weight="600" letter-spacing="1.5">WE ARE BUILDING</text>
+
+  <!-- Dynamic summary -->
+  <text x="760" y="124" fill="#fff" font-size="24" font-weight="700">Dashboard</text>
+  <text x="760" y="154" fill="#848bbd" font-size="16">in <tspan fill="#fff" font-weight="600">Nuxt 3</tspan></text>
+
+  <!-- Divider -->
+  <line x1="760" y1="184" x2="1340" y2="184" stroke="#3a3450" stroke-width="1"/>
+
+  <text x="760" y="216" fill="#848bbd" font-size="11" font-weight="600" letter-spacing="1.5">DECISIONS</text>
+
+  <!-- Decision 1: Type (done) -->
+  <rect x="760" y="232" width="560" height="48" rx="8" fill="#2e2a40"/>
+  <text x="784" y="252" fill="#848bbd" font-size="11" font-weight="500">TYPE</text>
+  <text x="784" y="270" fill="#e0e0e0" font-size="14" font-weight="500">Dashboard</text>
+  <text x="1292" y="260" fill="#ff7edb" font-size="12" text-anchor="end">✓</text>
+
+  <!-- Decision 2: Framework (done) -->
+  <rect x="760" y="290" width="560" height="48" rx="8" fill="#2e2a40"/>
+  <text x="784" y="310" fill="#848bbd" font-size="11" font-weight="500">FRAMEWORK</text>
+  <text x="784" y="328" fill="#e0e0e0" font-size="14" font-weight="500">Nuxt 3</text>
+  <text x="1292" y="318" fill="#ff7edb" font-size="12" text-anchor="end">✓</text>
+
+  <!-- Decision 3: Auth (current — pulsing) -->
+  <rect x="760" y="348" width="560" height="48" rx="8" fill="#2e2a40" stroke="#ff7edb" stroke-width="1">
+    <animate attributeName="stroke-opacity" values="0.5;0.15;0.5" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <text x="784" y="368" fill="#ff7edb" font-size="11" font-weight="500">AUTHENTICATION</text>
+  <text x="784" y="386" fill="#848bbd" font-size="14" font-style="italic">deciding...</text>
+
+  <!-- Decision 4-6: Upcoming -->
+  <rect x="760" y="406" width="560" height="48" rx="8" fill="#2a2640" opacity="0.4"/>
+  <text x="784" y="426" fill="#4a4268" font-size="11">DATABASE</text>
+  <text x="784" y="444" fill="#3a3450" font-size="14">—</text>
+
+  <rect x="760" y="464" width="560" height="48" rx="8" fill="#2a2640" opacity="0.25"/>
+  <text x="784" y="484" fill="#3a3450" font-size="11">STYLING</text>
+  <text x="784" y="502" fill="#302c42" font-size="14">—</text>
+
+  <rect x="760" y="522" width="560" height="48" rx="8" fill="#2a2640" opacity="0.12"/>
+  <text x="784" y="542" fill="#302c42" font-size="11">DEPLOYMENT</text>
+  <text x="784" y="560" fill="#2a2640" font-size="14">—</text>
+
+  <!-- Divider -->
+  <line x1="760" y1="596" x2="1340" y2="596" stroke="#3a3450" stroke-width="1"/>
+
+  <!-- Features -->
+  <text x="760" y="628" fill="#848bbd" font-size="11" font-weight="600" letter-spacing="1.5">FEATURES</text>
+  <text x="760" y="656" fill="#4a4268" font-size="13" font-style="italic">Generated after all decisions</text>
+
+  <!-- Divider -->
+  <line x1="760" y1="684" x2="1340" y2="684" stroke="#3a3450" stroke-width="1"/>
+
+  <!-- File structure -->
+  <text x="760" y="716" fill="#848bbd" font-size="11" font-weight="600" letter-spacing="1.5">STRUCTURE</text>
+  <text x="760" y="744" fill="#4a4268" font-size="13" font-style="italic">Generated after plan</text>
+
+  <!-- Create button (disabled) -->
+  <rect x="760" y="830" width="560" height="48" rx="10" fill="#2e2a40" stroke="#4a4268" stroke-width="1"/>
+  <text x="1040" y="860" text-anchor="middle" fill="#4a4268" font-size="15" font-weight="600">Create Project →</text>
+</svg>
