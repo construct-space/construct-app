@@ -477,7 +477,6 @@ pub async fn construct_auth_exchange_code(
     let response = client
         .post(&token_url)
         .header("Content-Type", "application/json")
-        .header("X-Api-Key", &api_key)
         .json(&body)
         .send()
         .await
@@ -513,8 +512,7 @@ pub async fn construct_auth_profile(
 
     let response = client
         .get(&profile_url)
-        .header("X-Api-Key", &api_key)
-        .header("X-Construct-Token", &access_token)
+        .header("Authorization", format!("Bearer {}", access_token))
         .send()
         .await
         .map_err(|e| format!("Construct profile request failed: {}", e))?;

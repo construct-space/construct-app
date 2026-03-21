@@ -273,7 +273,6 @@ export function useConstructAuth() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Api-Key': cfg.apiKey,
         },
         body: JSON.stringify(body),
       })
@@ -333,8 +332,7 @@ export function useConstructAuth() {
       const proxyUrl = `${cfg.accountsUrl}/api/me`
       const response = await fetch(proxyUrl, {
         headers: {
-          'X-Api-Key': cfg.apiKey,
-          'X-Construct-Token': accessToken,
+          'Authorization': `Bearer ${accessToken}`,
         },
       })
 
