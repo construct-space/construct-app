@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -610,6 +611,28 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\n[operator] shutting down...\n")
 		cancel()
 	}()
+
+	// Watch parent process — self-terminate if Construct app dies without cleanup.
+	// Prevents orphan operator processes holding ports after force-quit / crash.
+	if ppidStr := os.Getenv("CONSTRUCT_PARENT_PID"); ppidStr != "" {
+		if ppid, err := strconv.Atoi(ppidStr); err == nil && ppid > 0 {
+			go func() {
+				for {
+					time.Sleep(2 * time.Second)
+					proc, err := os.FindProcess(ppid)
+					if err != nil {
+						break
+					}
+					// On Unix, kill(pid, 0) checks if process exists
+					if err := proc.Signal(syscall.Signal(0)); err != nil {
+						fmt.Fprintf(os.Stderr, "[operator] parent (pid=%d) is gone, self-terminating\n", ppid)
+						cancel()
+						return
+					}
+				}
+			}()
+		}
+	}
 
 	// Parse flags
 	port := "60100"
