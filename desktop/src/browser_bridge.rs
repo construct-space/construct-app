@@ -5,7 +5,7 @@
 //! into the target webview and calls typed functions on it.
 //! Screenshot uses platform-native capture.
 
-use crate::SharedBrowserState;
+use crate::browser::SharedBrowserState;
 use serde_json::{json, Value};
 use std::time::Duration;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -43,7 +43,7 @@ pub async fn dispatch(
 
 fn with_browser_state<T>(
     app: &tauri::AppHandle,
-    f: impl FnOnce(&mut crate::BrowserState) -> Result<T, (String, String)>,
+    f: impl FnOnce(&mut crate::browser::BrowserState) -> Result<T, (String, String)>,
 ) -> Result<T, (String, String)> {
     let state = app.state::<SharedBrowserState>();
     let mut guard = state.lock().map_err(|_| {
