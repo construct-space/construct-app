@@ -465,7 +465,7 @@ pub fn oauth_read_keychain() -> Result<OAuthTokenResponse, String> {
 #[tauri::command]
 pub async fn construct_auth_exchange_code(
     api_base: String,
-    api_key: String,
+    _api_key: String,
     body: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     let token_url = format!("{}/oauth/token", normalize_api_base(&api_base));
@@ -501,7 +501,7 @@ pub async fn construct_auth_exchange_code(
 #[tauri::command]
 pub async fn construct_auth_profile(
     api_base: String,
-    api_key: String,
+    _api_key: String,
     access_token: String,
 ) -> Result<serde_json::Value, String> {
     let profile_url = format!("{}/api/me", normalize_api_base(&api_base));
