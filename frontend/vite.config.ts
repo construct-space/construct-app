@@ -7,6 +7,11 @@ import { resolve } from 'path'
 import pkg from '../package.json'
 
 export default defineConfig({
+  root: resolve(__dirname),
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  },
   plugins: [
     vue(),
     tailwindcss(),
