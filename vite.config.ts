@@ -57,9 +57,9 @@ export default defineConfig({
     port: 60200,
     strictPort: true,
     proxy: {
-      '/api': 'https://api.construct.space',
-      '/health': 'https://api.construct.space',
-      '/media': 'https://api.construct.space',
+      '/api': 'https://source.construct.space',
+      '/health': 'https://source.construct.space',
+      '/media': 'https://source.construct.space',
     },
   },
   // Clear screen disabled for Tauri integration

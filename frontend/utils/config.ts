@@ -3,7 +3,7 @@
  * All composables that previously used useRuntimeConfig() now import this.
  */
 export const appConfig = {
-  apiBase: import.meta.env.VITE_API_BASE || 'https://api.construct.space/api',
+  apiBase: import.meta.env.VITE_API_BASE || 'https://source.construct.space/api',
   apiKey: import.meta.env.VITE_API_KEY || 'api',
   sourceUrl: import.meta.env.VITE_SOURCE_URL || 'https://source.construct.space/api',
   paasUrl: import.meta.env.VITE_PAAS_URL || 'https://paas.construct.ninja',
