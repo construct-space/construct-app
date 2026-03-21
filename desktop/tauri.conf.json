@@ -23,7 +23,7 @@
     "beforeDevCommand": "TAURI=true exec bun run dev:frontend",
     "devUrl": "http://localhost:60200",
     "beforeBuildCommand": "TAURI=true bun run build",
-    "frontendDist": "../dist"
+    "frontendDist": "../frontend/dist"
   },
   "app": {
     "withGlobalTauri": true,

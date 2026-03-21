@@ -12,17 +12,17 @@
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
-      "@construct/sdk": ["./frontend/lib/constructSdk.ts"],
-      "~/*": ["./frontend/*"],
-      "@/*": ["./frontend/*"]
+      "@construct/sdk": ["./lib/constructSdk.ts"],
+      "~/*": ["./*"],
+      "@/*": ["./*"]
     },
     "types": ["vite/client"]
   },
   "include": [
-    "frontend/**/*.ts",
-    "frontend/**/*.d.ts",
-    "frontend/**/*.tsx",
-    "frontend/**/*.vue"
+    "**/*.ts",
+    "**/*.d.ts",
+    "**/*.tsx",
+    "**/*.vue"
   ],
-  "exclude": ["node_modules", "dist", "frontend/**/__tests__/**"]
+  "exclude": ["node_modules", "dist", "**/__tests__/**"]
 }

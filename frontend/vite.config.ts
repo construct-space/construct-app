@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { resolve } from 'path'
-import pkg from './package.json'
+import pkg from '../package.json'
 
 export default defineConfig({
   plugins: [
@@ -13,34 +13,34 @@ export default defineConfig({
     AutoImport({
       imports: ['vue', 'vue-router', 'pinia', '@vueuse/core'],
       ignore: [
-        // Local overrides in frontend/composables/ take precedence
+        // Local overrides in composables/ take precedence
         'useDateFormat',
         'useStorage',
       ],
       dirs: [
-        'frontend/composables',
-        'frontend/stores',
-        'frontend/utils',
+        'composables',
+        'stores',
+        'utils',
       ],
-      dts: 'frontend/auto-imports.d.ts',
+      dts: 'auto-imports.d.ts',
       vueTemplate: true,
     }),
     Components({
       dirs: [
-        'frontend/components',
-        'frontend/components/media',
+        'components',
+        'components/media',
         // Space components are no longer auto-registered globally.
         // In dev, SpaceLoader uses import.meta.glob to load space pages.
         // In prod, spaces ship as self-contained IIFE bundles.
       ],
-      dts: 'frontend/components.d.ts',
+      dts: 'components.d.ts',
     }),
   ],
   resolve: {
     alias: {
-      '@construct/sdk': resolve(__dirname, 'frontend/lib/constructSdk.ts'),
-      '~': resolve(__dirname, 'frontend'),
-      '@': resolve(__dirname, 'frontend'),
+      '@construct/sdk': resolve(__dirname, 'lib/constructSdk.ts'),
+      '~': resolve(__dirname, '.'),
+      '@': resolve(__dirname, '.'),
     },
     dedupe: ['vue'],
   },

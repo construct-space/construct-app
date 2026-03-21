@@ -1,22 +1,17 @@
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  readonly VITE_CONSTRUCT_DEV_MODE?: string
-  readonly VITE_SPACE_DEV_DIR?: string
+declare module '*.vue' {
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent<object, object, unknown>
+  export default component
 }
 
-// Extend ImportMeta for Nuxt compat
+interface ImportMetaEnv {
+  readonly VITE_API_BASE: string
+  readonly VITE_API_KEY: string
+  readonly VITE_FREEPIK_API_KEY: string
+}
+
 interface ImportMeta {
   readonly env: ImportMetaEnv
-  readonly client: boolean
-  readonly server: boolean
 }
-
-// Nuxt compat stubs
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare function defineShortcuts(shortcuts: any): void
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare function extractShortcuts(items: any): any
-declare function useState<T>(key: string, init?: () => T): import('vue').Ref<T>
-declare function generateLocalId(): string
-declare const __APP_VERSION__: string
