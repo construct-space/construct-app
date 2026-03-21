@@ -256,7 +256,7 @@ export function useConstructAuth() {
       try {
         const { invoke } = await import('@tauri-apps/api/core')
         result = await invoke<ConstructOAuthTokenResponse>('construct_auth_exchange_code', {
-          apiBase: cfg.apiBase,
+          apiBase: cfg.accountsUrl,
           apiKey: cfg.apiKey,
           body,
         })
@@ -268,7 +268,7 @@ export function useConstructAuth() {
     }
 
     if (!result) {
-      const proxyUrl = `${cfg.apiBase}/oauth/construct/token`
+      const proxyUrl = `${cfg.accountsUrl}/oauth/token`
       const response = await fetch(proxyUrl, {
         method: 'POST',
         headers: {
@@ -320,7 +320,7 @@ export function useConstructAuth() {
       try {
         const { invoke } = await import('@tauri-apps/api/core')
         result = await invoke<ConstructOAuthProfile>('construct_auth_profile', {
-          apiBase: cfg.apiBase,
+          apiBase: cfg.accountsUrl,
           apiKey: cfg.apiKey,
           accessToken,
         })
@@ -330,7 +330,7 @@ export function useConstructAuth() {
     }
 
     if (!result) {
-      const proxyUrl = `${cfg.apiBase}/oauth/construct/profile`
+      const proxyUrl = `${cfg.accountsUrl}/api/me`
       const response = await fetch(proxyUrl, {
         headers: {
           'X-Api-Key': cfg.apiKey,

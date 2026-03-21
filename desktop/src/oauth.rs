@@ -468,7 +468,7 @@ pub async fn construct_auth_exchange_code(
     api_key: String,
     body: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    let token_url = format!("{}/oauth/construct/token", normalize_api_base(&api_base));
+    let token_url = format!("{}/oauth/token", normalize_api_base(&api_base));
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
         .build()
@@ -505,7 +505,7 @@ pub async fn construct_auth_profile(
     api_key: String,
     access_token: String,
 ) -> Result<serde_json::Value, String> {
-    let profile_url = format!("{}/oauth/construct/profile", normalize_api_base(&api_base));
+    let profile_url = format!("{}/api/me", normalize_api_base(&api_base));
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
         .build()
