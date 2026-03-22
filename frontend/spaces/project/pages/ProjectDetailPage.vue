@@ -187,22 +187,7 @@ function getExtLabel(ext: string): string {
         </div>
       </div>
 
-      <!-- Spaces -->
-      <p class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Spaces</p>
-      <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <button
-          v-for="space in (project.spaces || [])"
-          :key="space"
-          class="flex items-start gap-3 p-4 rounded-lg bg-white/[0.02] hover:bg-white/[0.05] transition-colors cursor-pointer text-left"
-          @click="enterSpace(space)"
-        >
-          <i :class="[getSpace(space).icon, 'size-5 shrink-0 mt-0.5', getSpace(space).color]" />
-          <div>
-            <h3 class="text-sm font-bold text-[var(--app-foreground)] uppercase tracking-wide">{{ getSpace(space).label }}</h3>
-            <p class="text-xs text-[var(--app-muted)] mt-0.5">{{ getSpace(space).description }}</p>
-          </div>
-        </button>
-      </div>
+      <!-- Spaces removed — each space shows its own projects -->
     </div>
 
     <div v-else class="flex items-center justify-center h-full">
