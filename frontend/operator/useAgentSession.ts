@@ -302,16 +302,16 @@ export function useAgentSession() {
       .join('\n')
     if (!textContent.trim()) return
 
-    // Create turn
-    const turn: Turn = {
+    // Create turn and get the reactive proxy from the array
+    turns.value.push({
       id: nextTurnId(),
       request: requestBlocks,
       response: [],
       agentId,
       status: 'streaming',
       timestamp: Date.now(),
-    }
-    turns.value.push(turn)
+    })
+    const turn = turns.value[turns.value.length - 1]
 
     isLoading.value = true
     error.value = null
