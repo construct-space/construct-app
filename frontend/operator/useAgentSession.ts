@@ -347,9 +347,16 @@ export function useAgentSession() {
             }
           }
 
-          const hasText = turn.response.some(b => b.type === 'text')
-          if (!hasText && result.content) {
-            turn.response.push({ type: 'text', content: result.content })
+          // Append final content if it wasn't already streamed
+          if (result.content) {
+            const existingText = turn.response
+              .filter((b): b is TextBlock => b.type === 'text')
+              .map(b => b.content)
+              .join('')
+            // Only append if the result content isn't already present
+            if (!existingText.includes(result.content.slice(0, 50))) {
+              turn.response.push({ type: 'text', content: result.content })
+            }
           }
 
           const errMsg = (result as unknown as Record<string, unknown>).error as string | undefined
