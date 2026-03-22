@@ -183,6 +183,7 @@ declare global {
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
   const showContextMenu: typeof import('./composables/useNativeContextMenu')['showContextMenu']
+  const showOracle: typeof import('./composables/useOracle')['showOracle']
   const slugifyProjectToken: typeof import('./utils/projectRoutes')['slugifyProjectToken']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const syncRef: typeof import('@vueuse/core')['syncRef']
@@ -331,6 +332,7 @@ declare global {
   const useObjectUrl: typeof import('@vueuse/core')['useObjectUrl']
   const useOffsetPagination: typeof import('@vueuse/core')['useOffsetPagination']
   const useOnline: typeof import('@vueuse/core')['useOnline']
+  const useOracle: typeof import('./composables/useOracle')['useOracle']
   const usePageLeave: typeof import('@vueuse/core')['usePageLeave']
   const usePanelLayout: typeof import('./composables/usePanelLayout')['usePanelLayout']
   const usePanelResize: typeof import('./composables/usePanelResize')['usePanelResize']
@@ -741,6 +743,7 @@ declare module 'vue' {
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly showContextMenu: UnwrapRef<typeof import('./composables/useNativeContextMenu')['showContextMenu']>
+    readonly showOracle: UnwrapRef<typeof import('./composables/useOracle')['showOracle']>
     readonly slugifyProjectToken: UnwrapRef<typeof import('./utils/projectRoutes')['slugifyProjectToken']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
@@ -889,6 +892,7 @@ declare module 'vue' {
     readonly useObjectUrl: UnwrapRef<typeof import('@vueuse/core')['useObjectUrl']>
     readonly useOffsetPagination: UnwrapRef<typeof import('@vueuse/core')['useOffsetPagination']>
     readonly useOnline: UnwrapRef<typeof import('@vueuse/core')['useOnline']>
+    readonly useOracle: UnwrapRef<typeof import('./composables/useOracle')['useOracle']>
     readonly usePageLeave: UnwrapRef<typeof import('@vueuse/core')['usePageLeave']>
     readonly usePanelLayout: UnwrapRef<typeof import('./composables/usePanelLayout')['usePanelLayout']>
     readonly usePanelResize: UnwrapRef<typeof import('./composables/usePanelResize')['usePanelResize']>

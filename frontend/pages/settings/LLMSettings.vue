@@ -819,13 +819,13 @@ onMounted(async () => {
           </div>
 
           <!-- Disconnected / loading state -->
-          <div v-else class="flex items-center justify-between">
-            <div class="min-w-0">
+          <div v-else class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-[var(--app-foreground)]">{{ oauthProvider.name }}</p>
               <p class="text-xs text-[var(--app-muted)] mt-0.5">{{ oauthProvider.description }}</p>
             </div>
             <Button
-              class="shrink-0"
+              class="shrink-0 self-start"
               size="sm"
               label="Login"
               :loading="oauthLoading[oauthProvider.id]"

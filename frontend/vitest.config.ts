@@ -1,19 +1,19 @@
 import { resolve } from 'path'
+import { defineConfig } from 'vitest/config'
 
-export default {
+export default defineConfig({
   test: {
     environment: 'node',
     include: [
-      'src/**/*.test.ts',
-      'src/**/*.spec.ts',
-      'src/**/__tests__/**/*.test.ts',
-      'src/**/__tests__/**/*.spec.ts',
+      'frontend/**/*.test.ts',
+      'frontend/**/*.spec.ts',
     ],
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
-      '~': resolve(__dirname, 'src'),
+      '@construct/sdk': resolve(__dirname, 'lib/constructSdk.ts'),
+      '@': resolve(__dirname, '.'),
+      '~': resolve(__dirname, '.'),
     },
   },
-}
+})
