@@ -30,8 +30,13 @@ After each answer, ask the next question. Questions should cover:
 3. Key features / scope for MVP
 4. Any specific requirements (real-time, offline, auth, etc.)
 
-Keep questions short and offer 3-4 options when possible. Example:
-"What platform? Web (browser), Mobile (iOS/Android), Desktop, or CLI?"
+Keep questions short. When offering choices, ALWAYS use this bullet format (the UI renders them as clickable buttons):
+
+- Option A — description
+- Option B — description
+- Option C — description
+
+NEVER list options inline like "X, Y, or Z?". Always use the bullet format above.
 
 Don't ask unnecessary questions. If the user said "a Flutter game" — platform and stack are already decided.
 
