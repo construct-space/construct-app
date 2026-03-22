@@ -438,14 +438,20 @@ func resolvePath(workDir, path string) string {
 	return filepath.Join(workDir, path)
 }
 
-// guardPath ensures the resolved path is within the project directory.
-// Returns the cleaned path or an error if it escapes the sandbox.
+// guardPath ensures the resolved path is within the project directory or ConstructProjects.
 func guardPath(workDir, path string) (string, error) {
 	resolved := resolvePath(workDir, path)
 	cleaned := filepath.Clean(resolved)
+	// Allow paths inside ~/ConstructProjects (where Architect writes docs)
+	if home, err := os.UserHomeDir(); err == nil {
+		projectsRoot := filepath.Join(home, "ConstructProjects")
+		if strings.HasPrefix(cleaned, projectsRoot+string(filepath.Separator)) || cleaned == projectsRoot {
+			return cleaned, nil
+		}
+	}
 	root := filepath.Clean(workDir)
 	if root == "" {
-		return cleaned, nil // no sandbox if no workdir
+		return cleaned, nil
 	}
 	if !strings.HasPrefix(cleaned, root+string(filepath.Separator)) && cleaned != root {
 		return "", fmt.Errorf("path %q is outside project directory %q", path, root)
