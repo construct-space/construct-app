@@ -471,33 +471,34 @@ export function useArchitectEngine(options: ArchitectEngineOptions = {}) {
 
     if (signal?.aborted) throw new Error('Cancelled')
 
-    // Use streaming dispatch to avoid blocking the UI thread
+    // Use plain chat stream (no tools) for questions/plan/clarify/review.
+    // The agent should return JSON text, not call tools.
     let content = ''
     let reportedStreaming = false
-    await dispatchAgentTask(runtimeAgentId, task, signal, (chunk: StreamEvent) => {
-      const statusMessage = extractStatusMessage(chunk)
-      if (statusMessage) {
-        onStatus?.(statusMessage)
-      } else {
-        const toolTitle = extractToolTitle(chunk)
-        if (toolTitle) onStatus?.(toolTitle)
-      }
+    await new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) { reject(new Error('Cancelled')); return }
+      let settled = false
+      const finish = (cb: () => void) => { if (!settled) { settled = true; cb() } }
+      const handleAbort = () => finish(() => reject(new Error('Cancelled')))
+      signal?.addEventListener('abort', handleAbort, { once: true })
 
-      // Accumulate text from all possible locations in the stream event
-      const text = extractChunkText(chunk)
-      if (text) {
-        content += text
-        if (!reportedStreaming) {
-          onStatus?.(getStreamingStatusLabel(mode))
-          reportedStreaming = true
-        }
-      }
-
-      // Also check for tool results that contain JSON (model may use write_file with our JSON)
-      const toolResult = (chunk.data as Record<string, unknown>)?.result as string
-      if (toolResult && !content.trim() && (toolResult.startsWith('[') || toolResult.startsWith('{'))) {
-        content += toolResult
-      }
+      operator.chatStream(
+        task,
+        (chunk: StreamEvent) => {
+          if (signal?.aborted) return
+          const text = extractChunkText(chunk)
+          if (text) {
+            content += text
+            if (!reportedStreaming) {
+              onStatus?.(getStreamingStatusLabel(mode))
+              reportedStreaming = true
+            }
+          }
+        },
+        () => finish(resolve),
+        (err: string) => finish(() => reject(new Error(err))),
+        selectedModel.value,
+      ).catch((err) => finish(() => reject(err instanceof Error ? err : new Error(String(err)))))
     })
 
     if (signal?.aborted) throw new Error('Cancelled')
