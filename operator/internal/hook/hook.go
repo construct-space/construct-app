@@ -16,6 +16,21 @@ import (
 	"time"
 )
 
+func constructProjectsRoot() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, "ConstructProjects")
+	}
+	return ""
+}
+
+func isInsideProjectsRoot(path string) bool {
+	root := constructProjectsRoot()
+	if root == "" {
+		return false
+	}
+	return strings.HasPrefix(path, root+string(filepath.Separator)) || path == root
+}
+
 // Context key for agent ID propagation through hooks.
 type ctxKey string
 
@@ -478,11 +493,8 @@ func RegisterSafetyHooks(reg *Registry, getProjectRoot ProjectRootFunc) {
 			}
 			resolved = filepath.Clean(resolved)
 			// Allow writes inside ~/ConstructProjects
-			if h, e := os.UserHomeDir(); e == nil {
-				cp := filepath.Join(h, "ConstructProjects")
-				if strings.HasPrefix(resolved, cp+string(filepath.Separator)) {
-					return false, ""
-				}
+			if isInsideProjectsRoot(resolved) {
+				return false, ""
 			}
 			root = filepath.Clean(root)
 			if !strings.HasPrefix(resolved, root+string(filepath.Separator)) && resolved != root {
@@ -542,9 +554,7 @@ func RegisterSafetyHooks(reg *Registry, getProjectRoot ProjectRootFunc) {
 			cmd := params.Command
 			// Block explicit absolute paths outside project root
 			// Allow: /usr/bin/*, /tmp/*, /dev/null, and the project root itself
-			home, _ := os.UserHomeDir()
-			constructProjects := filepath.Join(home, "ConstructProjects")
-			allowedPrefixes := []string{root, constructProjects, "/usr/", "/bin/", "/tmp/", "/dev/", "/opt/homebrew/"}
+			allowedPrefixes := []string{root, constructProjectsRoot(), "/usr/", "/bin/", "/tmp/", "/dev/", "/opt/homebrew/"}
 			words := strings.Fields(cmd)
 			for _, word := range words {
 				if strings.HasPrefix(word, "/") && !strings.HasPrefix(word, "//") {

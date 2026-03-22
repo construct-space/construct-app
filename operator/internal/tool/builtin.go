@@ -438,16 +438,29 @@ func resolvePath(workDir, path string) string {
 	return filepath.Join(workDir, path)
 }
 
-// guardPath ensures the resolved path is within the project directory or ConstructProjects.
+// constructProjectsRoot returns ~/ConstructProjects — the default projects directory.
+func constructProjectsRoot() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, "ConstructProjects")
+	}
+	return ""
+}
+
+// isInsideProjectsRoot checks if a path is inside ~/ConstructProjects.
+func isInsideProjectsRoot(path string) bool {
+	root := constructProjectsRoot()
+	if root == "" {
+		return false
+	}
+	return strings.HasPrefix(path, root+string(filepath.Separator)) || path == root
+}
+
+// guardPath ensures the resolved path is within the project directory or ~/ConstructProjects.
 func guardPath(workDir, path string) (string, error) {
 	resolved := resolvePath(workDir, path)
 	cleaned := filepath.Clean(resolved)
-	// Allow paths inside ~/ConstructProjects (where Architect writes docs)
-	if home, err := os.UserHomeDir(); err == nil {
-		projectsRoot := filepath.Join(home, "ConstructProjects")
-		if strings.HasPrefix(cleaned, projectsRoot+string(filepath.Separator)) || cleaned == projectsRoot {
-			return cleaned, nil
-		}
+	if isInsideProjectsRoot(cleaned) {
+		return cleaned, nil
 	}
 	root := filepath.Clean(workDir)
 	if root == "" {
