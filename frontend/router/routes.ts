@@ -145,8 +145,12 @@ export const routes: RouteRecordRaw[] = [
         ],
       },
 
-      // ===== Architect (native host page) =====
-      // /app/architect — company-scoped architect (new project mode)
+      // ===== Core spaces (native host pages) =====
+      {
+        path: 'brainstorm',
+        name: 'brainstorm',
+        component: () => import('@/spaces/brainstorm/pages/BrainstormPage.vue'),
+      },
       {
         path: 'architect',
         name: 'architect',
@@ -161,7 +165,7 @@ export const routes: RouteRecordRaw[] = [
       // ===== Dynamic space routes (company-scoped) =====
       // Remaining spaces (code, design, kanban, etc.) go through DynamicSpacePage.
       // SpaceLoader handles dev (Vite import) vs prod (IIFE bundle) loading.
-      // NOTE: "projects" and "architect" are native pages above, so :spaceName won't catch them.
+      // NOTE: "projects", "brainstorm", "architect", "vibe" are native pages above.
       {
         path: ':spaceName',
         component: () => import('@/layouts/SpaceLayout.vue'),
