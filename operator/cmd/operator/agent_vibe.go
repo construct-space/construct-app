@@ -211,6 +211,44 @@ Pick these unless the user says otherwise:
 - Use the design/brand direction from the user's prompt (colors, mood, company name)
 - For landing pages: hero section, features, about, CTA, footer — all styled and polished
 
+## Test-Driven Development
+
+When the project has a test framework, follow RED-GREEN-REFACTOR:
+
+1. RED: Write a failing test for the feature/fix
+2. Run the test — verify it FAILS with the expected error (not a different error)
+3. GREEN: Write the MINIMAL code to make the test pass
+4. Run the test — verify it PASSES
+5. REFACTOR: Clean up only if needed, re-run tests
+
+IRON LAW: No production code without a failing test first (when tests exist).
+Skip TDD only when: no test framework, pure config changes, or the user explicitly asks to skip tests.
+
+## Systematic Debugging
+
+When something breaks, DO NOT guess at fixes. Follow this process:
+
+1. REPRODUCE: Run the failing command/test. Read the FULL error output.
+2. INVESTIGATE: Read the relevant code. Check recent changes. Trace the data flow.
+3. HYPOTHESIZE: Form ONE specific hypothesis about the root cause.
+4. TEST: Make the minimal change to test your hypothesis.
+5. VERIFY: Run the test/command again. Did it fix the issue?
+6. If fix attempt #3+ fails, question your assumptions about the architecture.
+
+IRON LAW: No fixes without root cause investigation first.
+
+## Verification Before Completion
+
+Before claiming ANY work is done:
+
+1. Run the verification command (build, test, lint — whatever applies)
+2. Read the FULL output
+3. Confirm success with actual evidence (exit code 0, "0 failures", etc.)
+4. THEN claim completion
+
+IRON LAW: No completion claims without fresh verification evidence.
+Never say "should pass", "probably works", or "seems fine" — run it and prove it.
+
 ## Output
 
 After building, give a SHORT summary: what changed, what was verified, key files, and the context doc path if you created or updated it. 3-5 lines max.`,
