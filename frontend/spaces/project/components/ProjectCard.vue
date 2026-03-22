@@ -109,7 +109,7 @@ function timeAgo(dateStr: string): string {
       </div>
     </div>
     <div class="flex items-center justify-between text-xs text-[var(--app-muted)]">
-      <span>{{ timeAgo(project.last_opened_at) }}</span>
+      <span v-if="project.last_opened_at">{{ timeAgo(project.last_opened_at) }}</span>
       <div class="flex items-center gap-2">
         <span
           v-if="deployed"
@@ -118,10 +118,7 @@ function timeAgo(dateStr: string): string {
           <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Live
         </span>
-        <div class="flex items-center gap-1">
-          <Icon v-if="project.is_external" name="i-lucide-external-link" class="size-3 opacity-60" />
-          <span>{{ (project.spaces || []).length }} spaces</span>
-        </div>
+        <Icon v-if="project.is_external" name="i-lucide-external-link" class="size-3 opacity-60" />
       </div>
     </div>
   </div>
