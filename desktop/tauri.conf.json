@@ -77,7 +77,8 @@
     "macOS": {
       "minimumSystemVersion": "10.15",
       "frameworks": [],
-      "entitlements": null
+      "entitlements": null,
+      "infoPlist": "Info.plist"
     },
     "windows": {
       "certificateThumbprint": null,

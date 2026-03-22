@@ -25,11 +25,26 @@ const isDragOver = ref(false)
 const isRecording = ref(false)
 let recognition: any = null
 
-function toggleMic() {
+async function toggleMic() {
   if (isRecording.value) {
     recognition?.stop()
     isRecording.value = false
     return
+  }
+
+  // Check microphone permission first — prevents native TCC crash on macOS
+  // when Info.plist isn't embedded (dev builds without .app bundle)
+  try {
+    const micPermission = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+    if (micPermission.state === 'denied') return
+  } catch {
+    // permissions.query not supported — try getUserMedia as fallback
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop())
+    } catch {
+      return // no mic access
+    }
   }
 
   const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
