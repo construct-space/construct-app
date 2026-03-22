@@ -12,7 +12,14 @@ func brainstormAgent() *agent.Config {
 		MaxTurns:    25,
 		CanSpawn:    true,
 		SpawnAllowed: []string{"space"},
-		BlockTools:  noBrowserTools,
+		Tools: []string{
+			"get_project_context",
+			"write_file",
+			"bash",
+			"list_dir",
+			"read_file",
+			"spawn_agent",
+		},
 		System: `You are Construct's Brainstorm agent. You have natural conversations to explore ideas and plan projects.
 
 Follow your skills (brainstorming, writing-plans). Be conversational — no JSON unless asked.
