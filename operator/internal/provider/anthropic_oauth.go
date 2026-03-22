@@ -508,6 +508,7 @@ func (p *AnthropicOAuthProvider) readSSE(body io.ReadCloser, ch chan<- StreamEve
 
 	var currentToolCall *ToolCall
 	var toolCalls []ToolCall
+	var contentAccum strings.Builder
 
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
@@ -547,6 +548,7 @@ func (p *AnthropicOAuthProvider) readSSE(body io.ReadCloser, ch chan<- StreamEve
 				dt, _ := delta["type"].(string)
 				if dt == "text_delta" {
 					text, _ := delta["text"].(string)
+					contentAccum.WriteString(text)
 					ch <- StreamEvent{Type: "text_delta", Text: text}
 				} else if dt == "input_json_delta" && currentToolCall != nil {
 					partial, _ := delta["partial_json"].(string)
@@ -561,7 +563,7 @@ func (p *AnthropicOAuthProvider) readSSE(body io.ReadCloser, ch chan<- StreamEve
 			}
 
 		case "message_stop":
-			resp := &Response{}
+			resp := &Response{Content: contentAccum.String()}
 			for _, tc := range toolCalls {
 				resp.ToolCalls = append(resp.ToolCalls, tc)
 			}
