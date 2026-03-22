@@ -33,20 +33,24 @@ func RegisterSpaceCLITools(r *Registry, getWorkDir WorkDirFunc) {
 
 // devSpaceDataDir returns the Construct DEV data directory.
 func devSpaceDataDir() string {
+	// If operator knows its data dir (set by Tauri), use that
+	if dir := os.Getenv("CONSTRUCT_DATA_DIR"); dir != "" {
+		return dir
+	}
 	home, _ := os.UserHomeDir()
 	switch runtime.GOOS {
 	case "darwin":
-		return filepath.Join(home, "Library", "Application Support", "space.construct.personal.dev")
+		return filepath.Join(home, "Library", "Application Support", "Construct")
 	case "windows":
 		if appData := os.Getenv("APPDATA"); appData != "" {
-			return filepath.Join(appData, "Construct Dev")
+			return filepath.Join(appData, "Construct")
 		}
-		return filepath.Join(home, "AppData", "Roaming", "Construct Dev")
+		return filepath.Join(home, "AppData", "Roaming", "Construct")
 	default:
 		if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
-			return filepath.Join(xdg, "construct-dev")
+			return filepath.Join(xdg, "construct")
 		}
-		return filepath.Join(home, ".local", "share", "construct-dev")
+		return filepath.Join(home, ".local", "share", "construct")
 	}
 }
 
