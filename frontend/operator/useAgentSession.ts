@@ -252,10 +252,16 @@ export function useAgentSession() {
 
     // Tool result — update existing tool block
     if (type === StreamType.ToolResult) {
-      const callId = data.call_id as string
-      const toolBlock = turn.response.find(
-        (b): b is ToolBlock => b.type === 'tool' && b.callId === callId,
-      )
+      const callId = (data.call_id as string) || ''
+      let toolBlock = callId
+        ? turn.response.find((b): b is ToolBlock => b.type === 'tool' && b.callId === callId)
+        : undefined
+      // Fallback: match last running tool if callId doesn't match
+      if (!toolBlock) {
+        toolBlock = [...turn.response].reverse().find(
+          (b): b is ToolBlock => b.type === 'tool' && b.state === 'running',
+        ) as ToolBlock | undefined
+      }
       if (toolBlock) {
         toolBlock.state = (data.is_error as boolean) ? 'error' : 'done'
         toolBlock.title = (data.title as string) || toolBlock.title
@@ -333,6 +339,13 @@ export function useAgentSession() {
           turn.status = 'done'
           turn.agentId = result.agent_id || turn.agentId
           turn.turns = result.turns
+
+          // Mark any remaining running tool blocks as done
+          for (const block of turn.response) {
+            if (block.type === 'tool' && (block as ToolBlock).state === 'running') {
+              (block as ToolBlock).state = 'done'
+            }
+          }
 
           const hasText = turn.response.some(b => b.type === 'text')
           if (!hasText && result.content) {
