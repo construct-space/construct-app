@@ -324,23 +324,7 @@ export function useArchitectEngine(options: ArchitectEngineOptions = {}) {
     ].join('\n')
   }
 
-  async function persistPlanSnapshot(projectPath: string) {
-    if (!plan.value || !projectPath.trim() || isBrainstormMode) return
-
-    try {
-      const tauriFs = await import('@tauri-apps/plugin-fs')
-      const docsPath = `${projectPath.replace(/\/+$/g, '')}/docs`
-      const docsExist = await tauriFs.exists(docsPath)
-      if (!docsExist) {
-        await tauriFs.mkdir(docsPath, { recursive: true })
-      }
-
-      await tauriFs.writeTextFile(`${docsPath}/00-plan.md`, buildPlanSnapshotMarkdown(plan.value))
-      await tauriFs.writeTextFile(`${docsPath}/00-plan.json`, JSON.stringify(plan.value, null, 2))
-    } catch (error) {
-      console.warn('[Architect] Failed to persist plan snapshot:', error)
-    }
-  }
+  // Plan snapshot removed — generateDocs writes proper docs instead
 
   async function dispatchAgentTask(
     agentId: string,
@@ -828,7 +812,7 @@ export function useArchitectEngine(options: ArchitectEngineOptions = {}) {
     ], 3000)
 
     try {
-      await persistPlanSnapshot(projectPath)
+      // persistPlanSnapshot removed — docs are the real output
 
       const planInput = buildArchitectPlanInput(getPromptDescription(), questions.value, answers.value)
       const interviewAnswers = Object.entries(planInput.answers)
