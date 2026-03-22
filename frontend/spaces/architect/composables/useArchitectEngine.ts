@@ -208,19 +208,22 @@ export function useArchitectEngine() {
 
     if (mode === 'questions') {
       task = [
-        'Generate interview questions for this project description.',
-        'Output ONLY a JSON array of questions, no other text.',
-        'Each question: {id, label, description, type: "single"|"multi", options: [{value, label, icon?, description?}]}',
-        'If the description sounds like a Construct space/plugin, ask only the space-specific questions needed for that workflow.',
+        'Generate 3-5 interview questions for this project.',
+        'IMPORTANT: Output ONLY a raw JSON array — no markdown, no code fences, no tool calls, no prose.',
+        'Each question: {id, question, type: "single"|"multi", options: [{value, label, icon?, description?}]}',
+        'Only ask questions that materially change the architecture. Skip obvious defaults.',
+        'Do NOT assume this is a Construct space unless the user explicitly says "space" or "plugin".',
         `\nDescription: ${scopedDescription}`,
       ].join('\n')
     } else if (mode === 'plan') {
       const planInput = buildArchitectPlanInput(scopedDescription, questions.value, answers.value)
       task = [
-        'Generate a project plan based on these decisions.',
-        'Output ONLY a JSON object.',
-        'For regular projects use: {name, description, stack: {layer: tech}, features: [], files: [{path, description}], phases: [{name, tasks: []}]}',
-        'For Construct spaces use: {name, description, type: "construct-space", spaceId: "my-space", spaceIcon?: "i-lucide-puzzle", spaceScope?: "project"|"app"|"both", decisions, stack, features, files, phases}',
+        'Generate a detailed implementation plan.',
+        'IMPORTANT: Output ONLY a raw JSON object — no markdown, no code fences, no tool calls, no prose.',
+        'Format: {name, description, stack, features: [{name, description, priority}], files: [paths],',
+        '  tasks: [{id, title, description, files: {create: [], modify: [], test: []},',
+        '    steps: ["step 1", "step 2"], depends: [], verification: "cmd", commit: "msg"}]}',
+        'Each task should take 2-10 minutes. Include exact file paths and verification commands.',
         `\nProject: ${planInput.description}`,
         `\nDecisions:\n${planInput.answers}`,
       ].join('\n')
@@ -229,13 +232,15 @@ export function useArchitectEngine() {
         'The user is asking for clarification about a question during project planning.',
         `Question: ${JSON.stringify(options?.currentQuestion)}`,
         `User asks: ${options?.clarification}`,
-        'Output a JSON object: {answer: "your helpful clarification", keepQuestion: true}',
+        'Output ONLY a raw JSON object: {answer: "your helpful clarification", keepQuestion: true}',
+        'No markdown, no tool calls.',
       ].join('\n')
     } else {
       // review
       task = [
         'Review this project plan for issues.',
-        'Output a JSON object: {issues: [{severity, area, problem, suggestion}]}',
+        'Output ONLY a raw JSON object: {issues: [{severity, area, problem, suggestion}]}',
+        'No markdown, no tool calls.',
         `\nPlan:\n${options?.planJson}`,
       ].join('\n')
     }
