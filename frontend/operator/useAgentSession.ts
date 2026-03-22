@@ -276,8 +276,18 @@ export function useAgentSession() {
 
   // ─── Send ───
 
-  async function send(requestBlocks: RequestBlock[]): Promise<void> {
+  async function send(
+    requestBlocks: RequestBlock[],
+    options?: {
+      agentId?: string
+      model?: string
+      space?: string
+      projectPath?: string
+    },
+  ): Promise<void> {
     if (isLoading.value) return
+
+    const agentId = options?.agentId || selectedAgent.value
 
     // Extract text from request blocks
     const textContent = requestBlocks
@@ -291,7 +301,7 @@ export function useAgentSession() {
       id: nextTurnId(),
       request: requestBlocks,
       response: [],
-      agentId: selectedAgent.value,
+      agentId,
       status: 'streaming',
       timestamp: Date.now(),
     }
@@ -315,7 +325,7 @@ export function useAgentSession() {
 
     try {
       unlisten = await operator.dispatchStream(
-        selectedAgent.value,
+        agentId,
         task,
         (chunk) => handleStreamChunk(turn, chunk),
         (result) => {
@@ -350,8 +360,8 @@ export function useAgentSession() {
           triggerRef(turns)
           if (unlisten) { unlisten(); unlisten = null }
         },
-        effectiveModel.value,
-        undefined,
+        options?.model || effectiveModel.value,
+        options?.projectPath ? { projectPath: options.projectPath } : undefined,
         (requestId) => {
           activeRequestId = requestId
         },
@@ -360,9 +370,9 @@ export function useAgentSession() {
       // Streaming not available — fall back to sync
       try {
         const result: DispatchResult = await operator.dispatch(
-          selectedAgent.value,
+          agentId,
           task,
-          effectiveModel.value,
+          options?.model || effectiveModel.value,
         )
         turn.response.push({ type: 'text', content: result.content })
         turn.status = 'done'
