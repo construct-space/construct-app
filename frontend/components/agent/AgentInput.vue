@@ -36,7 +36,7 @@ async function toggleMic() {
     return
   }
 
-  // Acquire mic first — triggers permission prompt, keeps stream alive for SpeechRecognition
+  // Acquire mic — triggers OS permission prompt
   try {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
   } catch {

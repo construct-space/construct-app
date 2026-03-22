@@ -6,7 +6,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run operator:build && cargo tauri dev --runner \"$PWD/scripts/dev-runner.sh\"",
+    "dev": "bun run operator:build && cargo tauri dev",
     "dev:frontend": "vite --config frontend/vite.config.ts",
     "dev:devmode": "bun run operator:build && VITE_CONSTRUCT_DEV_MODE=true cargo tauri dev --config desktop/tauri.devmode.conf.json",
     "build": "bun run operator:build && cargo tauri build",
