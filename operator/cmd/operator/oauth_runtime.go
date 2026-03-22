@@ -33,7 +33,7 @@ var oauthProviderDescriptors = map[string]oauthProviderDescriptor{
 	"github-copilot": {
 		ID:        "github-copilot",
 		Name:      "GitHub Copilot",
-		Models:    []string{"claude-sonnet-4", "gpt-5.4", "gpt-4.1", "o3", "gemini-2.5-pro", "gemini-2.5-flash"},
+		Models:    []string{"gpt-5-mini", "gpt-4.1", "gpt-4o", "claude-haiku-4.5", "claude-sonnet-4.6", "claude-opus-4.6"},
 		RuntimeID: "github-copilot",
 	},
 	"google-gemini-cli": {

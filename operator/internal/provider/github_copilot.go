@@ -43,12 +43,12 @@ type GitHubCopilotOAuthProvider struct {
 func NewGitHubCopilotOAuth(cfg GitHubCopilotOAuthConfig) *GitHubCopilotOAuthProvider {
 	if len(cfg.Models) == 0 {
 		cfg.Models = []string{
-			"claude-sonnet-4",
-			"gpt-5.4",
+			"gpt-5-mini",
 			"gpt-4.1",
-			"o3",
-			"gemini-2.5-pro",
-			"gemini-2.5-flash",
+			"gpt-4o",
+			"claude-haiku-4.5",
+			"claude-sonnet-4.6",
+			"claude-opus-4.6",
 		}
 	}
 	if cfg.ExpiresAt.IsZero() {
