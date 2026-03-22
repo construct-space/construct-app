@@ -25,30 +25,30 @@ const isDragOver = ref(false)
 const isRecording = ref(false)
 let recognition: any = null
 
+let micStream: MediaStream | null = null
+
 async function toggleMic() {
   if (isRecording.value) {
     recognition?.stop()
+    micStream?.getTracks().forEach(t => t.stop())
+    micStream = null
     isRecording.value = false
     return
   }
 
-  // Check microphone permission first — prevents native TCC crash on macOS
-  // when Info.plist isn't embedded (dev builds without .app bundle)
+  // Acquire mic first — triggers permission prompt, keeps stream alive for SpeechRecognition
   try {
-    const micPermission = await navigator.permissions.query({ name: 'microphone' as PermissionName })
-    if (micPermission.state === 'denied') return
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
   } catch {
-    // permissions.query not supported — try getUserMedia as fallback
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach(t => t.stop())
-    } catch {
-      return // no mic access
-    }
+    return
   }
 
   const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-  if (!SpeechRecognition) return
+  if (!SpeechRecognition) {
+    micStream.getTracks().forEach(t => t.stop())
+    micStream = null
+    return
+  }
 
   recognition = new SpeechRecognition()
   recognition.continuous = false
@@ -61,8 +61,16 @@ async function toggleMic() {
       .join('')
     input.value = transcript
   }
-  recognition.onend = () => { isRecording.value = false }
-  recognition.onerror = () => { isRecording.value = false }
+  recognition.onend = () => {
+    isRecording.value = false
+    micStream?.getTracks().forEach(t => t.stop())
+    micStream = null
+  }
+  recognition.onerror = () => {
+    isRecording.value = false
+    micStream?.getTracks().forEach(t => t.stop())
+    micStream = null
+  }
 
   recognition.start()
   isRecording.value = true
