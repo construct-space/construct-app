@@ -60,6 +60,36 @@ const displayMessages = computed(() => {
   return msgs
 })
 
+// Interleave messages + progress updates into one stream
+interface StreamItem {
+  id: string
+  type: 'user' | 'assistant' | 'status'
+  content: string
+}
+
+const streamedItems = computed<StreamItem[]>(() => {
+  const items: StreamItem[] = []
+
+  for (const msg of displayMessages.value) {
+    items.push({
+      id: msg.id,
+      type: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.content,
+    })
+  }
+
+  // Append progress updates as inline status items
+  for (const update of props.progressUpdates) {
+    items.push({
+      id: `progress-${update.id}`,
+      type: 'status',
+      content: update.headline + (update.detail ? ` — ${update.detail}` : ''),
+    })
+  }
+
+  return items
+})
+
 // Status text
 const liveStatus = computed(() => {
   const update = props.statusUpdate.trim()
@@ -70,12 +100,12 @@ const liveStatus = computed(() => {
   return ''
 })
 
-// Auto-scroll on new content
+// Auto-scroll on new content (messages + progress + text streaming)
 watch(
   () => {
-    const len = displayMessages.value.length
-    const last = displayMessages.value[len - 1]
-    return `${len}-${last?.content.length || 0}-${props.progressUpdates.length}`
+    const items = streamedItems.value
+    const last = items[items.length - 1]
+    return `${items.length}-${last?.content.length || 0}`
   },
   () => {
     nextTick(() => {
@@ -112,30 +142,27 @@ watch(
         </div>
       </template>
 
-      <!-- Messages (text only — tools are in the right panel) -->
-      <template v-for="msg in displayMessages" :key="msg.id">
+      <!-- Interleaved messages + progress — everything streams in order -->
+      <template v-for="item in streamedItems" :key="item.id">
         <!-- User message -->
-        <div v-if="msg.role === 'user'" class="flex justify-end">
+        <div v-if="item.type === 'user'" class="flex justify-end">
           <div class="rounded-2xl bg-app-accent/15 text-app px-4 py-2 text-sm max-w-[80%]">
-            {{ msg.content }}
+            {{ item.content }}
           </div>
         </div>
 
-        <!-- Assistant narration -->
-        <div v-else class="text-sm leading-relaxed prose prose-sm prose-invert max-w-none" v-html="renderMarkdown(msg.content)" />
+        <!-- Assistant narration (markdown) -->
+        <div v-else-if="item.type === 'assistant'" class="text-sm leading-relaxed prose prose-sm prose-invert max-w-none" v-html="renderMarkdown(item.content)" />
+
+        <!-- Progress/status update (streams inline) -->
+        <div v-else-if="item.type === 'status'" class="flex items-start gap-2 text-xs text-app-muted/70 py-0.5">
+          <span class="size-1.5 rounded-full bg-[#00ff41]/60 mt-1 shrink-0" />
+          <span>{{ item.content }}</span>
+        </div>
       </template>
 
-      <!-- Live progress -->
-      <div v-for="update in progressUpdates" :key="update.id" class="flex items-start gap-2 text-sm text-app-muted py-1">
-        <span class="size-1.5 rounded-full bg-[#00ff41] animate-pulse mt-1.5 shrink-0" />
-        <div>
-          <span>{{ update.headline }}</span>
-          <span v-if="update.detail" class="text-app-muted/60 ml-1">{{ update.detail }}</span>
-        </div>
-      </div>
-
-      <!-- Working indicator -->
-      <div v-if="isWorking && displayMessages.length > 0" class="flex items-center gap-2 text-xs text-app-muted py-1">
+      <!-- Live working indicator -->
+      <div v-if="isWorking" class="flex items-center gap-2 text-xs text-app-muted py-1">
         <span class="size-1.5 rounded-full bg-[#00ff41] animate-pulse" />
         <span>{{ liveStatus }}</span>
       </div>
