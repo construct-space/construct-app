@@ -272,13 +272,22 @@ interface ProviderKeyConfig {
 const providers: ProviderKeyConfig[] = [
   { id: 'anthropic', name: 'Anthropic', description: 'Claude models (Opus, Sonnet, Haiku)', placeholder: 'sk-ant-...', kvKey: 'provider_key:anthropic' },
   { id: 'openai', name: 'OpenAI', description: 'GPT-4o, o1, o3 models', placeholder: 'sk-...', kvKey: 'provider_key:openai' },
+  { id: 'google', name: 'Google AI', description: 'Gemini 2.5 Pro/Flash models', placeholder: 'AIza...', kvKey: 'provider_key:google' },
   { id: 'freepik', name: 'Freepik', description: 'Image gen, video, editing, audio (Mystic, Flux, Kling)', placeholder: 'fpk-...', kvKey: 'provider_key:freepik' },
   { id: 'deepseek', name: 'DeepSeek', description: 'DeepSeek V3/R1 models', placeholder: 'sk-...', kvKey: 'provider_key:deepseek' },
   { id: 'xai', name: 'xAI (Grok)', description: 'Grok models', placeholder: 'xai-...', kvKey: 'provider_key:xai' },
   { id: 'openrouter', name: 'OpenRouter', description: 'Access 600+ models from multiple providers', placeholder: 'sk-or-...', kvKey: 'provider_key:openrouter' },
+  { id: 'mistral', name: 'Mistral', description: 'Mistral Large, Medium, Small models', placeholder: 'API key', kvKey: 'provider_key:mistral' },
   { id: 'zai', name: 'Z.AI', description: 'GLM / CogView models', placeholder: 'API key', kvKey: 'provider_key:zai' },
   { id: 'mimo', name: 'Xiaomi MiMo', description: 'MiMo reasoning model', placeholder: 'API key', kvKey: 'provider_key:mimo' },
   { id: 'kimi', name: 'Kimi (Moonshot)', description: 'Moonshot AI models', placeholder: 'API key', kvKey: 'provider_key:kimi' },
+]
+
+const oauthProviders = [
+  { id: 'anthropic', name: 'Claude Pro/Max', description: 'Direct login with your Anthropic account', connected: false },
+  { id: 'openai-codex', name: 'ChatGPT Plus/Pro', description: 'Direct login with your OpenAI account', connected: false },
+  { id: 'github-copilot', name: 'GitHub Copilot', description: 'Claude, GPT, Gemini via GitHub Copilot subscription', connected: false },
+  { id: 'google-gemini-cli', name: 'Google Gemini', description: 'Gemini models via Google Cloud Code Assist', connected: false },
 ]
 
 const apiKeys = ref<Record<string, string>>({})
@@ -665,82 +674,20 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-    <!-- Claude Pro/Max Direct OAuth -->
-    <div>
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Claude Pro/Max (Direct Login)</h3>
-          <p class="text-xs text-[var(--app-muted)]">Sign in with your Anthropic account directly</p>
-        </div>
-        <span class="px-2 py-0.5 text-xs rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">Coming Soon</span>
-      </div>
-      <div class="p-4 rounded-lg border border-[var(--app-border)]">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-[var(--app-foreground)]">Login with Anthropic OAuth</p>
-            <p class="text-xs text-[var(--app-muted)] mt-1">Opens browser to authenticate with claude.ai</p>
-          </div>
-          <Button disabled label="Login" />
-        </div>
-      </div>
-    </div>
+    <!-- Additional OAuth Providers -->
+    <div class="border-t border-[var(--app-border)] pt-6 mt-2">
+      <h3 class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Direct OAuth Login</h3>
+      <p class="text-xs text-[var(--app-muted)] mb-4">Login directly with your subscription — no CLI required. Opens browser to authenticate.</p>
 
-    <!-- ChatGPT Pro Direct OAuth -->
-    <div>
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">ChatGPT Plus/Pro (Direct Login)</h3>
-          <p class="text-xs text-[var(--app-muted)]">Sign in with your OpenAI account directly</p>
-        </div>
-        <span class="px-2 py-0.5 text-xs rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">Coming Soon</span>
-      </div>
-      <div class="p-4 rounded-lg border border-[var(--app-border)]">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-[var(--app-foreground)]">Login with OpenAI OAuth</p>
-            <p class="text-xs text-[var(--app-muted)] mt-1">Opens browser to authenticate with chatgpt.com</p>
+      <div class="space-y-3">
+        <div v-for="oauthProvider in oauthProviders" :key="oauthProvider.id" class="p-4 rounded-lg border border-[var(--app-border)]">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-[var(--app-foreground)]">{{ oauthProvider.name }}</p>
+              <p class="text-xs text-[var(--app-muted)] mt-0.5">{{ oauthProvider.description }}</p>
+            </div>
+            <Button size="sm" :label="oauthProvider.connected ? 'Connected' : 'Login'" :disabled="oauthProvider.connected" />
           </div>
-          <Button disabled label="Login" />
-        </div>
-      </div>
-    </div>
-
-    <!-- GitHub Copilot -->
-    <div>
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">GitHub Copilot</h3>
-          <p class="text-xs text-[var(--app-muted)]">Use GitHub Copilot models (Claude, GPT, Gemini via Copilot)</p>
-        </div>
-        <span class="px-2 py-0.5 text-xs rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">Coming Soon</span>
-      </div>
-      <div class="p-4 rounded-lg border border-[var(--app-border)]">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-[var(--app-foreground)]">Login with GitHub device code</p>
-            <p class="text-xs text-[var(--app-muted)] mt-1">Enter a code on github.com to authenticate</p>
-          </div>
-          <Button disabled label="Login" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Google Gemini -->
-    <div>
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Google Gemini CLI</h3>
-          <p class="text-xs text-[var(--app-muted)]">Use Gemini models via Google Cloud Code Assist</p>
-        </div>
-        <span class="px-2 py-0.5 text-xs rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">Coming Soon</span>
-      </div>
-      <div class="p-4 rounded-lg border border-[var(--app-border)]">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-[var(--app-foreground)]">Login with Google OAuth</p>
-            <p class="text-xs text-[var(--app-muted)] mt-1">Opens browser to authenticate with Google Cloud</p>
-          </div>
-          <Button disabled label="Login" />
         </div>
       </div>
     </div>
