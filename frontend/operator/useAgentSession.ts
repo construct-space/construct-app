@@ -15,6 +15,10 @@ import { showAssistant } from './useAssistant'
 import type { StreamEvent, DispatchResult } from './types'
 
 // ─── Block Types ───
+// Extensible block system — each space can render blocks it understands,
+// unknown blocks fall back to text/JSON display.
+
+// --- Universal blocks (all spaces) ---
 
 export interface TextBlock {
   type: 'text'
@@ -48,6 +52,7 @@ export interface CodeBlock {
   type: 'code'
   language: string
   content: string
+  filename?: string
 }
 
 export interface SvgBlock {
@@ -68,8 +73,108 @@ export interface StatusBlock {
   maxTurns?: number
 }
 
+// --- Architect blocks ---
+
+export interface QuestionBlock {
+  type: 'question'
+  id: string
+  question: string
+  questionType: 'single' | 'multi'
+  options: { value: string; label: string; icon?: string; description?: string }[]
+  answer?: string | string[]
+}
+
+export interface PlanBlock {
+  type: 'plan'
+  name: string
+  description: string
+  planType?: string  // 'construct-space' | 'web-app' | 'api' | etc.
+  spaceId?: string
+  decisions?: Record<string, unknown>
+  stack?: Record<string, unknown>
+  features?: { name: string; description: string; priority?: string }[]
+  tasks?: {
+    id: number
+    title: string
+    description: string
+    files?: string[]
+    steps?: string[]
+    depends?: number[]
+    commit?: string
+  }[]
+  phases?: { name: string; tasks: string[] }[]
+}
+
+export interface TaskListBlock {
+  type: 'tasklist'
+  tasks: {
+    id: string | number
+    title: string
+    description?: string
+    status: 'pending' | 'running' | 'done' | 'error' | 'skipped'
+    commit?: string
+  }[]
+}
+
+export interface ProgressBlock {
+  type: 'progress'
+  headline: string
+  detail?: string
+  phase?: string
+  percent?: number
+}
+
+// --- Data/Table blocks ---
+
+export interface TableBlock {
+  type: 'table'
+  headers: string[]
+  rows: string[][]
+  caption?: string
+}
+
+export interface JsonBlock {
+  type: 'json'
+  data: unknown
+  label?: string
+  collapsed?: boolean
+}
+
+// --- Interactive blocks ---
+
+export interface ActionBlock {
+  type: 'action'
+  actions: {
+    id: string
+    label: string
+    icon?: string
+    variant?: 'primary' | 'secondary' | 'danger'
+    disabled?: boolean
+  }[]
+}
+
+export interface LinkBlock {
+  type: 'link'
+  url: string
+  title?: string
+  description?: string
+  favicon?: string
+}
+
+// --- Diff/Change blocks ---
+
+export interface DiffBlock {
+  type: 'diff'
+  filename: string
+  hunks: string
+  language?: string
+}
+
 export type RequestBlock = TextBlock | ImageBlock | FileBlock
-export type ResponseBlock = TextBlock | ToolBlock | CodeBlock | SvgBlock | ImageBlock | ErrorBlock | StatusBlock
+export type ResponseBlock =
+  | TextBlock | ToolBlock | CodeBlock | SvgBlock | ImageBlock | ErrorBlock | StatusBlock
+  | QuestionBlock | PlanBlock | TaskListBlock | ProgressBlock
+  | TableBlock | JsonBlock | ActionBlock | LinkBlock | DiffBlock
 
 export interface Turn {
   id: string
