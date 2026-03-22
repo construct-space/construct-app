@@ -2,7 +2,7 @@
 /**
  * Oracle — general chat with session persistence.
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAgentSession, type RequestBlock } from '@/operator/useAgentSession'
 import AgentView from '@/components/agent/AgentView.vue'
 import AgentInput from '@/components/agent/AgentInput.vue'
@@ -77,6 +77,87 @@ async function handleSend(blocks: RequestBlock[]) {
   await session.send(blocks, { agentId: 'brainstorm' })
 }
 
+// ─── Cookie crumbs animation ───
+const crumbsCanvas = ref<HTMLCanvasElement>()
+let crumbsRaf = 0
+
+interface Crumb {
+  x: number; y: number; size: number; speed: number; drift: number; opacity: number; rot: number; rotSpeed: number
+}
+
+function initCrumbs() {
+  const canvas = crumbsCanvas.value
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')!
+  if (!ctx) return
+
+  const resize = () => {
+    canvas.width = canvas.offsetWidth * window.devicePixelRatio
+    canvas.height = canvas.offsetHeight * window.devicePixelRatio
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+  }
+  resize()
+  window.addEventListener('resize', resize)
+
+  const w = () => canvas.offsetWidth
+  const h = () => canvas.offsetHeight
+
+  // Sparse crumbs — not overwhelming
+  const crumbs: Crumb[] = Array.from({ length: 18 }, () => ({
+    x: Math.random() * w(),
+    y: Math.random() * h(),
+    size: 1.5 + Math.random() * 3,
+    speed: 0.15 + Math.random() * 0.3,
+    drift: (Math.random() - 0.5) * 0.3,
+    opacity: 0.15 + Math.random() * 0.25,
+    rot: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 0.01,
+  }))
+
+  function draw() {
+    ctx.clearRect(0, 0, w(), h())
+
+    for (const c of crumbs) {
+      c.y += c.speed
+      c.x += c.drift
+      c.rot += c.rotSpeed
+
+      // Reset when off bottom
+      if (c.y > h() + 10) {
+        c.y = -10
+        c.x = Math.random() * w()
+      }
+
+      ctx.save()
+      ctx.translate(c.x, c.y)
+      ctx.rotate(c.rot)
+      ctx.fillStyle = `rgba(160, 90, 30, ${c.opacity})`
+      // Irregular crumb shape
+      ctx.beginPath()
+      ctx.ellipse(0, 0, c.size, c.size * 0.7, 0, 0, Math.PI * 2)
+      ctx.fill()
+      // Smaller chip
+      ctx.fillStyle = `rgba(130, 70, 20, ${c.opacity * 0.6})`
+      ctx.beginPath()
+      ctx.ellipse(c.size * 0.8, -c.size * 0.3, c.size * 0.35, c.size * 0.25, 0.5, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+
+    crumbsRaf = requestAnimationFrame(draw)
+  }
+
+  draw()
+}
+
+onMounted(() => {
+  // Delay canvas init to avoid layout flash
+  setTimeout(initCrumbs, 100)
+})
+onUnmounted(() => {
+  cancelAnimationFrame(crumbsRaf)
+})
+
 function formatTime(dateStr: string): string {
   if (!dateStr) return ''
   const d = new Date(dateStr)
@@ -93,7 +174,7 @@ function formatTime(dateStr: string): string {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-app">
+  <div class="flex flex-col h-full bg-app oracle-bg">
     <!-- Toolbar right actions -->
     <Teleport to="#toolbar-right">
       <Tooltip text="New chat">
@@ -116,9 +197,9 @@ function formatTime(dateStr: string): string {
           >
             <template v-if="turns.length === 0">
               <div class="flex flex-col items-center justify-center h-full px-8 text-center">
-                <Icon name="i-lucide-cookie" class="size-10 text-purple-400/30 mb-4" />
-                <h2 class="text-lg font-semibold text-app mb-2">Oracle</h2>
-                <p class="text-sm text-app-muted max-w-xs">Ask anything</p>
+                <Icon name="i-lucide-cookie" class="size-10 text-orange-800/40 mb-4" />
+                <h2 class="text-lg font-semibold text-orange-200/60 mb-2">Oracle</h2>
+                <p class="text-sm text-orange-300/30 max-w-xs">Ask anything</p>
               </div>
             </template>
           </AgentView>
@@ -166,5 +247,15 @@ function formatTime(dateStr: string): string {
         </button>
       </div>
     </Slideover>
+
+    <!-- Cookie crumbs background -->
+    <canvas ref="crumbsCanvas" class="pointer-events-none absolute inset-0 z-0 opacity-40" />
   </div>
 </template>
+
+<style scoped>
+.oracle-bg {
+  position: relative;
+  background: radial-gradient(ellipse at 50% 120%, rgba(120, 60, 10, 0.08) 0%, transparent 60%);
+}
+</style>

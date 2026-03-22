@@ -246,7 +246,7 @@ onUnmounted(() => {
             </button>
           </div>
           <div class="inline-flex rounded-full bg-[color-mix(in_srgb,var(--app-foreground)_8%,transparent)] p-1">
-            <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-purple-500/15 hover:text-purple-400" @click="$router.push('/app/brainstorm')">
+            <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-orange-500/15 hover:text-orange-400" @click="$router.push('/app/brainstorm')">
               <Icon name="i-lucide-cookie" class="size-4 inline mr-1.5 -mt-0.5" />Oracle
             </button>
             <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-blue-500/15 hover:text-blue-400" @click="$router.push('/app/architect')">
