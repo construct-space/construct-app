@@ -56,7 +56,7 @@ pub fn set_dock_icon(_app: tauri::AppHandle, state: String) -> Result<(), String
         "beta" => include_bytes!("../icons/dock-beta.png"),
         "update" => include_bytes!("../icons/dock-update.png"),
         "error" => include_bytes!("../icons/dock-error.png"),
-        "busy" => include_bytes!("../icons/dock-busy.png"),
+        "busy" => include_bytes!("../icons/dock-error.png"),
         _ => include_bytes!("../icons/icon.png"),
     };
 

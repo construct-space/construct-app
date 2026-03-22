@@ -315,14 +315,22 @@ export const useAIModel = () => {
         defaultModelId.value = defaultModelFromServer
       }
 
-      // Preserve user's explicit selection — never overwrite with a fallback.
-      // The user's chosen model may belong to a provider that loads later (OAuth).
       const stored = typeof window !== 'undefined' ? localStorage.getItem(MODEL_STORAGE_KEY) : null
       if (stored && stored.includes(':')) {
-        // User has an explicit composite selection — keep it regardless of
-        // whether the provider is loaded yet. The model selector UI shows
-        // what's available; the user chose deliberately.
-        defaultModelId.value = stored
+        const normalizedStored = normalizeToAvailableModel(stored)
+        if (normalizedStored) {
+          defaultModelId.value = normalizedStored
+        } else {
+          const resolved = resolveModelId(defaultModelId.value, {
+            allowAuto: false,
+            fallbackModelId: providerDefaultModelId.value || DEFAULT_MODEL,
+            persist: false,
+          })
+          defaultModelId.value = resolved
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(MODEL_STORAGE_KEY, resolved)
+          }
+        }
       } else if (!stored || !stored.trim()) {
         // No user selection — resolve from server default or fallback
         const resolved = resolveModelId(defaultModelId.value, {

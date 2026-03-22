@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint'
 import pluginVue from 'eslint-plugin-vue'
 
 export default [
-  { ignores: ['dist/', 'node_modules/', 'src-tauri/', 'context/', 'src/auto-imports.d.ts', 'src/components.d.ts'] },
+  { ignores: ['**/dist/', 'node_modules/', 'src-tauri/', 'context/', 'src/auto-imports.d.ts', 'src/components.d.ts'] },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,

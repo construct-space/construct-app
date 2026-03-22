@@ -21,6 +21,10 @@ const emit = defineEmits<{
   action: [actionId: string]
   'question-answer': [questionId: string, answer: string | string[]]
 }>()
+
+function openUrl(url: string) {
+  window.open(url, '_blank')
+}
 </script>
 
 <template>
@@ -190,7 +194,7 @@ const emit = defineEmits<{
       </div>
 
       <!-- Link -->
-      <div v-else-if="block.type === 'link'" class="my-1.5 flex items-center gap-2 rounded-lg border border-app-border px-3 py-2 hover:bg-white/5 transition cursor-pointer" @click="window.open(block.url)">
+      <div v-else-if="block.type === 'link'" class="my-1.5 flex items-center gap-2 rounded-lg border border-app-border px-3 py-2 hover:bg-white/5 transition cursor-pointer" @click="openUrl(block.url)">
         <img v-if="block.favicon" :src="block.favicon" class="size-4 rounded" />
         <Icon v-else name="i-lucide-external-link" class="size-3.5 text-app-muted" />
         <div class="min-w-0">
