@@ -2,7 +2,7 @@
 /**
  * Architect Space — describe a project, agent writes docs, hand off to Vibe.
  *
- * Flow: User describes → Architect writes docs to project/docs/ → "Start Vibe" button.
+ * Flow: User describes → Architect writes docs to project/docs/ → "Start Agent Smith" button.
  * No questions step, no plan JSON, no templates, no scaffolding.
  * Architect ONLY writes markdown docs. Vibe writes code.
  */
@@ -110,7 +110,7 @@ function startVibe() {
     <!-- Header -->
     <div class="shrink-0 flex items-center justify-between px-4 py-2 border-b border-app">
       <div class="flex items-center gap-2">
-        <Icon name="i-lucide-compass" class="size-4 text-app-accent" />
+        <Icon name="i-lucide-drafting-compass" class="size-4 text-app-accent" />
         <span class="text-sm font-medium text-app">Architect</span>
         <span v-if="currentProject" class="text-xs text-app-muted">· {{ currentProject.name }}</span>
       </div>
@@ -128,7 +128,7 @@ function startVibe() {
           @click="startVibe"
         >
           <Icon name="i-lucide-zap" class="size-3 inline mr-1" />
-          Start Vibe
+          Start Agent Smith
         </button>
       </div>
     </div>
@@ -143,7 +143,7 @@ function startVibe() {
       >
         <template v-if="turns.length === 0">
           <div class="flex flex-col items-center justify-center h-full px-8 text-center">
-            <Icon name="i-lucide-compass" class="size-10 text-app-accent/30 mb-4" />
+            <Icon name="i-lucide-drafting-compass" class="size-10 text-app-accent/30 mb-4" />
             <h2 class="text-lg font-semibold text-app mb-2">What are we building?</h2>
             <p class="text-sm text-app-muted max-w-md">
               Describe your project. I'll write detailed design docs and an implementation

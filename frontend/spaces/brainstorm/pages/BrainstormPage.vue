@@ -68,8 +68,8 @@ const docsWritten = computed(() =>
     <!-- Header -->
     <div class="shrink-0 flex items-center justify-between px-4 py-2 border-b border-app">
       <div class="flex items-center gap-2">
-        <Icon name="i-lucide-lightbulb" class="size-4 text-yellow-500" />
-        <span class="text-sm font-medium text-app">Brainstorm</span>
+        <Icon name="i-lucide-eye" class="size-4 text-purple-400" />
+        <span class="text-sm font-medium text-app">Oracle</span>
         <span v-if="currentProject" class="text-xs text-app-muted">· {{ currentProject.name }}</span>
       </div>
       <button
@@ -78,7 +78,7 @@ const docsWritten = computed(() =>
         @click="startVibe"
       >
         <Icon name="i-lucide-zap" class="size-3 inline mr-1" />
-        Start Vibe
+        Start Agent Smith
       </button>
     </div>
 
@@ -92,11 +92,11 @@ const docsWritten = computed(() =>
       >
         <template v-if="turns.length === 0">
           <div class="flex flex-col items-center justify-center h-full px-8 text-center">
-            <Icon name="i-lucide-lightbulb" class="size-10 text-yellow-500/30 mb-4" />
-            <h2 class="text-lg font-semibold text-app mb-2">What are we building?</h2>
+            <Icon name="i-lucide-eye" class="size-10 text-purple-400/30 mb-4" />
+            <h2 class="text-lg font-semibold text-app mb-2">Drop an idea</h2>
             <p class="text-sm text-app-muted max-w-md">
-              Describe your idea. I'll brainstorm with you, ask the right questions,
-              write a design spec and implementation plan, then hand off to Vibe to build it.
+              Describe what you want to build. I'll explore it with you, ask the right questions,
+              and prepare everything for the Architect.
             </p>
           </div>
         </template>

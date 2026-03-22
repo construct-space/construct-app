@@ -32,7 +32,7 @@ const renderedHtml = computed(() => {
       : 'mr-8 border-app bg-white/[0.03]'"
   >
     <p class="text-[10px] uppercase tracking-[0.16em] text-app-muted/60 mb-1.5">
-      {{ role === 'user' ? 'You' : 'Vibe' }}
+      {{ role === 'user' ? 'You' : 'Agent Smith' }}
     </p>
     <div v-if="role === 'user'" class="text-sm leading-6 text-app whitespace-pre-wrap">
       {{ content }}
