@@ -276,55 +276,22 @@ export function useProjectDirectory() {
       const projectPath = useDirectPath ? root : `${root}/${dirName}`
       console.log('Creating project at:', projectPath)
 
-      // Use shell commands to create directories (bypasses fs:scope restrictions)
-      // Create project directory with all subdirectories in one command
-      const diskSpaces = spaces.filter(s => s !== 'design')
+      // Create project directory + docs subdirectory
+      // Flat layout — no .construct/, no code/ subdirectory
       const allDirs = [
         projectPath,
-        `${projectPath}/.construct`,
-        ...diskSpaces.map(s => `${projectPath}/${s}`)
+        `${projectPath}/docs`,
       ]
 
       console.log('Creating directories:', allDirs)
 
-      // Use mkdir -p to create all directories
       const mkdirResult = await runShellCommand('mkdir', ['-p', ...allDirs], '/')
       if (!mkdirResult.success) {
         console.error('Failed to create directories:', mkdirResult.output)
         throw new Error(`Failed to create directories: ${mkdirResult.output}`)
       }
-      console.log('Directories created successfully')
 
-      // Create initial project config using shell command to write file
-      const config: ProjectConfig = {
-        version: 1,
-        name,
-        local_path: projectPath,  // Store absolute path in config
-        created: new Date().toISOString(),
-        updated: new Date().toISOString(),
-        repos: [],
-        spaces,
-      }
-
-      // Write config file using shell
-      const configJson = JSON.stringify(config, null, 2)
-      const configPath = `${projectPath}/.construct/project.json`
-
-      // Use tee to write file content (works better than echo for JSON)
-      const writeResult = await runShellCommand('sh', ['-c', `cat > "${configPath}" << 'EOFCONFIG'
-${configJson}
-EOFCONFIG`], projectPath)
-
-      if (!writeResult.success) {
-        console.error('Failed to write config:', writeResult.output)
-        // Try alternative method
-        const writeResult2 = await runShellCommand('sh', ['-c', `printf '%s' '${configJson.replace(/'/g, "'\\''")}' > "${configPath}"`], projectPath)
-        if (!writeResult2.success) {
-          console.warn('Could not write config file, but directories created')
-        }
-      }
-
-      console.log('Project structure created at:', projectPath)
+      console.log('Project created at:', projectPath)
       return projectPath
     } catch (e) {
       console.error('Failed to create project structure:', e)

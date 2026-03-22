@@ -70,13 +70,11 @@ If the task involves a Construct space, spawn the **space** agent instead of han
 
 ### For NEW projects (no existing project_path or empty project):
 
-1. Create a Construct-style project root at {project_root}
-2. Create {project_root}/docs, {project_root}/code, and {project_root}/.construct
-3. Write {project_root}/.construct/project.json
-4. Write the Goal Document (see below)
-5. Write docs in {project_root}/docs using write_file (01-requirements.md, 02-architecture.md, etc.)
-6. Scaffold and build the runnable app inside {project_root}/code
-7. Initialize git inside {project_root}/code
+1. Create the project directory at {project_root}
+2. Write the Goal Document (see below)
+3. Write docs in {project_root}/docs using write_file
+4. Scaffold the app DIRECTLY in {project_root} (flat — no code/ subdirectory)
+5. Initialize git in {project_root}
 
 ### For EXISTING projects (project_path has code/files already):
 
@@ -131,20 +129,15 @@ The user can see this doc in their project's docs/goals/ folder to track what ea
 - Do not wait for the user to spell out obvious baseline requirements when the goal is already actionable.
 - Make reasonable defaults, record them in the goal document and docs/construct-context.md.
 
-## Construct Project Layout
+## Project Layout
 
-- Treat the chosen path as the project root, not the code root.
-- The project root must contain:
-  - .construct/project.json
-  - docs/
-  - code/
-- Keep implementation files under code/. Do NOT scaffold the app directly into the project root.
-- Create code/ before scaffold commands and target the scaffold there.
-- If any scaffold command writes app files into the project root by mistake, immediately move them into code/ and restore the standard Construct layout before continuing.
-- If the user gives you a path that already ends with /code, use its parent as the project root.
-- Write .construct/project.json with EXACTLY this format (version, created, updated — NOT created_at/updated_at, spaces as ARRAY not object):
-  {"version":1,"name":"Project Name","local_path":"/absolute/path","created":"2026-01-01T00:00:00Z","updated":"2026-01-01T00:00:00Z","repos":[],"spaces":["code","docs","design"]}
-- Prefer a single runnable app in code/ unless the task clearly needs multiple repositories or services.
+Projects are FLAT directories — no .construct/ folder, no code/ subdirectory, no spaces array.
+
+- Scaffold the app directly into {project_root} (e.g., package.json, src/, etc. live at the root)
+- Put docs in {project_root}/docs/
+- The project IS the app — Construct detects it by scanning the filesystem
+- Do NOT create .construct/ or project.json — Construct tracks projects in its own database
+- Do NOT create a code/ subdirectory — that's the old layout, removed
 
 ## Documentation
 
@@ -158,8 +151,7 @@ Each doc must be detailed and implementation-ready.
 ## Recovery Rules
 
 - If a scaffold command prompts interactively, is cancelled, or fails because it needs user input, retry immediately with a non-interactive alternative.
-- For Vue + Vite, prefer "npm create vite@latest {project_root}/code -- --template vue" if another scaffold path becomes interactive.
-- Never recover by scaffolding into {project_root} itself. Recovery must still preserve the .construct/docs/code layout.
+- For Vue + Vite, prefer "npm create vite@latest {project_root} -- --template vue" if another scaffold path becomes interactive.
 - If "@tailwindcss/vite" is incompatible with the installed Vite version, fall back automatically to standard Tailwind via PostCSS ("tailwindcss", "postcss", "autoprefixer") and continue building.
 - Do not use commands like "npm run dev", "vite --host", "next dev", "nuxt dev", or "rails server" as verification steps; they are long-running and will stall the run.
 - When the user asks to "run", "open", "preview", or "check if it's working", do not guess with localhost URLs or browser automation. Use Construct-native actions if available; otherwise verify with bounded commands and leave preview for the Construct UI.
@@ -184,11 +176,11 @@ Pick these unless the user says otherwise:
 - If Project path is provided in context, use it
 - If only Projects root is provided, create at {projects_root}/{slugified-name}
 - If neither, use ~/ConstructProjects/{slugified-name}
-- Build the app in {project_root}/code and the docs in {project_root}/docs
+- Build the app directly in {project_root}, docs in {project_root}/docs
 
 ## Context Document
 
-- Early in the run, ensure docs/construct-context.md exists (for new projects).
+- Early in the run, create docs/construct-context.md (for new projects).
 - Use it to record the chosen stack, constraints, project path, important commands, file layout, and any assumptions.
 - **After each goal is completed**, append a summary to the ## Goals History section in construct-context.md:
   ` + "```" + `
