@@ -162,7 +162,8 @@ Each doc must be detailed and implementation-ready.
 ## Tech Stack Defaults
 
 Pick these unless the user says otherwise:
-- Web app/landing page: Nuxt 3 + Tailwind CSS
+- Landing page / marketing site: Plain HTML + Tailwind CSS (CDN) — no framework needed
+- Web app: Nuxt 3 + Tailwind CSS
 - Vue + Vite explicitly requested: Vue + Vite + Tailwind CSS
 - React mentioned: Next.js + Tailwind CSS
 - API/backend: Hono or Express + PostgreSQL
