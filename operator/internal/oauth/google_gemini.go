@@ -433,7 +433,7 @@ func startGeminiCallbackServer(codeCh chan<- struct{ code, state string }, errCh
 		}
 
 		w.WriteHeader(200)
-		fmt.Fprint(w, "Connected. You can close this window.")
+		fmt.Fprint(w, CallbackSuccessHTML)
 		codeCh <- struct{ code, state string }{code, state}
 	})
 

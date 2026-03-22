@@ -310,7 +310,10 @@ pub fn is_connected(state: tauri::State<'_, SharedContextState>) -> bool {
 }
 
 fn get_request_timeout(request_type: &str) -> Duration {
-    if request_type.starts_with("ai.") || request_type.starts_with("agents.") {
+    if request_type.starts_with("ai.")
+        || request_type.starts_with("agents.")
+        || request_type.starts_with("oauth.")
+    {
         Duration::from_secs(300)
     } else {
         Duration::from_secs(30)

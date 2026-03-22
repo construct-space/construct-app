@@ -312,7 +312,7 @@ func startOpenAICallbackServer(expectedState string, codeCh chan<- string, errCh
 		}
 
 		w.WriteHeader(200)
-		fmt.Fprint(w, "Connected. You can close this window.")
+		fmt.Fprint(w, CallbackSuccessHTML)
 		codeCh <- code
 	})
 
