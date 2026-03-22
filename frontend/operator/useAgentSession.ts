@@ -180,7 +180,13 @@ const OPTION_LINE = /^\s*(?:[-*]|\(?([a-z0-9])\)?[.):]\s*\*{0,2})(.+?)(?:\*{0,2}
  * Returns null if no question pattern is detected.
  */
 export function extractQuestion(text: string): { before: string; question: QuestionBlock } | null {
-  const lines = text.trimEnd().split('\n')
+  const trimmed = text.trimEnd()
+
+  // Skip short responses and responses without a question
+  if (trimmed.length < 40) return null
+  if (!trimmed.includes('?')) return null
+
+  const lines = trimmed.split('\n')
 
   // Walk backwards to find consecutive option lines
   let optionEnd = lines.length
