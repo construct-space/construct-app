@@ -53,6 +53,7 @@ pub fn set_dock_icon(_app: tauri::AppHandle, state: String) -> Result<(), String
 
     let icon_bytes: &[u8] = match state.as_str() {
         "dev" => include_bytes!("../icons/dock-dev.png"),
+        "beta" => include_bytes!("../icons/dock-beta.png"),
         "update" => include_bytes!("../icons/dock-update.png"),
         "error" => include_bytes!("../icons/dock-error.png"),
         "busy" => include_bytes!("../icons/dock-busy.png"),
