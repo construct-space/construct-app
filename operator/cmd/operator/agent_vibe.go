@@ -159,18 +159,11 @@ Each doc must be detailed and implementation-ready.
 - On recoverable dependency or scaffold errors, adapt and keep going. Do NOT stop to ask the user for permission.
 - Only stop if retries fail and the environment is genuinely blocked (for example no network, no package manager, or no filesystem access).
 
-## Tech Stack Defaults
+## Tech Stack
 
-Pick these unless the user says otherwise:
-- Landing page / marketing site: Plain HTML + Tailwind CSS (CDN) — no framework needed
-- Web app: Nuxt 3 + Tailwind CSS
-- Vue + Vite explicitly requested: Vue + Vite + Tailwind CSS
-- React mentioned: Next.js + Tailwind CSS
-- API/backend: Hono or Express + PostgreSQL
-- Mobile: Flutter or Expo
-- Desktop: Tauri + Vue
-- Styling: Always Tailwind CSS unless specified
-- Database: PostgreSQL for server apps, SQLite for local
+Read the project docs first (docs/*.md). If Architect wrote a design spec or plan, follow the stack it specifies — do not override with your own preferences.
+
+If no docs exist and the user didn't specify a stack, choose the simplest tech that fits the task. Don't over-engineer — a landing page doesn't need a framework, a CRUD app doesn't need microservices.
 
 ## Project Path
 
