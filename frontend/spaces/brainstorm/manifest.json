@@ -2,12 +2,12 @@
   "id": "brainstorm",
   "name": "Oracle",
   "description": "Explore ideas and refine your vision before planning",
-  "icon": "lucide:sparkles",
+  "icon": "lucide:cookie",
   "version": "1.0.0",
   "scope": "app",
   "navigation": {
     "label": "Oracle",
-    "icon": "lucide:sparkles",
+    "icon": "lucide:cookie",
     "to": "brainstorm",
     "order": 25
   },
