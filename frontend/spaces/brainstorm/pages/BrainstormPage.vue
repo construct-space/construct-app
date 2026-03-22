@@ -181,28 +181,28 @@ function formatTime(dateStr: string): string {
       </Tooltip>
     </Teleport>
 
-    <!-- Chat area (centered) -->
-    <div class="flex-1 min-h-0 flex justify-center">
-      <div class="w-full max-w-2xl flex flex-col h-full">
-        <div class="flex-1 min-h-0">
-          <AgentView
-            :turns="turns"
-            :is-loading="isLoading"
-            :status-message="statusMessage"
-            @question-answer="handleQuestionAnswer"
-          >
-            <template #empty>
-              <Icon name="i-lucide-cookie" class="size-12 text-orange-700/30 mb-4" />
-              <h2 class="text-xl font-semibold text-orange-200/50 mb-1">Oracle</h2>
-              <p class="text-sm text-orange-400/25">Ask anything</p>
-            </template>
-          </AgentView>
-        </div>
+    <!-- Chat area -->
+    <div class="flex-1 min-h-0 flex justify-center overflow-hidden">
+      <div class="w-full max-w-2xl">
+        <AgentView
+          :turns="turns"
+          :is-loading="isLoading"
+          :status-message="statusMessage"
+          @question-answer="handleQuestionAnswer"
+        >
+          <template #empty>
+            <Icon name="i-lucide-cookie" class="size-12 text-orange-700/30 mb-4" />
+            <h2 class="text-xl font-semibold text-orange-200/50 mb-1">Oracle</h2>
+            <p class="text-sm text-orange-400/25">Ask anything</p>
+          </template>
+        </AgentView>
+      </div>
+    </div>
 
-        <!-- Input -->
-        <div class="shrink-0 px-4 py-3">
-          <AgentInput :placeholder="inputPlaceholder" @send="handleSend" />
-        </div>
+    <!-- Input (pinned bottom, centered) -->
+    <div class="shrink-0 flex justify-center">
+      <div class="w-full max-w-2xl">
+        <AgentInput :placeholder="inputPlaceholder" :loading="isLoading" @send="handleSend" @stop="session.stop()" />
       </div>
     </div>
 

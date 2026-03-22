@@ -9,11 +9,13 @@ import type { RequestBlock, ImageBlock } from '@/operator/useAgentSession'
 
 defineProps<{
   disabled?: boolean
+  loading?: boolean
   placeholder?: string
 }>()
 
 const emit = defineEmits<{
   send: [blocks: RequestBlock[]]
+  stop: []
 }>()
 
 const input = ref('')
@@ -118,7 +120,17 @@ defineExpose({ focus })
         :disabled="disabled"
         @keydown="handleKeydown"
       >
+      <!-- Stop button (while loading) -->
       <button
+        v-if="loading"
+        class="p-2.5 rounded-xl bg-red-500/80 text-white hover:bg-red-500 transition-colors"
+        @click="emit('stop')"
+      >
+        <svg class="size-4" viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor" /></svg>
+      </button>
+      <!-- Send button -->
+      <button
+        v-else
         class="p-2.5 rounded-xl bg-(--app-accent) text-app-accent-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
         :disabled="(!input.trim() && !attachments.length) || disabled"
         @click="handleSend"

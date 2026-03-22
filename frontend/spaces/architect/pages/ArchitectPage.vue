@@ -155,7 +155,9 @@ function startVibe() {
     <div class="shrink-0 px-4 py-3 border-t border-app">
       <AgentInput
         :placeholder="inputPlaceholder"
+        :loading="isLoading"
         @send="handleSend"
+        @stop="session.stop()"
       />
     </div>
   </div>
