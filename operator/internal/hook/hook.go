@@ -464,6 +464,11 @@ func RegisterSafetyHooks(reg *Registry, getProjectRoot ProjectRootFunc) {
 				return false, ""
 			}
 			p := params.Path
+			if strings.HasPrefix(p, "~/") {
+				if h, e := os.UserHomeDir(); e == nil {
+					p = filepath.Join(h, p[2:])
+				}
+			}
 			if !filepath.IsAbs(p) {
 				p = filepath.Join(root, p)
 			}
@@ -472,6 +477,13 @@ func RegisterSafetyHooks(reg *Registry, getProjectRoot ProjectRootFunc) {
 				return false, ""
 			}
 			resolved = filepath.Clean(resolved)
+			// Allow writes inside ~/ConstructProjects
+			if h, e := os.UserHomeDir(); e == nil {
+				cp := filepath.Join(h, "ConstructProjects")
+				if strings.HasPrefix(resolved, cp+string(filepath.Separator)) {
+					return false, ""
+				}
+			}
 			root = filepath.Clean(root)
 			if !strings.HasPrefix(resolved, root+string(filepath.Separator)) && resolved != root {
 				return true, fmt.Sprintf("Cannot write outside project root: %s", root)
