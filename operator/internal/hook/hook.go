@@ -503,6 +503,52 @@ func RegisterSafetyHooks(reg *Registry, getProjectRoot ProjectRootFunc) {
 			return false, ""
 		},
 	})
+
+	// Sandbox bash to project root — block commands that explicitly escape
+	reg.Register(Hook{
+		ID:          "safety-bash-sandbox",
+		Name:        "Bash Project Sandbox",
+		Description: "Prevents bash commands from operating outside the project root.",
+		Type:        PreTool,
+		Tools:       []string{"bash"},
+		Source:      "builtin",
+		Check: func(ctx context.Context, toolName, input string) (bool, string) {
+			root := ""
+			if getProjectRoot != nil {
+				root = getProjectRoot(ctx)
+			}
+			if root == "" {
+				return false, ""
+			}
+			// Parse command from JSON
+			var params struct {
+				Command string `json:"command"`
+			}
+			if err := json.Unmarshal([]byte(input), &params); err != nil || params.Command == "" {
+				return false, ""
+			}
+			cmd := params.Command
+			// Block explicit absolute paths outside project root
+			// Allow: /usr/bin/*, /tmp/*, /dev/null, and the project root itself
+			allowedPrefixes := []string{root, "/usr/", "/bin/", "/tmp/", "/dev/", "/opt/homebrew/"}
+			words := strings.Fields(cmd)
+			for _, word := range words {
+				if strings.HasPrefix(word, "/") && !strings.HasPrefix(word, "//") {
+					allowed := false
+					for _, prefix := range allowedPrefixes {
+						if strings.HasPrefix(word, prefix) {
+							allowed = true
+							break
+						}
+					}
+					if !allowed {
+						return true, fmt.Sprintf("Command references path outside project root: %s (project: %s)", word, root)
+					}
+				}
+			}
+			return false, ""
+		},
+	})
 }
 
 // --- Config Loading ---

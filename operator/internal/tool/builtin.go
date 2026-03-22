@@ -223,9 +223,15 @@ func bashTool(getWorkDir WorkDirFunc) *Tool {
 					IsError: true,
 				}, nil
 			}
+			wd := getWorkDir(ctx)
 			cmd := exec.CommandContext(ctx, "bash", "-c", args.Command)
-			if dir := existingCommandDir(getWorkDir(ctx)); dir != "" {
+			if dir := existingCommandDir(wd); dir != "" {
 				cmd.Dir = dir
+			}
+			// Sandbox: set CONSTRUCT_PROJECT_ROOT so hooks/scripts can validate,
+			// and prevent cd-escape by wrapping in a restricted env
+			if wd != "" {
+				cmd.Env = append(os.Environ(), "CONSTRUCT_PROJECT_ROOT="+wd)
 			}
 			output, err := cmd.CombinedOutput()
 			if err != nil {
@@ -323,7 +329,11 @@ func grepTool(getWorkDir WorkDirFunc) *Tool {
 			wd := getWorkDir(ctx)
 			searchPath := wd
 			if args.Path != "" {
-				searchPath = resolvePath(wd, args.Path)
+				guarded, pathErr := guardPath(wd, args.Path)
+				if pathErr != nil {
+					return &Result{Content: pathErr.Error(), IsError: true}, nil
+				}
+				searchPath = guarded
 			}
 
 			var cmd *exec.Cmd
@@ -381,7 +391,11 @@ func listDirTool(getWorkDir WorkDirFunc) *Tool {
 			wd := getWorkDir(ctx)
 			dir := wd
 			if args.Path != "" {
-				dir = resolvePath(wd, args.Path)
+				guarded, pathErr := guardPath(wd, args.Path)
+				if pathErr != nil {
+					return &Result{Content: pathErr.Error(), IsError: true}, nil
+				}
+				dir = guarded
 			}
 			entries, err := os.ReadDir(dir)
 			if err != nil {
