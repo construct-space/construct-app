@@ -2,6 +2,6 @@
   "id": "architect",
   "name": "Architect",
   "description": "Plans project structure and generates technical specifications",
-  "icon": "lucide:compass",
+  "icon": "lucide:drafting-compass",
   "version": "1.0.0"
 }

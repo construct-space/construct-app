@@ -1,20 +1,20 @@
 {
   "id": "brainstorm",
-  "name": "Brainstorm",
-  "description": "Standalone project brainstorming and planning using the Architect interview format",
-  "icon": "lucide:lightbulb",
+  "name": "Oracle",
+  "description": "Explore ideas and refine your vision before planning",
+  "icon": "lucide:sparkles",
   "version": "1.0.0",
   "scope": "app",
   "navigation": {
-    "label": "Brainstorm",
-    "icon": "lucide:lightbulb",
+    "label": "Oracle",
+    "icon": "lucide:sparkles",
     "to": "brainstorm",
     "order": 25
   },
   "pages": [
     {
       "path": "",
-      "label": "Brainstorm",
+      "label": "Oracle",
       "default": true
     }
   ]
