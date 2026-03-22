@@ -34,6 +34,12 @@ const hasPlan = computed(() => {
   return lastTurn.response.some(b => b.type === 'plan' || b.type === 'tasklist')
 })
 
+const inputPlaceholder = computed(() =>
+  turns.value.length === 0
+    ? 'Describe what you want to build...'
+    : 'Answer, clarify, or say "write the plan"...'
+)
+
 // Check for docs written (look for tool calls to write_file with docs/ paths)
 const docsWritten = computed(() => {
   return turns.value.some(turn =>
@@ -146,10 +152,7 @@ onMounted(() => {
     <!-- Input -->
     <div class="shrink-0 px-4 py-3 border-t border-app">
       <AgentInput
-        :placeholder="turns.length === 0
-          ? 'Describe what you want to build...'
-          : 'Answer, clarify, or say \\'write the plan\\'...'
-        "
+        :placeholder="inputPlaceholder"
         @send="handleSend"
       />
     </div>
