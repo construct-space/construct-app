@@ -17,7 +17,13 @@ import { useAIModel } from '@/composables/useAIModel'
 import { useSpaces } from '@/composables/useSpaces'
 import { isLikelyClarificationQuestion } from './architectClarification'
 import { buildArchitectPlanInput } from './architectPlanInput'
-import { buildArchitectPromptDescription, getArchitectScopeKey } from './architectEngineHelpers'
+import {
+  buildArchitectPromptDescription,
+  buildBrainstormFallbackName,
+  getArchitectScopeKey,
+  isGenericBrainstormPlanName,
+  type ArchitectExperienceMode,
+} from './architectEngineHelpers'
 import { useArchitectProject } from './useArchitectProject'
 import { parseJsonArray, parseJsonObject } from '@/utils/json-parse'
 import type { InterviewQuestion } from '../data/architect-knowledge'
@@ -35,12 +41,19 @@ export interface ArchitectDecision {
   status: 'done' | 'active' | 'pending'
 }
 
-export function useArchitectEngine() {
+export interface ArchitectEngineOptions {
+  mode?: ArchitectExperienceMode
+}
+
+export function useArchitectEngine(options: ArchitectEngineOptions = {}) {
   const projectStore = useProjectStore()
   const { setPageItems, clearToolbar } = useToolbar()
   const { loadSpaces } = useSpaces()
   const { defaultModelId, init: initAIModel, resolveModelId } = useAIModel()
   const operator = useOperator()
+  const mode = options.mode ?? 'architect'
+  const isBrainstormMode = mode === 'brainstorm'
+  const runtimeAgentId = isBrainstormMode ? 'brainstorm' : 'architect'
 
   let abortController: AbortController | null = null
   let activeStreamCleanup: (() => void) | null = null
@@ -82,12 +95,19 @@ export function useArchitectEngine() {
   // ─── Project (delegated) ───
 
   const project = useArchitectProject({
+    mode,
     plan,
     answers,
     currentProject: currentProject as any,
     isInsideProject,
     onReset: handleReset,
-    generateDocs: (projectPath: string) => generateDocs(projectPath),
+    generateDocs: (projectPath: string, generateOptions) => generateDocs(projectPath, generateOptions),
+  })
+
+  watch(project.progressMessage, (message) => {
+    if (project.isKicking.value && message) {
+      thinkingMessage.value = message
+    }
   })
 
   function clearActiveStreamCleanup() {
@@ -115,7 +135,211 @@ export function useArchitectEngine() {
     return buildArchitectPromptDescription(
       input,
       isInsideProject.value && currentProject.value ? currentProject.value : null,
+      { mode },
     )
+  }
+
+  function extractChunkText(chunk: StreamEvent): string {
+    const data = chunk.data as Record<string, unknown> | undefined
+    if (typeof chunk.content === 'string' && chunk.content) return chunk.content
+    if (typeof data?.text === 'string' && data.text) return data.text
+    return ''
+  }
+
+  function extractStatusMessage(chunk: StreamEvent): string {
+    if (chunk.type !== 'status') return ''
+    const data = chunk.data as Record<string, unknown> | undefined
+    return typeof data?.message === 'string' ? data.message : ''
+  }
+
+  function extractToolTitle(chunk: StreamEvent): string {
+    if (chunk.type !== 'tool.call' && chunk.type !== 'tool.result') return ''
+    const data = chunk.data as Record<string, unknown> | undefined
+    return typeof data?.title === 'string' ? data.title : ''
+  }
+
+  function extractToolInputPath(chunk: StreamEvent): string {
+    if (chunk.type !== 'tool.call' && chunk.type !== 'tool.result') return ''
+    const data = chunk.data as Record<string, unknown> | undefined
+    const rawInput = data?.input
+    if (typeof rawInput !== 'string' || !rawInput.trim()) return ''
+
+    try {
+      const parsed = JSON.parse(rawInput) as Record<string, unknown>
+      for (const key of ['path', 'file_path', 'filepath', 'filename']) {
+        const value = parsed[key]
+        if (typeof value === 'string' && value.trim()) return value.trim()
+      }
+    } catch {
+      return ''
+    }
+
+    return ''
+  }
+
+  function getPathBasename(path: string): string {
+    const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')
+    const parts = normalized.split('/').filter(Boolean)
+    return parts[parts.length - 1] || path
+  }
+
+  function getStreamingStatusLabel(callMode: 'questions' | 'plan' | 'clarify' | 'review'): string {
+    if (callMode === 'questions') return 'Drafting the interview questions...'
+    if (callMode === 'clarify') return 'Preparing a clearer explanation...'
+    if (callMode === 'review') return 'Reviewing the plan...'
+    return isBrainstormMode
+      ? 'Drafting the project blueprint...'
+      : 'Drafting the implementation plan...'
+  }
+
+  function getDocsProgressMessage(chunk: StreamEvent): string {
+    const statusMessage = extractStatusMessage(chunk)
+    if (statusMessage) return statusMessage
+
+    const filePath = extractToolInputPath(chunk)
+    if (filePath) {
+      const filename = getPathBasename(filePath)
+      return `Writing ${filename}...`
+    }
+
+    const toolTitle = extractToolTitle(chunk)
+    if (toolTitle) return toolTitle
+
+    const text = extractChunkText(chunk)
+    if (text.trim()) return 'Finalizing documentation...'
+
+    return ''
+  }
+
+  function slugifySpaceId(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'new-space'
+  }
+
+  function normalizePlanPayload(raw: Record<string, unknown>): ArchitectPlan {
+    const normalized: ArchitectPlan = { ...(raw as unknown as ArchitectPlan) }
+    const isConstructSpacePlan = normalized.type === 'construct-space' || !!normalized.spaceId
+    if (!isConstructSpacePlan) {
+      if (isBrainstormMode && isGenericBrainstormPlanName(normalized.name)) {
+        normalized.name = buildBrainstormFallbackName(description.value)
+      }
+      return normalized
+    }
+
+    normalized.type = 'construct-space'
+    normalized.spaceScope = normalized.spaceScope || 'app'
+    normalized.spaceName = normalized.spaceName || normalized.name
+    normalized.spaceId = normalized.spaceId || slugifySpaceId(normalized.spaceName || normalized.name || description.value)
+    normalized.spaceIcon = normalized.spaceIcon || 'i-lucide-lightbulb'
+
+    return normalized
+  }
+
+  function normalizeProjectToken(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  }
+
+  function getCurrentProjectPath(): string {
+    const project = currentProject.value as { local_path?: string, path?: string } | null
+    return project?.local_path || project?.path || ''
+  }
+
+  function resolveAutoDocsPath(nextPlan: ArchitectPlan): string | null {
+    const projectPath = getCurrentProjectPath()
+    if (!projectPath) return null
+    if (isInsideProject.value) return projectPath
+    if (!isBrainstormMode) return null
+
+    const project = currentProject.value as { name?: string } | null
+    const pathToken = normalizeProjectToken(getPathBasename(projectPath))
+    const projectNameToken = normalizeProjectToken(project?.name || '')
+    const planTokens = [
+      nextPlan.spaceId,
+      nextPlan.spaceName,
+      nextPlan.name,
+    ]
+      .map(value => normalizeProjectToken(value || ''))
+      .filter(Boolean)
+
+    return planTokens.some(token => token === pathToken || token === projectNameToken)
+      ? projectPath
+      : null
+  }
+
+  function buildPlanSnapshotMarkdown(currentPlan: ArchitectPlan): string {
+    const prd = currentPlan.docs?.prd || currentPlan.prd
+    const featureLines = (prd?.coreFeatures || currentPlan.features || [])
+      .map((feature) => {
+        if (typeof feature === 'string') return `- ${feature}`
+        const name = typeof feature.name === 'string' ? feature.name : 'Untitled feature'
+        const description = typeof feature.description === 'string' ? `: ${feature.description}` : ''
+        return `- ${name}${description}`
+      })
+      .filter(Boolean)
+      .join('\n')
+
+    const decisionLines = Object.entries(currentPlan.decisions || {})
+      .map(([key, value]) => `- ${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+      .join('\n') || '- None recorded'
+
+    const taskLines = Array.isArray(currentPlan.tasks)
+      ? currentPlan.tasks
+        .map((task, index) => {
+          const title = typeof task.title === 'string' ? task.title : `Task ${index + 1}`
+          const description = typeof task.description === 'string' ? `\n   ${task.description}` : ''
+          return `${index + 1}. ${title}${description}`
+        })
+        .join('\n')
+      : ''
+
+    return [
+      `# ${currentPlan.name || 'Project Plan'}`,
+      '',
+      `Generated by ${isBrainstormMode ? 'Brainstorm' : 'Architect'} on ${new Date().toISOString()}.`,
+      '',
+      '## Overview',
+      currentPlan.description || 'No description provided.',
+      '',
+      '## Decisions',
+      decisionLines,
+      '',
+      '## Features',
+      featureLines || '- No features captured in the plan.',
+      '',
+      '## Tasks',
+      taskLines || '- No task breakdown captured in the plan.',
+      '',
+      '## Raw Plan',
+      '```json',
+      JSON.stringify(currentPlan, null, 2),
+      '```',
+      '',
+    ].join('\n')
+  }
+
+  async function persistPlanSnapshot(projectPath: string) {
+    if (!plan.value || !projectPath.trim() || isBrainstormMode) return
+
+    try {
+      const tauriFs = await import('@tauri-apps/plugin-fs')
+      const docsPath = `${projectPath.replace(/\/+$/g, '')}/docs`
+      const docsExist = await tauriFs.exists(docsPath)
+      if (!docsExist) {
+        await tauriFs.mkdir(docsPath, { recursive: true })
+      }
+
+      await tauriFs.writeTextFile(`${docsPath}/00-plan.md`, buildPlanSnapshotMarkdown(plan.value))
+      await tauriFs.writeTextFile(`${docsPath}/00-plan.json`, JSON.stringify(plan.value, null, 2))
+    } catch (error) {
+      console.warn('[Architect] Failed to persist plan snapshot:', error)
+    }
   }
 
   async function dispatchAgentTask(
@@ -190,7 +414,7 @@ export function useArchitectEngine() {
     mode: 'questions' | 'plan' | 'clarify' | 'review',
     _model: string,
     signal?: AbortSignal,
-  _onStatus?: (status: string) => void,
+    onStatus?: (status: string) => void,
     options?: {
       clarification?: string
       currentQuestion?: InterviewQuestion | null
@@ -208,22 +432,22 @@ export function useArchitectEngine() {
 
     if (mode === 'questions') {
       task = [
-        'Generate 3-5 interview questions for this project.',
-        'IMPORTANT: Output ONLY a raw JSON array — no markdown, no code fences, no tool calls, no prose.',
-        'Each question: {id, question, type: "single"|"multi", options: [{value, label, icon?, description?}]}',
-        'Only ask questions that materially change the architecture. Skip obvious defaults.',
-        'Do NOT assume this is a Construct space unless the user explicitly says "space" or "plugin".',
+        'Generate 2-4 interview questions for this project.',
+        'Output ONLY a raw JSON array. No markdown, no code fences, no tool calls, no prose.',
+        'Format: [{id, question, type: "single"|"multi", options: [{value, label, icon?, description?}]}]',
+        'Only ask what materially changes the architecture. Skip obvious defaults.',
+        'NOT a Construct space unless user explicitly says "space" or "plugin".',
         `\nDescription: ${scopedDescription}`,
       ].join('\n')
     } else if (mode === 'plan') {
       const planInput = buildArchitectPlanInput(scopedDescription, questions.value, answers.value)
       task = [
-        'Generate a detailed implementation plan.',
-        'IMPORTANT: Output ONLY a raw JSON object — no markdown, no code fences, no tool calls, no prose.',
-        'Format: {name, description, stack, features: [{name, description, priority}], files: [paths],',
-        '  tasks: [{id, title, description, files: {create: [], modify: [], test: []},',
-        '    steps: ["step 1", "step 2"], depends: [], verification: "cmd", commit: "msg"}]}',
-        'Each task should take 2-10 minutes. Include exact file paths and verification commands.',
+        'Generate a detailed implementation plan based on these decisions.',
+        'Output ONLY a raw JSON object. No markdown, no code fences, no tool calls, no prose.',
+        'Format: {name, description, stack, features: [{name, description}], files: [paths],',
+        '  tasks: [{id, title, files: [paths], steps: ["..."], verification: "cmd", commit: "msg"}]}',
+        'Each task: 2-10 minutes, exact file paths, verification command, commit message.',
+        'NOT a Construct space unless user explicitly said "space" or "plugin".',
         `\nProject: ${planInput.description}`,
         `\nDecisions:\n${planInput.answers}`,
       ].join('\n')
@@ -249,12 +473,25 @@ export function useArchitectEngine() {
 
     // Use streaming dispatch to avoid blocking the UI thread
     let content = ''
-    await dispatchAgentTask('architect', task, signal, (chunk: StreamEvent) => {
+    let reportedStreaming = false
+    await dispatchAgentTask(runtimeAgentId, task, signal, (chunk: StreamEvent) => {
+      const statusMessage = extractStatusMessage(chunk)
+      if (statusMessage) {
+        onStatus?.(statusMessage)
+      } else {
+        const toolTitle = extractToolTitle(chunk)
+        if (toolTitle) onStatus?.(toolTitle)
+      }
+
       // Accumulate text from all possible locations in the stream event
-      const text = chunk.content
-        || (chunk.data as Record<string, unknown>)?.text as string
-        || ''
-      if (text) content += text
+      const text = extractChunkText(chunk)
+      if (text) {
+        content += text
+        if (!reportedStreaming) {
+          onStatus?.(getStreamingStatusLabel(mode))
+          reportedStreaming = true
+        }
+      }
 
       // Also check for tool results that contain JSON (model may use write_file with our JSON)
       const toolResult = (chunk.data as Record<string, unknown>)?.result as string
@@ -265,14 +502,15 @@ export function useArchitectEngine() {
 
     if (signal?.aborted) throw new Error('Cancelled')
     if (!content.trim()) throw new Error('Empty response from AI. Check your AI provider settings.')
-    console.log(`[Architect] ${mode} response (${content.length} chars):`, content.slice(0, 200))
+    const label = isBrainstormMode ? 'Brainstorm' : 'Architect'
+    console.log(`[${label}] ${mode} response (${content.length} chars):`, content.slice(0, 200))
     return content
   }
 
   // ─── Computed ───
 
   const isDone = computed(() => plan.value !== null)
-  const isLoading = computed(() => isGeneratingQuestions.value || isGeneratingPlan.value || isGeneratingDocs.value || isClarifying.value)
+  const isLoading = computed(() => isGeneratingQuestions.value || isGeneratingPlan.value || isGeneratingDocs.value || isClarifying.value || project.isKicking.value)
 
   const currentQuestion = computed(() => {
     if (activeQuestionIndex.value < 0 || activeQuestionIndex.value >= questions.value.length) return null
@@ -520,6 +758,8 @@ export function useArchitectEngine() {
 
     await nextTick()
 
+    let autoDocsPath: string | null = null
+
     try {
       const content = await architectCall(
         'plan',
@@ -530,7 +770,9 @@ export function useArchitectEngine() {
 
       const parsed = parseJsonObject(content)
       if (parsed) {
-        plan.value = parsed as unknown as ArchitectPlan
+        const nextPlan = normalizePlanPayload(parsed)
+        plan.value = nextPlan
+        autoDocsPath = resolveAutoDocsPath(nextPlan)
       } else {
         errorMessage.value = 'Failed to generate plan. The AI response was not in the expected format.'
         activeQuestionIndex.value = questions.value.length - 1
@@ -544,6 +786,15 @@ export function useArchitectEngine() {
       isThinking.value = false
       if (abortController === controller) abortController = null
     }
+
+    if (isBrainstormMode && !isInsideProject.value && plan.value && !controller.signal.aborted) {
+      await project.createProject({ auto: true })
+      return
+    }
+
+    if (autoDocsPath && !controller.signal.aborted) {
+      await generateDocs(autoDocsPath)
+    }
   }
 
   // ─── AI Call 3: Generate Docs (streamed directly to docs agent) ───
@@ -552,7 +803,9 @@ export function useArchitectEngine() {
    * Dispatch full interview context directly to the docs agent so docs are
    * written to the selected project root via write_file. Streams progress to the UI.
    */
-  async function generateDocs(projectPath: string) {
+  async function generateDocs(projectPath: string, options: {
+    onProgress?: (message: string) => void
+  } = {}) {
     if (!plan.value) return
 
     abortActiveRequest()
@@ -564,15 +817,27 @@ export function useArchitectEngine() {
     errorMessage.value = ''
 
     const stopRotation = rotateMessages([
-      'Writing project documentation...',
-      'Generating product requirements...',
-      'Designing technical architecture...',
-      'Building setup guide...',
-      'Creating AI context doc...',
-      'Finalizing documentation...',
+      ...(isBrainstormMode
+        ? [
+            'Writing the design spec...',
+            'Mapping the experience...',
+            'Writing the implementation plan...',
+            'Breaking work into bite-sized tasks...',
+            'Finalizing the docs...',
+          ]
+        : [
+            'Writing project documentation...',
+            'Generating product requirements...',
+            'Designing technical architecture...',
+            'Building setup guide...',
+            'Creating AI context doc...',
+            'Finalizing documentation...',
+          ]),
     ], 3000)
 
     try {
+      await persistPlanSnapshot(projectPath)
+
       const planInput = buildArchitectPlanInput(getPromptDescription(), questions.value, answers.value)
       const interviewAnswers = Object.entries(planInput.answers)
         .map(([key, value]) => `- ${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
@@ -582,39 +847,23 @@ export function useArchitectEngine() {
         projectPath,
         interviewDescription: planInput.description,
         interviewAnswers,
+        mode,
       })
 
       await dispatchAgentTask(
-        'docs',
+        runtimeAgentId,
         task,
         controller.signal,
         (chunk: StreamEvent) => {
-          if (chunk.content) {
-            docsStreamContent.value += chunk.content
-            // Update thinking message based on content
-            if (chunk.content.includes('01-') || chunk.content.includes('product-requirements')) {
-              thinkingMessage.value = 'Writing product requirements...'
-            } else if (chunk.content.includes('02-') || chunk.content.includes('technical-architecture')) {
-              thinkingMessage.value = 'Writing technical architecture...'
-            } else if (chunk.content.includes('03-') || chunk.content.includes('data-models')) {
-              thinkingMessage.value = 'Writing data models...'
-            } else if (chunk.content.includes('04-') || chunk.content.includes('ui-specification')) {
-              thinkingMessage.value = 'Writing UI specification...'
-            } else if (chunk.content.includes('05-') || chunk.content.includes('backend-endpoints')) {
-              thinkingMessage.value = 'Writing backend endpoints...'
-            } else if (chunk.content.includes('06-') || chunk.content.includes('backend-modules')) {
-              thinkingMessage.value = 'Writing backend modules...'
-            } else if (chunk.content.includes('07-') || chunk.content.includes('roadmap')) {
-              thinkingMessage.value = 'Writing roadmap...'
-            } else if (chunk.content.includes('08-') || chunk.content.includes('setup-guide')) {
-              thinkingMessage.value = 'Writing setup guide...'
-            } else if (chunk.content.includes('09-') || chunk.content.includes('ai-context')) {
-              thinkingMessage.value = 'Writing AI context doc...'
-            } else if (chunk.content.includes('10-') || chunk.content.includes('game-design-system')) {
-              thinkingMessage.value = 'Writing game design doc...'
-            } else if (chunk.content.includes('README')) {
-              thinkingMessage.value = 'Writing README...'
-            }
+          const progressMessage = getDocsProgressMessage(chunk)
+          if (progressMessage) {
+            thinkingMessage.value = progressMessage
+            options.onProgress?.(progressMessage)
+          }
+
+          const text = extractChunkText(chunk)
+          if (text) {
+            docsStreamContent.value += text
           }
         },
         {
@@ -826,6 +1075,7 @@ export function useArchitectEngine() {
     detectedBackendTemplate: project.detectedBackendTemplate,
     rawFrontendName: project.rawFrontendName,
     rawBackendName: project.rawBackendName,
+    isCreatingProject: project.isKicking,
 
     // Actions
     submitDescription,
