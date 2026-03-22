@@ -283,27 +283,112 @@ const providers: ProviderKeyConfig[] = [
   { id: 'kimi', name: 'Kimi (Moonshot)', description: 'Moonshot AI models', placeholder: 'API key', kvKey: 'provider_key:kimi' },
 ]
 
-const oauthProviders = [
-  { id: 'anthropic', name: 'Claude Pro/Max', description: 'Direct login with your Anthropic account', connected: false },
-  { id: 'openai-codex', name: 'ChatGPT Plus/Pro', description: 'Direct login with your OpenAI account', connected: false },
-  { id: 'github-copilot', name: 'GitHub Copilot', description: 'Claude, GPT, Gemini via GitHub Copilot subscription', connected: false },
-  { id: 'google-gemini-cli', name: 'Google Gemini', description: 'Gemini models via Google Cloud Code Assist', connected: false },
-]
+type OAuthProviderCard = {
+  id: string
+  name: string
+  description: string
+  connected: boolean
+  models: string[]
+  runtime: boolean
+  email?: string
+}
+
+const oauthProviders = reactive<OAuthProviderCard[]>([
+  { id: 'anthropic', name: 'Claude Pro/Max', description: 'Direct login with your Anthropic account', connected: false, models: [], runtime: true },
+  { id: 'openai-codex', name: 'ChatGPT Plus/Pro', description: 'Direct login with your OpenAI account', connected: false, models: [], runtime: true },
+  { id: 'github-copilot', name: 'GitHub Copilot', description: 'Claude, GPT, Gemini via GitHub Copilot subscription', connected: false, models: [], runtime: false },
+  { id: 'google-gemini-cli', name: 'Google Gemini', description: 'Gemini models via Google Cloud Code Assist', connected: false, models: [], runtime: false },
+])
+
+const oauthLoading = ref<Record<string, boolean>>({})
+const deviceCode = ref<{ provider: string; code: string; url: string } | null>(null)
+
+async function refreshOAuthProviders() {
+  try {
+    const result = await operator.send('oauth.providers', {}) as {
+      providers?: Array<{
+        id?: string
+        name?: string
+        connected?: boolean
+        models?: string[]
+        runtime?: boolean
+        email?: string
+      }>
+    }
+    const byId = new Map((result.providers || [])
+      .filter(provider => provider.id)
+      .map(provider => [provider.id as string, provider]))
+
+    for (const provider of oauthProviders) {
+      const next = byId.get(provider.id)
+      provider.connected = !!next?.connected
+      provider.models = Array.isArray(next?.models) ? next.models : []
+      provider.runtime = typeof next?.runtime === 'boolean' ? next.runtime : provider.runtime
+      provider.email = typeof next?.email === 'string' ? next.email : undefined
+      if (typeof next?.name === 'string' && next.name.trim()) {
+        provider.name = next.name
+      }
+    }
+  } catch {
+    for (const provider of oauthProviders) {
+      provider.connected = false
+      provider.email = undefined
+    }
+  }
+}
 
 async function startOAuthLogin(providerId: string) {
+  oauthLoading.value[providerId] = true
   try {
-    toast.add({ title: `Starting ${providerId} login...`, color: 'info' })
+    toast.add({ title: 'Opening browser for login...', color: 'info' })
     const result = await operator.send('oauth.login', { provider: providerId })
-    if (result?.url) {
-      // Open browser for OAuth
-      window.open(result.url, '_blank')
-      toast.add({ title: 'Complete login in browser', color: 'info' })
-    } else if (result?.success) {
-      toast.add({ title: `${providerId} connected`, color: 'success' })
+
+    // Device code flow — show code to user, then poll
+    if (result?.device_code && result?.user_code) {
+      deviceCode.value = { provider: providerId, code: String(result.user_code), url: String(result.url || '') }
+      // Poll for completion in background
+      try {
+        const pollResult = await operator.send('oauth.device-poll', { provider: providerId })
+        if (pollResult?.success) {
+          const provider = oauthProviders.find(entry => entry.id === providerId)
+          await refreshOAuthProviders()
+          await loadProviders()
+          toast.add({ title: `${provider?.name || providerId} connected`, color: 'success' })
+        }
+      } finally {
+        deviceCode.value = null
+      }
+      return
+    }
+
+    if (result?.success) {
+      const provider = oauthProviders.find(entry => entry.id === providerId)
+      await refreshOAuthProviders()
+      toast.add({ title: `${provider?.name || providerId} connected`, color: 'success' })
+      await loadProviders()
     }
   } catch (e) {
+    deviceCode.value = null
     const msg = e instanceof Error ? e.message : String(e)
     toast.add({ title: `Login failed: ${msg}`, color: 'error' })
+  } finally {
+    oauthLoading.value[providerId] = false
+  }
+}
+
+async function disconnectOAuthProvider(providerId: string) {
+  oauthLoading.value[providerId] = true
+  try {
+    await operator.send('oauth.logout', { provider: providerId })
+    await refreshOAuthProviders()
+    await loadProviders()
+    const provider = oauthProviders.find(entry => entry.id === providerId)
+    toast.add({ title: `${provider?.name || providerId} disconnected`, color: 'info' })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    toast.add({ title: `Disconnect failed: ${msg}`, color: 'error' })
+  } finally {
+    oauthLoading.value[providerId] = false
   }
 }
 
@@ -382,6 +467,7 @@ async function loadKeys() {
 async function useClaudeCodeTokens() {
   const success = await providerAuth.loginFromKeychain()
   if (success) {
+    await refreshOAuthProviders()
     await loadProviders()
     toast.add({ title: 'Authenticated via Claude Code', color: 'success' })
   } else {
@@ -394,6 +480,7 @@ async function useCodexTokens() {
   if (success) {
     openAIAuthenticated.value = true
     await checkOpenAIStatus()
+    await refreshOAuthProviders()
     await loadProviders()
     toast.add({ title: 'Authenticated via Codex', color: 'success' })
   } else {
@@ -402,7 +489,8 @@ async function useCodexTokens() {
 }
 
 async function logoutAnthropic() {
-  providerAuth.logout()
+  await providerAuth.logout()
+  await refreshOAuthProviders()
   await loadProviders()
   toast.add({ title: 'Claude Max authentication cleared', color: 'info' })
 }
@@ -423,6 +511,7 @@ async function logoutOpenAI() {
   try {
     await operator.send('auth.openai.clear', {})
     openAIAuthenticated.value = false
+    await refreshOAuthProviders()
     await loadProviders()
     toast.add({ title: 'OpenAI authentication cleared', color: 'info' })
   } catch {
@@ -438,6 +527,7 @@ onMounted(async () => {
     if (route.query.connect === 'oauth' || route.query.connect === 'openai') {
       activeTab.value = 'auth'
     }
+			await refreshOAuthProviders()
 		await providerAuth.checkStatus()
 		await checkOpenAIStatus()
 		await loadKeys()
@@ -696,14 +786,47 @@ onMounted(async () => {
       <h3 class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Direct OAuth Login</h3>
       <p class="text-xs text-[var(--app-muted)] mb-4">Login directly with your subscription — no CLI required. Opens browser to authenticate.</p>
 
+      <!-- Device code prompt (GitHub Copilot) -->
+      <div v-if="deviceCode" class="mb-4 p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5">
+        <p class="text-sm font-medium text-[var(--app-foreground)] mb-2">Enter this code on GitHub:</p>
+        <p class="text-2xl font-mono font-bold text-center tracking-[0.3em] text-yellow-400 py-3">{{ deviceCode.code }}</p>
+        <p class="text-xs text-[var(--app-muted)] text-center">Waiting for authorization...</p>
+      </div>
+
       <div class="space-y-3">
-        <div v-for="oauthProvider in oauthProviders" :key="oauthProvider.id" class="p-4 rounded-lg border border-[var(--app-border)]">
-          <div class="flex items-center justify-between">
-            <div>
+        <div
+          v-for="oauthProvider in oauthProviders"
+          :key="oauthProvider.id"
+          class="p-4 rounded-lg border transition-colors"
+          :class="oauthProvider.connected ? 'bg-green-500/5 border-green-500/20' : 'border-[var(--app-border)]'"
+        >
+          <!-- Connected state -->
+          <div v-if="oauthProvider.connected && !oauthLoading[oauthProvider.id]" class="flex items-center justify-between">
+            <div class="flex items-center gap-3 min-w-0">
+              <svg class="w-5 h-5 text-green-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-[var(--app-foreground)]">{{ oauthProvider.name }}</p>
+                <p v-if="oauthProvider.email" class="text-xs text-[var(--app-muted)]">{{ oauthProvider.email }}</p>
+                <p v-else class="text-xs text-[var(--app-muted)]">Connected</p>
+              </div>
+            </div>
+            <Button variant="ghost" color="error" size="sm" label="Disconnect" @click="disconnectOAuthProvider(oauthProvider.id)" />
+          </div>
+
+          <!-- Disconnected / loading state -->
+          <div v-else class="flex items-center justify-between">
+            <div class="min-w-0">
               <p class="text-sm font-medium text-[var(--app-foreground)]">{{ oauthProvider.name }}</p>
               <p class="text-xs text-[var(--app-muted)] mt-0.5">{{ oauthProvider.description }}</p>
             </div>
-            <Button size="sm" :label="oauthProvider.connected ? 'Connected' : 'Login'" :disabled="oauthProvider.connected" @click="startOAuthLogin(oauthProvider.id)" />
+            <Button
+              class="shrink-0"
+              size="sm"
+              label="Login"
+              :loading="oauthLoading[oauthProvider.id]"
+              :disabled="oauthLoading[oauthProvider.id]"
+              @click="startOAuthLogin(oauthProvider.id)"
+            />
           </div>
         </div>
       </div>

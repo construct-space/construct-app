@@ -26,7 +26,7 @@ const session = useAgentSession()
 const { turns, isLoading, statusMessage } = session
 
 // Project context
-const currentProject = computed(() => projectStore.activeProject)
+const currentProject = computed(() => projectStore.currentProject)
 const projectPath = computed(() => {
   if (currentProject.value?.local_path) return currentProject.value.local_path
   return ''

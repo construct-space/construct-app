@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -20,14 +22,15 @@ const (
 	openaiCodexTokenURL     = "https://auth.openai.com/oauth/token"
 	openaiCodexRedirectURI  = "http://localhost:1455/auth/callback"
 	openaiCodexScope        = "openid profile email offline_access"
+	openaiCodexJWTClaimPath = "https://api.openai.com/auth"
 )
 
 // OpenAICodexProvider implements OpenAI Codex OAuth (ChatGPT Plus/Pro).
 type OpenAICodexProvider struct{}
 
-func (p *OpenAICodexProvider) ID() string                  { return "openai-codex" }
-func (p *OpenAICodexProvider) Name() string                { return "ChatGPT Plus/Pro (Codex)" }
-func (p *OpenAICodexProvider) UsesCallbackServer() bool    { return true }
+func (p *OpenAICodexProvider) ID() string                      { return "openai-codex" }
+func (p *OpenAICodexProvider) Name() string                    { return "ChatGPT Plus/Pro (Codex)" }
+func (p *OpenAICodexProvider) UsesCallbackServer() bool        { return true }
 func (p *OpenAICodexProvider) GetAPIKey(c *Credentials) string { return c.Access }
 
 func (p *OpenAICodexProvider) Login(callbacks LoginCallbacks) (*Credentials, error) {
@@ -35,7 +38,24 @@ func (p *OpenAICodexProvider) Login(callbacks LoginCallbacks) (*Credentials, err
 }
 
 func (p *OpenAICodexProvider) RefreshToken(creds *Credentials) (*Credentials, error) {
-	return refreshOpenAICodexToken(creds.Refresh)
+	refreshed, err := refreshOpenAICodexToken(creds.Refresh)
+	if err != nil {
+		return nil, err
+	}
+	if refreshed.Extra == nil {
+		refreshed.Extra = map[string]any{}
+	}
+	if existingAccountID, _ := creds.Extra["accountId"].(string); existingAccountID != "" {
+		if refreshed.Extra["accountId"] == nil {
+			refreshed.Extra["accountId"] = existingAccountID
+		}
+	}
+	if existingEmail, _ := creds.Extra["email"].(string); existingEmail != "" {
+		if refreshed.Extra["email"] == nil {
+			refreshed.Extra["email"] = existingEmail
+		}
+	}
+	return refreshed, nil
 }
 
 func createState() (string, error) {
@@ -116,16 +136,16 @@ func loginOpenAICodex(callbacks LoginCallbacks) (*Credentials, error) {
 
 func buildOpenAIAuthURL(challenge, state string) string {
 	params := url.Values{
-		"response_type":        {"code"},
-		"client_id":            {openaiCodexClientID},
-		"redirect_uri":         {openaiCodexRedirectURI},
-		"scope":                {openaiCodexScope},
-		"code_challenge":       {challenge},
-		"code_challenge_method": {"S256"},
-		"state":                {state},
+		"response_type":              {"code"},
+		"client_id":                  {openaiCodexClientID},
+		"redirect_uri":               {openaiCodexRedirectURI},
+		"scope":                      {openaiCodexScope},
+		"code_challenge":             {challenge},
+		"code_challenge_method":      {"S256"},
+		"state":                      {state},
 		"id_token_add_organizations": {"true"},
 		"codex_cli_simplified_flow":  {"true"},
-		"originator":           {"construct"},
+		"originator":                 {"construct"},
 	}
 	return openaiCodexAuthorizeURL + "?" + params.Encode()
 }
@@ -163,10 +183,20 @@ func exchangeOpenAICode(code, verifier string) (*Credentials, error) {
 		return nil, fmt.Errorf("token response missing fields")
 	}
 
+	accountID, email := extractOpenAICodexIdentity(tokenData.AccessToken)
+	extra := map[string]any{}
+	if accountID != "" {
+		extra["accountId"] = accountID
+	}
+	if email != "" {
+		extra["email"] = email
+	}
+
 	return &Credentials{
 		Refresh: tokenData.RefreshToken,
 		Access:  tokenData.AccessToken,
 		Expires: timeNowMs() + tokenData.ExpiresIn*1000,
+		Extra:   extra,
 	}, nil
 }
 
@@ -201,11 +231,67 @@ func refreshOpenAICodexToken(refreshToken string) (*Credentials, error) {
 		return nil, fmt.Errorf("refresh response missing fields")
 	}
 
+	accountID, email := extractOpenAICodexIdentity(tokenData.AccessToken)
+	extra := map[string]any{}
+	if accountID != "" {
+		extra["accountId"] = accountID
+	}
+	if email != "" {
+		extra["email"] = email
+	}
+
 	return &Credentials{
 		Refresh: tokenData.RefreshToken,
 		Access:  tokenData.AccessToken,
 		Expires: timeNowMs() + tokenData.ExpiresIn*1000,
+		Extra:   extra,
 	}, nil
+}
+
+func extractOpenAICodexIdentity(accessToken string) (accountID string, email string) {
+	payload := decodeJWTPayload(accessToken)
+	if payload == nil {
+		return "", ""
+	}
+
+	if claim, ok := payload[openaiCodexJWTClaimPath].(map[string]any); ok {
+		if value, _ := claim["chatgpt_account_id"].(string); strings.TrimSpace(value) != "" {
+			accountID = value
+		}
+		if value, _ := claim["email"].(string); strings.TrimSpace(value) != "" {
+			email = value
+		}
+	}
+	if email == "" {
+		if value, _ := payload["email"].(string); strings.TrimSpace(value) != "" {
+			email = value
+		}
+	}
+	if email == "" {
+		if value, _ := payload["preferred_username"].(string); strings.TrimSpace(value) != "" {
+			email = value
+		}
+	}
+
+	return accountID, email
+}
+
+func decodeJWTPayload(token string) map[string]any {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return nil
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return nil
+	}
+	return decoded
 }
 
 func startOpenAICallbackServer(expectedState string, codeCh chan<- string, errCh chan<- error) (*http.Server, error) {

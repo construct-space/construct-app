@@ -18,7 +18,7 @@ const projectStore = useProjectStore()
 const session = useAgentSession()
 const { turns, isLoading, statusMessage } = session
 
-const currentProject = computed(() => projectStore.activeProject)
+const currentProject = computed(() => projectStore.currentProject)
 const projectPath = computed(() => currentProject.value?.local_path || '')
 
 const inputPlaceholder = computed(() =>

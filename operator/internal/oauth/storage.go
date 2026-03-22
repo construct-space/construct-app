@@ -8,11 +8,12 @@ import (
 	"sync"
 )
 
-// Storage handles reading/writing auth credentials to auth.json.
+// Storage handles reading/writing provider credentials to auth.json.
 // Thread-safe with file locking for concurrent access.
 type Storage struct {
-	mu   sync.Mutex
-	path string
+	mu          sync.Mutex
+	path        string
+	legacyPaths []string
 }
 
 // NewStorage creates a storage backed by the given file path.
@@ -20,9 +21,13 @@ func NewStorage(path string) *Storage {
 	return &Storage{path: path}
 }
 
-// NewStorageInDir creates a storage at dir/auth.json.
+// NewStorageInDir creates a storage at dir/providers/auth.json and falls back
+// to dir/auth.json for legacy installs.
 func NewStorageInDir(dir string) *Storage {
-	return NewStorage(filepath.Join(dir, "auth.json"))
+	return &Storage{
+		path:        filepath.Join(dir, "providers", "auth.json"),
+		legacyPaths: []string{filepath.Join(dir, "auth.json")},
+	}
 }
 
 // Load reads all credentials from disk.
@@ -135,19 +140,15 @@ func (s *Storage) GetAPIKey(providerID string, registry *Registry) (string, erro
 }
 
 func (s *Storage) readFile() (StorageData, error) {
-	raw, err := os.ReadFile(s.path)
-	if os.IsNotExist(err) {
-		return make(StorageData), nil
+	paths := append([]string{s.path}, s.legacyPaths...)
+	for _, path := range paths {
+		data, err := readStorageFile(path)
+		if os.IsNotExist(err) {
+			continue
+		}
+		return data, err
 	}
-	if err != nil {
-		return nil, err
-	}
-
-	var data StorageData
-	if err := json.Unmarshal(raw, &data); err != nil {
-		return make(StorageData), nil
-	}
-	return data, nil
+	return make(StorageData), nil
 }
 
 func (s *Storage) writeFile(data StorageData) error {
@@ -162,4 +163,20 @@ func (s *Storage) writeFile(data StorageData) error {
 	}
 
 	return os.WriteFile(s.path, raw, 0600)
+}
+
+func readStorageFile(path string) (StorageData, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	var data StorageData
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return make(StorageData), nil
+	}
+	return data, nil
 }

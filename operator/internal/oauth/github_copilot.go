@@ -21,7 +21,7 @@ const (
 var (
 	copilotClientID string
 	copilotHeaders  = map[string]string{
-		"User-Agent":              "GitHubCopilotChat/0.35.0",
+		"User-Agent":             "GitHubCopilotChat/0.35.0",
 		"Editor-Version":         "vscode/1.107.0",
 		"Editor-Plugin-Version":  "copilot-chat/0.35.0",
 		"Copilot-Integration-Id": "vscode-chat",
@@ -36,9 +36,9 @@ func init() {
 // GitHubCopilotProvider implements GitHub Copilot OAuth (device code flow).
 type GitHubCopilotProvider struct{}
 
-func (p *GitHubCopilotProvider) ID() string               { return "github-copilot" }
-func (p *GitHubCopilotProvider) Name() string              { return "GitHub Copilot" }
-func (p *GitHubCopilotProvider) UsesCallbackServer() bool  { return false }
+func (p *GitHubCopilotProvider) ID() string                      { return "github-copilot" }
+func (p *GitHubCopilotProvider) Name() string                    { return "GitHub Copilot" }
+func (p *GitHubCopilotProvider) UsesCallbackServer() bool        { return false }
 func (p *GitHubCopilotProvider) GetAPIKey(c *Credentials) string { return c.Access }
 
 func (p *GitHubCopilotProvider) Login(callbacks LoginCallbacks) (*Credentials, error) {
@@ -50,13 +50,75 @@ func (p *GitHubCopilotProvider) RefreshToken(creds *Credentials) (*Credentials, 
 	if d, ok := creds.Extra["enterpriseUrl"].(string); ok && d != "" {
 		domain = d
 	}
-	return refreshGitHubCopilotToken(creds.Refresh, domain)
+	return RefreshGitHubCopilotToken(creds.Refresh, domain)
 }
 
 func copilotURLs(domain string) (deviceCode, accessToken, copilotToken string) {
 	return fmt.Sprintf("https://%s/login/device/code", domain),
 		fmt.Sprintf("https://%s/login/oauth/access_token", domain),
 		fmt.Sprintf("https://api.%s/copilot_internal/v2/token", domain)
+}
+
+// DeviceFlowState holds the state of an in-progress device code flow.
+type DeviceFlowState struct {
+	Domain         string `json:"domain"`
+	DeviceCode     string `json:"device_code"`
+	UserCode       string `json:"user_code"`
+	VerificationURI string `json:"verification_uri"`
+	AccessTokenURL string `json:"access_token_url"`
+	Interval       int    `json:"interval"`
+	ExpiresIn      int    `json:"expires_in"`
+}
+
+// StartCopilotDeviceFlow initiates the device code flow and returns the state
+// (including user_code) so the UI can display it. Call CompleteCopilotDeviceFlow to poll.
+func StartCopilotDeviceFlow(enterpriseDomain string) (*DeviceFlowState, error) {
+	domain := "github.com"
+	if trimmed := strings.TrimSpace(enterpriseDomain); trimmed != "" {
+		normalized := normalizeDomain(trimmed)
+		if normalized == "" {
+			return nil, fmt.Errorf("invalid GitHub Enterprise URL/domain")
+		}
+		domain = normalized
+	}
+
+	deviceCodeURL, accessTokenURL, _ := copilotURLs(domain)
+	device, err := startDeviceFlow(deviceCodeURL)
+	if err != nil {
+		return nil, fmt.Errorf("device flow: %w", err)
+	}
+
+	return &DeviceFlowState{
+		Domain:          domain,
+		DeviceCode:      device.DeviceCode,
+		UserCode:        device.UserCode,
+		VerificationURI: firstNonEmpty(device.VerificationURIComplete, device.VerificationURI),
+		AccessTokenURL:  accessTokenURL,
+		Interval:        device.Interval,
+		ExpiresIn:       device.ExpiresIn,
+	}, nil
+}
+
+// CompleteCopilotDeviceFlow polls GitHub until the user authorizes, then exchanges for Copilot token.
+func CompleteCopilotDeviceFlow(state *DeviceFlowState) (*Credentials, error) {
+	githubToken, err := pollForGitHubAccessToken(state.AccessTokenURL, state.DeviceCode, state.Interval, state.ExpiresIn)
+	if err != nil {
+		return nil, fmt.Errorf("poll for token: %w", err)
+	}
+
+	creds, err := RefreshGitHubCopilotToken(githubToken, state.Domain)
+	if err != nil {
+		return nil, fmt.Errorf("get copilot token: %w", err)
+	}
+
+	if state.Domain != "github.com" {
+		if creds.Extra == nil {
+			creds.Extra = make(map[string]any)
+		}
+		creds.Extra["enterpriseUrl"] = state.Domain
+	}
+
+	return creds, nil
 }
 
 func loginGitHubCopilot(callbacks LoginCallbacks) (*Credentials, error) {
@@ -70,61 +132,35 @@ func loginGitHubCopilot(callbacks LoginCallbacks) (*Credentials, error) {
 		return nil, err
 	}
 
-	domain := "github.com"
-	trimmed := strings.TrimSpace(input)
-	if trimmed != "" {
-		normalized := normalizeDomain(trimmed)
-		if normalized == "" {
-			return nil, fmt.Errorf("invalid GitHub Enterprise URL/domain")
-		}
-		domain = normalized
-	}
-
-	// Start device flow
-	deviceCodeURL, accessTokenURL, _ := copilotURLs(domain)
-
-	device, err := startDeviceFlow(deviceCodeURL)
+	state, err := StartCopilotDeviceFlow(input)
 	if err != nil {
-		return nil, fmt.Errorf("device flow: %w", err)
+		return nil, err
 	}
 
 	callbacks.OnAuth(AuthInfo{
-		URL:          device.VerificationURI,
-		Instructions: fmt.Sprintf("Enter code: %s", device.UserCode),
+		URL:          state.VerificationURI,
+		Instructions: fmt.Sprintf("Enter code: %s", state.UserCode),
 	})
 
-	// Poll for access token
-	githubToken, err := pollForGitHubAccessToken(accessTokenURL, device.DeviceCode, device.Interval, device.ExpiresIn)
-	if err != nil {
-		return nil, fmt.Errorf("poll for token: %w", err)
-	}
-
-	// Exchange GitHub token for Copilot token
-	var enterpriseDomain string
-	if domain != "github.com" {
-		enterpriseDomain = domain
-	}
-	creds, err := refreshGitHubCopilotToken(githubToken, domain)
-	if err != nil {
-		return nil, fmt.Errorf("get copilot token: %w", err)
-	}
-
-	if enterpriseDomain != "" {
-		if creds.Extra == nil {
-			creds.Extra = make(map[string]any)
-		}
-		creds.Extra["enterpriseUrl"] = enterpriseDomain
-	}
-
-	return creds, nil
+	return CompleteCopilotDeviceFlow(state)
 }
 
 type deviceCodeResponse struct {
-	DeviceCode      string `json:"device_code"`
-	UserCode        string `json:"user_code"`
-	VerificationURI string `json:"verification_uri"`
-	Interval        int    `json:"interval"`
-	ExpiresIn       int    `json:"expires_in"`
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete"`
+	Interval                int    `json:"interval"`
+	ExpiresIn               int    `json:"expires_in"`
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func startDeviceFlow(deviceCodeURL string) (*deviceCodeResponse, error) {
@@ -209,7 +245,7 @@ func pollForGitHubAccessToken(accessTokenURL, deviceCode string, intervalSec, ex
 	return "", fmt.Errorf("device flow timed out")
 }
 
-func refreshGitHubCopilotToken(githubAccessToken, domain string) (*Credentials, error) {
+func RefreshGitHubCopilotToken(githubAccessToken, domain string) (*Credentials, error) {
 	_, _, copilotTokenURL := copilotURLs(domain)
 
 	req, _ := http.NewRequest("GET", copilotTokenURL, nil)

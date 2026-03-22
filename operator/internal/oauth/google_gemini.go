@@ -46,8 +46,8 @@ func init() {
 type GoogleGeminiProvider struct{}
 
 func (p *GoogleGeminiProvider) ID() string               { return "google-gemini-cli" }
-func (p *GoogleGeminiProvider) Name() string              { return "Google Gemini CLI" }
-func (p *GoogleGeminiProvider) UsesCallbackServer() bool  { return true }
+func (p *GoogleGeminiProvider) Name() string             { return "Google Gemini CLI" }
+func (p *GoogleGeminiProvider) UsesCallbackServer() bool { return true }
 
 func (p *GoogleGeminiProvider) GetAPIKey(c *Credentials) string {
 	projectID, _ := c.Extra["projectId"].(string)
@@ -64,7 +64,17 @@ func (p *GoogleGeminiProvider) RefreshToken(creds *Credentials) (*Credentials, e
 	if projectID == "" {
 		return nil, fmt.Errorf("missing projectId in credentials")
 	}
-	return refreshGoogleCloudToken(creds.Refresh, projectID)
+	refreshed, err := RefreshGoogleCloudToken(creds.Refresh, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if refreshed.Extra == nil {
+		refreshed.Extra = map[string]any{}
+	}
+	if email, _ := creds.Extra["email"].(string); email != "" {
+		refreshed.Extra["email"] = email
+	}
+	return refreshed, nil
 }
 
 func loginGeminiCli(callbacks LoginCallbacks) (*Credentials, error) {
@@ -84,15 +94,15 @@ func loginGeminiCli(callbacks LoginCallbacks) (*Credentials, error) {
 
 	// Build auth URL
 	params := url.Values{
-		"client_id":            {geminiClientID},
-		"response_type":        {"code"},
-		"redirect_uri":         {geminiRedirectURI},
-		"scope":                {strings.Join(geminiScopes, " ")},
-		"code_challenge":       {challenge},
+		"client_id":             {geminiClientID},
+		"response_type":         {"code"},
+		"redirect_uri":          {geminiRedirectURI},
+		"scope":                 {strings.Join(geminiScopes, " ")},
+		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
-		"state":                {verifier},
-		"access_type":          {"offline"},
-		"prompt":               {"consent"},
+		"state":                 {verifier},
+		"access_type":           {"offline"},
+		"prompt":                {"consent"},
 	}
 	authURL := geminiAuthURL + "?" + params.Encode()
 
@@ -129,6 +139,11 @@ func loginGeminiCli(callbacks LoginCallbacks) (*Credentials, error) {
 		return nil, err
 	}
 
+	if callbacks.OnProgress != nil {
+		callbacks.OnProgress("Getting user info...")
+	}
+	email := getGoogleUserEmail(tokenData.accessToken)
+
 	// Discover project
 	if callbacks.OnProgress != nil {
 		callbacks.OnProgress("Discovering Cloud Code Assist project...")
@@ -144,6 +159,7 @@ func loginGeminiCli(callbacks LoginCallbacks) (*Credentials, error) {
 		Expires: timeNowMs() + tokenData.expiresIn*1000 - 5*60*1000,
 		Extra: map[string]any{
 			"projectId": projectID,
+			"email":     email,
 		},
 	}, nil
 }
@@ -195,7 +211,7 @@ func exchangeGeminiCode(code, verifier string) (*geminiTokenData, error) {
 	}, nil
 }
 
-func refreshGoogleCloudToken(refreshToken, projectID string) (*Credentials, error) {
+func RefreshGoogleCloudToken(refreshToken, projectID string) (*Credentials, error) {
 	data := url.Values{
 		"client_id":     {geminiClientID},
 		"client_secret": {geminiClientSecret},
@@ -236,6 +252,29 @@ func refreshGoogleCloudToken(refreshToken, projectID string) (*Credentials, erro
 			"projectId": projectID,
 		},
 	}, nil
+}
+
+func getGoogleUserEmail(accessToken string) string {
+	req, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v1/userinfo?alt=json", nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return ""
+	}
+
+	var data struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(data.Email)
 }
 
 func discoverGeminiProject(accessToken string, onProgress func(string)) (string, error) {
@@ -322,7 +361,7 @@ func discoverGeminiProject(accessToken string, onProgress func(string)) (string,
 	body, _ = io.ReadAll(resp.Body)
 
 	var onboardResult struct {
-		Done     bool `json:"done"`
+		Done     bool   `json:"done"`
 		Name     string `json:"name"`
 		Response struct {
 			CloudaicompanionProject struct {

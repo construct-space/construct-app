@@ -19,11 +19,11 @@ import (
 
 	"construct-operator/internal/agent"
 	"construct-operator/internal/appdir"
-	"construct-operator/internal/oauth"
 	"construct-operator/internal/chatsession"
 	"construct-operator/internal/desktop"
 	"construct-operator/internal/hook"
 	"construct-operator/internal/mcp"
+	"construct-operator/internal/oauth"
 	"construct-operator/internal/plugin"
 	"construct-operator/internal/provider"
 	"construct-operator/internal/runner"
@@ -741,76 +741,102 @@ func main() {
 
 	// Initialize providers (LLM-agnostic — add as many as you want)
 	opts := []runner.Option{runner.WithSessionStore(sessStore)}
+	oauthRegistry := oauth.NewRegistry()
+	oauthStorage := oauth.NewStorageInDir(appdir.Dir)
+	oauthData, _ := oauthStorage.Load()
+	activeProviderIDs := map[string]bool{}
+	var pendingDeviceFlowsMu sync.Mutex
+	pendingDeviceFlows := map[string]*oauth.DeviceFlowState{}
 
 	// Anthropic OAuth — try OpenCode tokens first, then env vars
 	if oauthProvider, err := provider.NewAnthropicOAuthFromOpenCode(); err == nil {
 		opts = append(opts, runner.WithProvider(oauthProvider))
+		activeProviderIDs[oauthProvider.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: anthropic-oauth (opencode tokens)\n")
 	} else if token := os.Getenv("ANTHROPIC_OAUTH_TOKEN"); token != "" {
-		opts = append(opts, runner.WithProvider(provider.NewAnthropicOAuth(provider.OAuthConfig{
+		envProv := provider.NewAnthropicOAuth(provider.OAuthConfig{
 			AccessToken:  token,
 			RefreshToken: os.Getenv("ANTHROPIC_OAUTH_REFRESH"),
-		})))
+		})
+		opts = append(opts, runner.WithProvider(envProv))
+		activeProviderIDs[envProv.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: anthropic-oauth (env)\n")
 	}
 	if key := os.Getenv("DEEPSEEK_API_KEY"); key != "" {
-		opts = append(opts, runner.WithProvider(provider.NewOpenAICompat(provider.OpenAICompatConfig{
+		deepseekProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
 			Name: "DeepSeek", Key: "deepseek",
 			BaseURL: "https://api.deepseek.com/v1", APIKey: key,
 			Models: []string{"deepseek-chat", "deepseek-reasoner"},
-		})))
+		})
+		opts = append(opts, runner.WithProvider(deepseekProv))
+		activeProviderIDs[deepseekProv.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: deepseek\n")
 	} else if prov := providerFromSetting("provider_key:deepseek", stateStore.Settings()["provider_key:deepseek"]); prov != nil {
 		opts = append(opts, runner.WithProvider(prov))
+		activeProviderIDs[prov.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: deepseek (settings)\n")
 	}
 	if key := os.Getenv("MIMO_API_KEY"); key != "" {
-		opts = append(opts, runner.WithProvider(provider.NewOpenAICompat(provider.OpenAICompatConfig{
+		mimoProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
 			Name: "MiMo", Key: "mimo",
 			BaseURL: "https://api.xiaomimimo.com/v1", APIKey: key,
 			Models: []string{"mimo-v2-flash"},
-		})))
+		})
+		opts = append(opts, runner.WithProvider(mimoProv))
+		activeProviderIDs[mimoProv.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: mimo\n")
 	} else if prov := providerFromSetting("provider_key:mimo", stateStore.Settings()["provider_key:mimo"]); prov != nil {
 		opts = append(opts, runner.WithProvider(prov))
+		activeProviderIDs[prov.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: mimo (settings)\n")
 	}
 	if key := os.Getenv("ZAI_API_KEY"); key != "" {
-		opts = append(opts, runner.WithProvider(provider.NewOpenAICompat(provider.OpenAICompatConfig{
+		zaiProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
 			Name: "Z.ai", Key: "zai",
 			BaseURL: "https://api.z.ai/api/coding/paas/v4", APIKey: key,
 			Models: []string{"glm-5"},
-		})))
+		})
+		opts = append(opts, runner.WithProvider(zaiProv))
+		activeProviderIDs[zaiProv.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: zai\n")
 	} else if prov := providerFromSetting("provider_key:zai", stateStore.Settings()["provider_key:zai"]); prov != nil {
 		opts = append(opts, runner.WithProvider(prov))
+		activeProviderIDs[prov.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: zai (settings)\n")
 	}
 	// OpenAI Codex OAuth — chatgpt.com backend (gpt-5.x models via Codex CLI tokens)
 	if codexProv := provider.NewCodexOAuthFromFile(); codexProv != nil {
 		opts = append(opts, runner.WithProvider(codexProv))
+		activeProviderIDs[codexProv.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: openai-oauth (codex chatgpt.com)\n")
 	}
 	// OpenAI API — only if user sets OPENAI_API_KEY (separate from Codex)
 	if key := os.Getenv("OPENAI_API_KEY"); key != "" {
-		opts = append(opts, runner.WithProvider(provider.NewOpenAICompat(provider.OpenAICompatConfig{
+		openaiProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
 			Name: "OpenAI", Key: "openai",
 			BaseURL: "https://api.openai.com/v1", APIKey: key,
 			Models: []string{"gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini", "o3", "o3-mini", "o4-mini"},
-		})))
+		})
+		opts = append(opts, runner.WithProvider(openaiProv))
+		activeProviderIDs[openaiProv.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: openai (api key)\n")
 	}
 	if key := os.Getenv("XAI_API_KEY"); key != "" {
-		opts = append(opts, runner.WithProvider(provider.NewOpenAICompat(provider.OpenAICompatConfig{
+		xaiProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
 			Name: "xAI", Key: "xai",
 			BaseURL: "https://api.x.ai/v1", APIKey: key,
 			Models: []string{"grok-3", "grok-3-mini"},
-		})))
+		})
+		opts = append(opts, runner.WithProvider(xaiProv))
+		activeProviderIDs[xaiProv.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: xai\n")
 	} else if prov := providerFromSetting("provider_key:xai", stateStore.Settings()["provider_key:xai"]); prov != nil {
 		opts = append(opts, runner.WithProvider(prov))
+		activeProviderIDs[prov.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: xai (settings)\n")
 	}
+
+	appendOAuthRuntimeProviders(&opts, activeProviderIDs, oauthData)
 
 	// Initialize tools — use dynamic workdir that follows the active project
 	tools := tool.NewRegistry()
@@ -1063,9 +1089,9 @@ You have space lifecycle tools for managing Construct spaces (plugins/extensions
 - space_read_manifest: Read a space's manifest
 
 When the user asks to create, build, or manage a Construct space, use these tools. A space is a Vue 3 project with a space.manifest.json — not a regular web app.`,
-		Model: "claude-sonnet-4-6",
-		MaxTurns:    25,
-		CanSpawn:    true,
+		Model:    "claude-sonnet-4-6",
+		MaxTurns: 25,
+		CanSpawn: true,
 	}
 
 	opts = append(opts, runner.WithTools(tools))
@@ -1565,7 +1591,8 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			}
 
 		case req.Type == "providers.list" || req.Type == "ai.providers":
-			providerList := run.ListProviders()
+			authData, _ := oauthStorage.Load()
+			providerList := mergeRunnerProvidersWithOAuthProviders(run.ListProviders(), authData)
 			return transport.Response{
 				ID: req.ID, Success: true,
 				Data: map[string]any{"providers": providerList},
@@ -1710,19 +1737,48 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				return transport.Response{ID: req.ID, Success: false, Error: "provider is required"}
 			}
 
-			// Use the new oauth package for login
-			oauthRegistry := oauth.NewRegistry()
 			provider, ok := oauthRegistry.Get(payload.Provider)
 			if !ok {
 				return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("unknown OAuth provider: %s", payload.Provider)}
 			}
 
-			// Start login flow — opens browser, waits for callback
+			// Device code flow (GitHub Copilot) — return user_code immediately, poll separately
+			if payload.Provider == "github-copilot" {
+				state, err := oauth.StartCopilotDeviceFlow("")
+				if err != nil {
+					return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("OAuth login failed: %v", err)}
+				}
+				// Open browser to verification page
+				switch runtime.GOOS {
+				case "darwin":
+					exec.Command("open", state.VerificationURI).Start()
+				case "linux":
+					exec.Command("xdg-open", state.VerificationURI).Start()
+				case "windows":
+					exec.Command("rundll32", "url.dll,FileProtocolHandler", state.VerificationURI).Start()
+				}
+				// Store state for polling
+				pendingDeviceFlowsMu.Lock()
+				pendingDeviceFlows[payload.Provider] = state
+				pendingDeviceFlowsMu.Unlock()
+
+				fmt.Fprintf(os.Stderr, "[oauth] %s: device flow started, code: %s\n", payload.Provider, state.UserCode)
+				return transport.Response{
+					ID: req.ID, Success: true,
+					Data: map[string]any{
+						"provider":   payload.Provider,
+						"device_code": true,
+						"user_code":  state.UserCode,
+						"url":        state.VerificationURI,
+					},
+				}
+			}
+
+			// Standard OAuth flow — opens browser, waits for callback
 			var authURL string
 			creds, err := provider.Login(oauth.LoginCallbacks{
 				OnAuth: func(info oauth.AuthInfo) {
 					authURL = info.URL
-					// Open browser
 					switch runtime.GOOS {
 					case "darwin":
 						exec.Command("open", info.URL).Start()
@@ -1737,8 +1793,10 @@ When the user asks to create, build, or manage a Construct space, use these tool
 					}
 				},
 				OnPrompt: func(prompt oauth.Prompt) (string, error) {
-					// For now, can't prompt in desktop app — return empty
-					return "", fmt.Errorf("manual code input not supported in desktop mode")
+					if prompt.AllowEmpty {
+						return "", nil
+					}
+					return "", fmt.Errorf("interactive prompt %q is not supported in desktop mode yet", prompt.Message)
 				},
 				OnProgress: func(message string) {
 					fmt.Fprintf(os.Stderr, "[oauth] %s: %s\n", payload.Provider, message)
@@ -1749,9 +1807,11 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			}
 
 			// Save credentials
-			authStorage := oauth.NewStorageInDir(appdir.Dir)
-			if err := authStorage.SetOAuth(payload.Provider, creds); err != nil {
+			if err := oauthStorage.SetOAuth(payload.Provider, creds); err != nil {
 				fmt.Fprintf(os.Stderr, "[oauth] warning: failed to save credentials: %v\n", err)
+			}
+			if runtimeProv := providerFromOAuthCredentials(payload.Provider, creds); runtimeProv != nil {
+				run.AddProvider(runtimeProv)
 			}
 
 			fmt.Fprintf(os.Stderr, "[oauth] %s: login successful (expires: %d)\n", payload.Provider, creds.Expires)
@@ -1764,13 +1824,98 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				},
 			}
 
+		case req.Type == "oauth.device-poll":
+			var payload struct {
+				Provider string `json:"provider"`
+			}
+			if req.Payload != nil {
+				json.Unmarshal(req.Payload, &payload)
+			}
+
+			pendingDeviceFlowsMu.Lock()
+			state, ok := pendingDeviceFlows[payload.Provider]
+			pendingDeviceFlowsMu.Unlock()
+
+			if !ok || state == nil {
+				return transport.Response{ID: req.ID, Success: false, Error: "no pending device flow for " + payload.Provider}
+			}
+
+			// This blocks until user authorizes or timeout
+			creds, err := oauth.CompleteCopilotDeviceFlow(state)
+
+			// Clean up pending state
+			pendingDeviceFlowsMu.Lock()
+			delete(pendingDeviceFlows, payload.Provider)
+			pendingDeviceFlowsMu.Unlock()
+
+			if err != nil {
+				return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("OAuth login failed: %v", err)}
+			}
+
+			// Save credentials
+			if err := oauthStorage.SetOAuth(payload.Provider, creds); err != nil {
+				fmt.Fprintf(os.Stderr, "[oauth] warning: failed to save credentials: %v\n", err)
+			}
+			if runtimeProv := providerFromOAuthCredentials(payload.Provider, creds); runtimeProv != nil {
+				run.AddProvider(runtimeProv)
+			}
+
+			fmt.Fprintf(os.Stderr, "[oauth] %s: login successful (expires: %d)\n", payload.Provider, creds.Expires)
+			return transport.Response{
+				ID: req.ID, Success: true,
+				Data: map[string]any{
+					"provider": payload.Provider,
+					"success":  true,
+				},
+			}
+
+		case req.Type == "oauth.providers":
+			authData, err := oauthStorage.Load()
+			if err != nil {
+				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
+			}
+			return transport.Response{
+				ID: req.ID, Success: true,
+				Data: map[string]any{
+					"providers": oauthConnectedProviderEntries(authData, run.ListProviders()),
+				},
+			}
+
+		case req.Type == "oauth.logout":
+			var payload struct {
+				Provider string `json:"provider"`
+			}
+			if req.Payload != nil {
+				json.Unmarshal(req.Payload, &payload)
+			}
+			if payload.Provider == "" {
+				return transport.Response{ID: req.ID, Success: false, Error: "provider is required"}
+			}
+			if err := oauthStorage.Delete(payload.Provider); err != nil {
+				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
+			}
+			if runtimeID := oauthRuntimeProviderID(payload.Provider); runtimeID != "" {
+				run.RemoveProvider(runtimeID)
+			}
+			return transport.Response{
+				ID: req.ID, Success: true,
+				Data: map[string]any{"cleared": true},
+			}
+
 		case req.Type == "auth.oauth.status" || req.Type == "auth.anthropic.status":
 			// Check if an Anthropic OAuth provider is loaded
 			hasOAuth := false
-			for _, p := range run.ListProviders() {
-				if p["id"] == "anthropic-oauth" {
+			if authData, err := oauthStorage.Load(); err == nil {
+				if cred := authData["anthropic"]; cred != nil && cred.Type == "oauth" && cred.Credentials != nil {
 					hasOAuth = true
-					break
+				}
+			}
+			if !hasOAuth {
+				for _, p := range run.ListProviders() {
+					if p["id"] == "anthropic-oauth" {
+						hasOAuth = true
+						break
+					}
 				}
 			}
 			return transport.Response{
@@ -1911,6 +2056,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 
 		case req.Type == "auth.oauth.clear" || req.Type == "auth.anthropic.clear":
 			// Remove the OAuth provider
+			_ = oauthStorage.Delete("anthropic")
 			run.RemoveProvider("anthropic-oauth")
 			return transport.Response{
 				ID: req.ID, Success: true,
@@ -1919,6 +2065,11 @@ When the user asks to create, build, or manage a Construct space, use these tool
 
 		case req.Type == "auth.openai.status":
 			hasOpenAI := false
+			if authData, err := oauthStorage.Load(); err == nil {
+				if cred := authData["openai-codex"]; cred != nil && cred.Type == "oauth" && cred.Credentials != nil {
+					hasOpenAI = true
+				}
+			}
 			for _, p := range run.ListProviders() {
 				if id, _ := p["id"].(string); id == "openai-oauth" || id == "openai" {
 					hasOpenAI = true
@@ -1962,6 +2113,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			return transport.Response{ID: req.ID, Success: false, Error: "Use 'Use Codex' button instead"}
 
 		case req.Type == "auth.openai.clear":
+			_ = oauthStorage.Delete("openai-codex")
 			run.RemoveProvider("openai-oauth")
 			run.RemoveProvider("openai")
 			return transport.Response{

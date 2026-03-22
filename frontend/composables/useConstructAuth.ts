@@ -54,7 +54,7 @@ function extractCodeFromInput(raw: string): string {
   const normalize = (value: string): string =>
     value
       .trim()
-      .replace(/^[\s"'`<({\[]+/, '')
+      .replace(/^[\s"'`<({[]+/, '')
       .replace(/[\s"'`>)\]}]+$/, '')
       .trim()
 
