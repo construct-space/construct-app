@@ -79,11 +79,7 @@ async function handleSend(blocks: RequestBlock[]) {
   } else if (!path && projectsRoot.value) {
     // Derive a project name from the description for first message
     if (turns.value.length === 0) {
-      // Extract a short project name — take key nouns, skip filler words
-      const stopWords = ['a', 'an', 'the', 'for', 'with', 'and', 'in', 'on', 'to', 'of', 'my', 'our', 'using', 'built', 'game', 'app', 'project', 'system', 'platform']
-      const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 1 && !stopWords.includes(w))
-      const slug = words.slice(0, 3).join('-').replace(/[^a-z0-9-]/g, '').replace(/^-|-$/g, '') || 'project'
-      taskText = `${text}\n\nProject path: ${projectsRoot.value}/${slug}`
+      taskText = `${text}\n\nProjects root: ${projectsRoot.value}\nChoose a short creative project name (1-2 words, lowercase-kebab) and create docs at {projects_root}/{name}/docs/`
     }
   }
 
