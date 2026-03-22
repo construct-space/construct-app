@@ -246,8 +246,11 @@ onUnmounted(() => {
             </button>
           </div>
           <div class="inline-flex rounded-full bg-[color-mix(in_srgb,var(--app-foreground)_8%,transparent)] p-1">
+            <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-yellow-500/15 hover:text-yellow-400" @click="$router.push('/app/brainstorm')">
+              <Icon name="i-lucide-lightbulb" class="size-4 inline mr-1.5 -mt-0.5" />Brainstorm
+            </button>
             <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-red-500/15 hover:text-red-400" @click="$router.push('/app/architect')">
-              <Icon name="i-lucide-pill" class="size-4 inline mr-1.5 -mt-0.5" />Plan a project
+              <Icon name="i-lucide-compass" class="size-4 inline mr-1.5 -mt-0.5" />Plan a project
             </button>
             <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-[#00cc34]/15 hover:text-[#00ff41]" @click="$router.push('/app/vibe')">
               <Icon name="i-lucide-zap" class="size-4 inline mr-1.5 -mt-0.5" />Vibe a project
