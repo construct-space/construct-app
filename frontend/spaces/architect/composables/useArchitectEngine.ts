@@ -471,34 +471,25 @@ export function useArchitectEngine(options: ArchitectEngineOptions = {}) {
 
     if (signal?.aborted) throw new Error('Cancelled')
 
-    // Use plain chat stream (no tools) for questions/plan/clarify/review.
-    // The agent should return JSON text, not call tools.
+    // Dispatch to architect agent — has restricted tools and the right system prompt
     let content = ''
     let reportedStreaming = false
-    await new Promise<void>((resolve, reject) => {
-      if (signal?.aborted) { reject(new Error('Cancelled')); return }
-      let settled = false
-      const finish = (cb: () => void) => { if (!settled) { settled = true; cb() } }
-      const handleAbort = () => finish(() => reject(new Error('Cancelled')))
-      signal?.addEventListener('abort', handleAbort, { once: true })
+    await dispatchAgentTask(runtimeAgentId, task, signal, (chunk: StreamEvent) => {
+      const statusMessage = extractStatusMessage(chunk)
+      if (statusMessage) onStatus?.(statusMessage)
+      else {
+        const toolTitle = extractToolTitle(chunk)
+        if (toolTitle) onStatus?.(toolTitle)
+      }
 
-      operator.chatStream(
-        task,
-        (chunk: StreamEvent) => {
-          if (signal?.aborted) return
-          const text = extractChunkText(chunk)
-          if (text) {
-            content += text
-            if (!reportedStreaming) {
-              onStatus?.(getStreamingStatusLabel(mode))
-              reportedStreaming = true
-            }
-          }
-        },
-        () => finish(resolve),
-        (err: string) => finish(() => reject(new Error(err))),
-        selectedModel.value,
-      ).catch((err) => finish(() => reject(err instanceof Error ? err : new Error(String(err)))))
+      const text = extractChunkText(chunk)
+      if (text) {
+        content += text
+        if (!reportedStreaming) {
+          onStatus?.(getStreamingStatusLabel(mode))
+          reportedStreaming = true
+        }
+      }
     })
 
     if (signal?.aborted) throw new Error('Cancelled')
