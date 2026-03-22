@@ -188,20 +188,16 @@ async function openSpaceInConstructDev() {
 
   spaceActionStarting.value = true
   try {
-    if (IS_DEV_INSTANCE.value) {
-      if (route.path !== targetRoute) {
-        await router.push(targetRoute)
-      }
-      return
+    // Navigate directly in the current instance — no need to spawn a DEV window
+    if (route.path !== targetRoute) {
+      await router.push(targetRoute)
     }
-
-    const { invoke } = await import('@tauri-apps/api/core')
-    await invoke('open_construct_dev_route', { route: targetRoute })
+    return
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to open Construct DEV for this space.'
+    const message = error instanceof Error ? error.message : 'Failed to navigate to space.'
     completionActionError.value = message
     toast.add({
-      title: 'Could not open Construct DEV',
+      title: 'Navigation failed',
       description: message,
       color: 'warning',
     })
