@@ -10,7 +10,6 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentSession, type RequestBlock } from '@/operator/useAgentSession'
 import { useProjectStore } from '@/stores/project'
-import { useProjectDirectory } from '@/composables/useProjectDirectory'
 import AgentView from '@/components/agent/AgentView.vue'
 import AgentInput from '@/components/agent/AgentInput.vue'
 
@@ -21,7 +20,7 @@ defineProps<{
 const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
-const { projectsRoot } = useProjectDirectory()
+const projectsRoot = computed(() => projectStore.projectsRoot || '/Users/flakerim/ConstructProjects')
 
 const session = useAgentSession()
 const { turns, isLoading, statusMessage } = session
