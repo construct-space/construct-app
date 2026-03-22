@@ -35,7 +35,7 @@ async function handleSend(blocks: RequestBlock[]) {
   if (!text.trim()) return
 
   await session.send(blocks, {
-    agentId: 'architect',
+    agentId: 'brainstorm',
     projectPath: projectPath.value || undefined,
   })
 }
