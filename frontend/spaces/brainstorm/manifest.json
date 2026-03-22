@@ -1,0 +1,21 @@
+{
+  "id": "brainstorm",
+  "name": "Brainstorm",
+  "description": "Standalone project brainstorming and planning using the Architect interview format",
+  "icon": "lucide:lightbulb",
+  "version": "1.0.0",
+  "scope": "app",
+  "navigation": {
+    "label": "Brainstorm",
+    "icon": "lucide:lightbulb",
+    "to": "brainstorm",
+    "order": 25
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Brainstorm",
+      "default": true
+    }
+  ]
+}
