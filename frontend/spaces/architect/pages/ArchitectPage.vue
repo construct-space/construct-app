@@ -110,14 +110,23 @@ function startVibe() {
         <span class="text-sm font-medium text-app">Architect</span>
         <span v-if="currentProject" class="text-xs text-app-muted">· {{ currentProject.name }}</span>
       </div>
-      <button
-        v-if="docsWritten && !isLoading"
-        class="rounded-lg bg-app-accent px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-app-accent/80"
-        @click="startVibe"
-      >
-        <Icon name="i-lucide-zap" class="size-3 inline mr-1" />
-        Start Vibe
-      </button>
+      <div v-if="docsWritten && !isLoading" class="flex items-center gap-2">
+        <button
+          v-if="detectedProjectPath"
+          class="rounded-lg border border-app-border px-3 py-1.5 text-xs font-medium text-app transition hover:bg-white/5"
+          @click="router.push({ path: '/app/projects', query: { open: detectedProjectPath } })"
+        >
+          <Icon name="i-lucide-folder-open" class="size-3 inline mr-1" />
+          Open Project
+        </button>
+        <button
+          class="rounded-lg bg-app-accent px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-app-accent/80"
+          @click="startVibe"
+        >
+          <Icon name="i-lucide-zap" class="size-3 inline mr-1" />
+          Start Vibe
+        </button>
+      </div>
     </div>
 
     <!-- Agent view -->

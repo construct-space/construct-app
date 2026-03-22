@@ -6,7 +6,7 @@
  * Auto-scrolls on new content. Shows status at bottom.
  * Used by AssistantPanel, Vibe, and any space embedding AI.
  */
-import { ref, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import type { Turn } from '@/operator/useAgentSession'
 import RequestBubble from './RequestBubble.vue'
 import ResponseBlocks from './ResponseBlocks.vue'
@@ -19,12 +19,25 @@ const props = defineProps<{
 
 const scrollRef = ref<HTMLDivElement>()
 
-// Auto-scroll when turns change or content streams
+// Derive status from last tool activity
+const lastToolActivity = computed(() => {
+  const lastTurn = props.turns[props.turns.length - 1]
+  if (!lastTurn) return ''
+  const tools = lastTurn.response.filter(b => b.type === 'tool')
+  const lastTool = tools[tools.length - 1]
+  if (!lastTool || lastTool.state !== 'running') return ''
+  return lastTool.title || `Running ${lastTool.tool}`
+})
+
+// Auto-scroll when turns change, blocks change, or text streams
 watch(
   () => {
     const len = props.turns.length
     const lastTurn = props.turns[len - 1]
-    return `${len}-${lastTurn?.response.length || 0}`
+    // Track response block count AND last text content length for streaming
+    const lastBlock = lastTurn?.response[lastTurn.response.length - 1]
+    const textLen = lastBlock?.type === 'text' ? lastBlock.content.length : 0
+    return `${len}-${lastTurn?.response.length || 0}-${textLen}`
   },
   () => {
     nextTick(() => {
@@ -64,11 +77,11 @@ watch(
     <!-- Loading indicator -->
     <div v-if="isLoading" class="flex items-center gap-2 text-app-muted px-1">
       <span class="flex gap-1">
-        <span class="size-1.5 rounded-full bg-app-muted animate-bounce" style="animation-delay: 0ms" />
-        <span class="size-1.5 rounded-full bg-app-muted animate-bounce" style="animation-delay: 150ms" />
-        <span class="size-1.5 rounded-full bg-app-muted animate-bounce" style="animation-delay: 300ms" />
+        <span class="size-1.5 rounded-full bg-app-accent animate-bounce" style="animation-delay: 0ms" />
+        <span class="size-1.5 rounded-full bg-app-accent animate-bounce" style="animation-delay: 150ms" />
+        <span class="size-1.5 rounded-full bg-app-accent animate-bounce" style="animation-delay: 300ms" />
       </span>
-      <span class="text-xs">{{ statusMessage || 'Thinking...' }}</span>
+      <span class="text-xs">{{ statusMessage || lastToolActivity || 'Working...' }}</span>
     </div>
   </div>
 </template>
