@@ -530,7 +530,9 @@ func RegisterSafetyHooks(reg *Registry, getProjectRoot ProjectRootFunc) {
 			cmd := params.Command
 			// Block explicit absolute paths outside project root
 			// Allow: /usr/bin/*, /tmp/*, /dev/null, and the project root itself
-			allowedPrefixes := []string{root, "/usr/", "/bin/", "/tmp/", "/dev/", "/opt/homebrew/"}
+			home, _ := os.UserHomeDir()
+			constructProjects := filepath.Join(home, "ConstructProjects")
+			allowedPrefixes := []string{root, constructProjects, "/usr/", "/bin/", "/tmp/", "/dev/", "/opt/homebrew/"}
 			words := strings.Fields(cmd)
 			for _, word := range words {
 				if strings.HasPrefix(word, "/") && !strings.HasPrefix(word, "//") {
