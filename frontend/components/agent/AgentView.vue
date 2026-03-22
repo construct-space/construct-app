@@ -54,7 +54,7 @@ watch(
 </script>
 
 <template>
-  <div ref="scrollRef" class="flex-1 overflow-y-auto p-4 space-y-4">
+  <div ref="scrollRef" class="h-full overflow-y-auto p-4 space-y-4">
     <!-- Empty state -->
     <div v-if="!turns.length" class="flex flex-col items-center justify-center h-full text-center px-8">
       <slot name="empty">
