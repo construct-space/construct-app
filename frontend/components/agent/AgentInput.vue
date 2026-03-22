@@ -4,7 +4,7 @@
  *
  * Emits send(blocks) with text + any dropped images/files.
  */
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import type { RequestBlock, ImageBlock } from '@/operator/useAgentSession'
 
 defineProps<{
@@ -24,6 +24,16 @@ const attachments = ref<RequestBlock[]>([])
 const isDragOver = ref(false)
 const isRecording = ref(false)
 let recognition: any = null
+
+const hasMicSupport = ref(false)
+
+// Check if speech recognition is available without triggering it
+onMounted(() => {
+  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  // Only show mic in browser (not Tauri) until plist is properly embedded
+  const isTauri = !!(window as any).__TAURI__
+  hasMicSupport.value = !!SR && !isTauri
+})
 
 function toggleMic() {
   if (isRecording.value) {
@@ -141,8 +151,9 @@ defineExpose({ focus })
 
     <!-- Input row -->
     <div class="flex items-center gap-2">
-      <!-- Mic -->
+      <!-- Mic (hidden in Tauri until plist permissions work) -->
       <button
+        v-if="hasMicSupport"
         class="p-2 rounded-xl transition-colors"
         :class="isRecording ? 'text-red-400 bg-red-500/10 animate-pulse' : 'text-app-muted hover:text-app hover:bg-white/5'"
         @click="toggleMic"
