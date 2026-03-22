@@ -3,12 +3,17 @@
  * ResponseBlocks — Renders an array of ResponseBlock[]
  *
  * Each block type gets its own visual treatment.
+ * Text blocks render as markdown prose.
  * Unknown block types fall back to JSON display.
  */
+import { computed } from 'vue'
 import type { ResponseBlock } from '@/operator/useAgentSession'
+import { useMarkdown } from '@/composables/useMarkdown'
 import ToolCard from './ToolCard.vue'
 
-defineProps<{
+const { renderMarkdown } = useMarkdown()
+
+const props = defineProps<{
   blocks: ResponseBlock[]
 }>()
 
@@ -21,10 +26,8 @@ const emit = defineEmits<{
 <template>
   <div class="space-y-0">
     <template v-for="(block, i) in blocks" :key="i">
-      <!-- Text -->
-      <div v-if="block.type === 'text'" class="text-sm leading-relaxed whitespace-pre-wrap py-0.5">
-        {{ block.content }}
-      </div>
+      <!-- Text (markdown) -->
+      <div v-if="block.type === 'text'" class="text-sm leading-relaxed prose prose-sm prose-invert max-w-none py-0.5" v-html="renderMarkdown(block.content)" />
 
       <!-- Tool -->
       <ToolCard v-else-if="block.type === 'tool'" :block="block" />
