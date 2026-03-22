@@ -79,7 +79,7 @@ const docsWritten = computed(() =>
     </div>
 
     <!-- Chat -->
-    <div class="flex-1 overflow-hidden">
+    <div class="flex-1 min-h-0">
       <AgentView
         :turns="turns"
         :is-loading="isLoading"
