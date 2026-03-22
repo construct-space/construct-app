@@ -14,8 +14,12 @@ import (
 	"syscall"
 	"time"
 
+	"os/exec"
+	"runtime"
+
 	"construct-operator/internal/agent"
 	"construct-operator/internal/appdir"
+	"construct-operator/internal/oauth"
 	"construct-operator/internal/chatsession"
 	"construct-operator/internal/desktop"
 	"construct-operator/internal/hook"
@@ -1692,6 +1696,71 @@ When the user asks to create, build, or manage a Construct space, use these tool
 					"content":     result.Content,
 					"turns":       len(result.Turns),
 					"stop_reason": result.StopReason,
+				},
+			}
+
+		case req.Type == "oauth.login":
+			var payload struct {
+				Provider string `json:"provider"`
+			}
+			if req.Payload != nil {
+				json.Unmarshal(req.Payload, &payload)
+			}
+			if payload.Provider == "" {
+				return transport.Response{ID: req.ID, Success: false, Error: "provider is required"}
+			}
+
+			// Use the new oauth package for login
+			oauthRegistry := oauth.NewRegistry()
+			provider, ok := oauthRegistry.Get(payload.Provider)
+			if !ok {
+				return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("unknown OAuth provider: %s", payload.Provider)}
+			}
+
+			// Start login flow — opens browser, waits for callback
+			var authURL string
+			creds, err := provider.Login(oauth.LoginCallbacks{
+				OnAuth: func(info oauth.AuthInfo) {
+					authURL = info.URL
+					// Open browser
+					switch runtime.GOOS {
+					case "darwin":
+						exec.Command("open", info.URL).Start()
+					case "linux":
+						exec.Command("xdg-open", info.URL).Start()
+					case "windows":
+						exec.Command("rundll32", "url.dll,FileProtocolHandler", info.URL).Start()
+					}
+					fmt.Fprintf(os.Stderr, "[oauth] %s: browser opened for login\n", payload.Provider)
+					if info.Instructions != "" {
+						fmt.Fprintf(os.Stderr, "[oauth] %s: %s\n", payload.Provider, info.Instructions)
+					}
+				},
+				OnPrompt: func(prompt oauth.Prompt) (string, error) {
+					// For now, can't prompt in desktop app — return empty
+					return "", fmt.Errorf("manual code input not supported in desktop mode")
+				},
+				OnProgress: func(message string) {
+					fmt.Fprintf(os.Stderr, "[oauth] %s: %s\n", payload.Provider, message)
+				},
+			})
+			if err != nil {
+				return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("OAuth login failed: %v", err)}
+			}
+
+			// Save credentials
+			authStorage := oauth.NewStorageInDir(appdir.Dir)
+			if err := authStorage.SetOAuth(payload.Provider, creds); err != nil {
+				fmt.Fprintf(os.Stderr, "[oauth] warning: failed to save credentials: %v\n", err)
+			}
+
+			fmt.Fprintf(os.Stderr, "[oauth] %s: login successful (expires: %d)\n", payload.Provider, creds.Expires)
+			return transport.Response{
+				ID: req.ID, Success: true,
+				Data: map[string]any{
+					"provider": payload.Provider,
+					"success":  true,
+					"url":      authURL,
 				},
 			}
 
