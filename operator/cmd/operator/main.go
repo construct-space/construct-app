@@ -822,10 +822,13 @@ func main() {
 			proj := getProjectContext(ctx)
 			clientCtx := getClientContext(ctx)
 			if proj == nil {
-				content := "No project is currently active. Working directory: " + getProjectDir(ctx)
+				home, _ := os.UserHomeDir()
+				projectsRoot := filepath.Join(home, "ConstructProjects")
+				content := "No project is currently active.\nProjects root: " + projectsRoot
 				if clientCtx != nil && clientCtx.Mode != "" {
 					content += "\nCurrent mode: " + clientCtx.Mode
 				}
+				content += "\nNew projects should be created under the projects root."
 				return &tool.Result{Content: content}, nil
 			}
 			// List all available tools

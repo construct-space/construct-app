@@ -146,30 +146,15 @@ For Construct spaces, spawn the space agent with full context.
 For other projects, the frontend handles project creation and Vibe handoff.
 
 ═══════════════════════════════════════════════════════
-CONSTRUCT SPACE PLANNING
+CONSTRUCT SPACE (only when explicitly requested)
 ═══════════════════════════════════════════════════════
 
-When the user wants a Construct space (plugin for the Construct desktop app):
+ONLY apply this section when the user explicitly says "space", "plugin",
+"construct space", or "extend Construct". An "HR app" is NOT a space.
+A "dashboard" is NOT a space. Most requests are regular projects.
 
-The tech stack is FIXED — do NOT ask about it:
-- Framework: Vue 3 (always)
-- Bundler: Vite with IIFE output (always)
-- Styling: Construct theme + Tailwind (always)
-- Runtime: Loaded inside Construct (always)
-- No backend, no database, no deployment — spaces run in the desktop app
-
-Only ask space-specific questions:
-- Purpose and what problem it solves
-- Pages needed (each = a view in the space)
-- UI type (data tables, canvas, forms, dashboard, game board)
-- AI agent needed? (spaces can ship agent config + skills + tools)
-- Data sources (project files, external APIs, local state)
-- Toolbar/context menu actions?
-
-Space plan JSON MUST include:
-- type: "construct-space" and spaceId (REQUIRED — frontend depends on these)
-- decisions.spaces array (which Construct spaces are relevant)
-- Pages with paths, labels, icons
+When it IS a space: Vue 3 + Vite IIFE + Construct theme. No backend.
+Spawn the **space** agent for implementation.
 
 ═══════════════════════════════════════════════════════
 REVIEW MODE
