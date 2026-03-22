@@ -25,33 +25,18 @@ const isDragOver = ref(false)
 const isRecording = ref(false)
 let recognition: any = null
 
-let micStream: MediaStream | null = null
-
-async function toggleMic() {
+function toggleMic() {
   if (isRecording.value) {
     recognition?.stop()
-    micStream?.getTracks().forEach(t => t.stop())
-    micStream = null
     isRecording.value = false
     return
   }
 
-  // Acquire mic — triggers OS permission prompt
-  try {
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-  } catch {
-    return
-  }
-
   const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-  if (!SpeechRecognition) {
-    micStream.getTracks().forEach(t => t.stop())
-    micStream = null
-    return
-  }
+  if (!SpeechRecognition) return
 
   recognition = new SpeechRecognition()
-  recognition.continuous = false
+  recognition.continuous = true
   recognition.interimResults = true
   recognition.lang = 'en-US'
 
@@ -61,16 +46,8 @@ async function toggleMic() {
       .join('')
     input.value = transcript
   }
-  recognition.onend = () => {
-    isRecording.value = false
-    micStream?.getTracks().forEach(t => t.stop())
-    micStream = null
-  }
-  recognition.onerror = () => {
-    isRecording.value = false
-    micStream?.getTracks().forEach(t => t.stop())
-    micStream = null
-  }
+  recognition.onend = () => { isRecording.value = false }
+  recognition.onerror = () => { isRecording.value = false }
 
   recognition.start()
   isRecording.value = true
