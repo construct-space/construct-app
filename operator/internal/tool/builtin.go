@@ -426,6 +426,12 @@ func (f *funcExecutor) Execute(ctx context.Context, input string) (*Result, erro
 }
 
 func resolvePath(workDir, path string) string {
+	// Expand ~ to home directory
+	if strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			path = filepath.Join(home, path[2:])
+		}
+	}
 	if filepath.IsAbs(path) {
 		return path
 	}
