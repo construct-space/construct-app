@@ -567,6 +567,79 @@ export function useAgentSession() {
   function open() { showAssistant.value = true }
   function close() { showAssistant.value = false }
 
+  // ─── Session Persistence ───
+
+  const sessionId = ref<string | null>(null)
+
+  async function saveSession(agentId?: string): Promise<string | null> {
+    if (turns.value.length === 0) return null
+    const id = sessionId.value || `session-${Date.now()}`
+    try {
+      await operator.send('sessions.save', {
+        session: {
+          id,
+          agentId: agentId || selectedAgent.value,
+          turns: turns.value.map(t => ({
+            id: t.id,
+            request: t.request,
+            response: t.response,
+            agentId: t.agentId,
+            status: t.status,
+            timestamp: t.timestamp,
+            turns: t.turns,
+          })),
+        },
+      })
+      sessionId.value = id
+      return id
+    } catch {
+      return null
+    }
+  }
+
+  async function loadSession(id: string): Promise<boolean> {
+    try {
+      const result = await operator.send('sessions.load', { id }) as { session?: { id: string; turns: Turn[] } }
+      if (result?.session?.turns) {
+        turns.value = result.session.turns
+        sessionId.value = result.session.id
+        triggerRef(turns)
+        return true
+      }
+    } catch { /* ignore */ }
+    return false
+  }
+
+  interface SessionMeta { id: string; agentId: string; turnCount: number; createdAt: string; updatedAt: string }
+
+  async function listSessions(): Promise<SessionMeta[]> {
+    try {
+      const result = await operator.send('sessions.chat_list', {}) as { sessions?: SessionMeta[] }
+      return result?.sessions || []
+    } catch {
+      return []
+    }
+  }
+
+  async function deleteSession(id: string): Promise<void> {
+    try {
+      await operator.send('sessions.delete', { id })
+      if (sessionId.value === id) {
+        sessionId.value = null
+        turns.value = []
+      }
+    } catch { /* ignore */ }
+  }
+
+  function newSession() {
+    if (isLoading.value) void stop()
+    sessionId.value = null
+    turns.value = []
+    error.value = null
+    isLoading.value = false
+    streamStatus.reset()
+  }
+
   return {
     turns,
     isLoading,
@@ -575,6 +648,7 @@ export function useAgentSession() {
     activeTurn,
     selectedAgent,
     selectedModel,
+    sessionId,
     visible: showAssistant,
 
     status: streamStatus.status,
@@ -587,6 +661,11 @@ export function useAgentSession() {
     sendWithImage,
     stop,
     clear,
+    newSession,
+    saveSession,
+    loadSession,
+    listSessions,
+    deleteSession,
     setAgent,
     setModel,
     toggle,
