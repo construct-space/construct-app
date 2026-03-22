@@ -290,6 +290,23 @@ const oauthProviders = [
   { id: 'google-gemini-cli', name: 'Google Gemini', description: 'Gemini models via Google Cloud Code Assist', connected: false },
 ]
 
+async function startOAuthLogin(providerId: string) {
+  try {
+    toast.add({ title: `Starting ${providerId} login...`, color: 'info' })
+    const result = await operator.send('oauth.login', { provider: providerId })
+    if (result?.url) {
+      // Open browser for OAuth
+      window.open(result.url, '_blank')
+      toast.add({ title: 'Complete login in browser', color: 'info' })
+    } else if (result?.success) {
+      toast.add({ title: `${providerId} connected`, color: 'success' })
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    toast.add({ title: `Login failed: ${msg}`, color: 'error' })
+  }
+}
+
 const apiKeys = ref<Record<string, string>>({})
 const visibleKeys = ref<Record<string, boolean>>({})
 const savedKeys = ref<Record<string, boolean>>({})
@@ -686,7 +703,7 @@ onMounted(async () => {
               <p class="text-sm font-medium text-[var(--app-foreground)]">{{ oauthProvider.name }}</p>
               <p class="text-xs text-[var(--app-muted)] mt-0.5">{{ oauthProvider.description }}</p>
             </div>
-            <Button size="sm" :label="oauthProvider.connected ? 'Connected' : 'Login'" :disabled="oauthProvider.connected" />
+            <Button size="sm" :label="oauthProvider.connected ? 'Connected' : 'Login'" :disabled="oauthProvider.connected" @click="startOAuthLogin(oauthProvider.id)" />
           </div>
         </div>
       </div>
