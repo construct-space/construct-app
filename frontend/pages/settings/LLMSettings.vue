@@ -665,6 +665,85 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+    <!-- Claude Pro/Max Direct OAuth -->
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Claude Pro/Max (Direct Login)</h3>
+          <p class="text-xs text-[var(--app-muted)]">Sign in with your Anthropic account directly</p>
+        </div>
+        <span class="px-2 py-0.5 text-xs rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">Coming Soon</span>
+      </div>
+      <div class="p-4 rounded-lg border border-[var(--app-border)]">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-[var(--app-foreground)]">Login with Anthropic OAuth</p>
+            <p class="text-xs text-[var(--app-muted)] mt-1">Opens browser to authenticate with claude.ai</p>
+          </div>
+          <Button disabled label="Login" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ChatGPT Pro Direct OAuth -->
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">ChatGPT Plus/Pro (Direct Login)</h3>
+          <p class="text-xs text-[var(--app-muted)]">Sign in with your OpenAI account directly</p>
+        </div>
+        <span class="px-2 py-0.5 text-xs rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">Coming Soon</span>
+      </div>
+      <div class="p-4 rounded-lg border border-[var(--app-border)]">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-[var(--app-foreground)]">Login with OpenAI OAuth</p>
+            <p class="text-xs text-[var(--app-muted)] mt-1">Opens browser to authenticate with chatgpt.com</p>
+          </div>
+          <Button disabled label="Login" />
+        </div>
+      </div>
+    </div>
+
+    <!-- GitHub Copilot -->
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">GitHub Copilot</h3>
+          <p class="text-xs text-[var(--app-muted)]">Use GitHub Copilot models (Claude, GPT, Gemini via Copilot)</p>
+        </div>
+        <span class="px-2 py-0.5 text-xs rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">Coming Soon</span>
+      </div>
+      <div class="p-4 rounded-lg border border-[var(--app-border)]">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-[var(--app-foreground)]">Login with GitHub device code</p>
+            <p class="text-xs text-[var(--app-muted)] mt-1">Enter a code on github.com to authenticate</p>
+          </div>
+          <Button disabled label="Login" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Google Gemini -->
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Google Gemini CLI</h3>
+          <p class="text-xs text-[var(--app-muted)]">Use Gemini models via Google Cloud Code Assist</p>
+        </div>
+        <span class="px-2 py-0.5 text-xs rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">Coming Soon</span>
+      </div>
+      <div class="p-4 rounded-lg border border-[var(--app-border)]">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-[var(--app-foreground)]">Login with Google OAuth</p>
+            <p class="text-xs text-[var(--app-muted)] mt-1">Opens browser to authenticate with Google Cloud</p>
+          </div>
+          <Button disabled label="Login" />
+        </div>
+      </div>
+    </div>
 </div>
     </template>
   </div>
