@@ -2,16 +2,14 @@
 /**
  * Oracle — general chat page with centered content and sessions slideover.
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useAgentSession, type RequestBlock } from '@/operator/useAgentSession'
-import { useToolbar } from '@/composables/useToolbar'
 import AgentView from '@/components/agent/AgentView.vue'
 import AgentInput from '@/components/agent/AgentInput.vue'
 import Slideover from '@/components/ui/Slideover.vue'
 
 const session = useAgentSession()
 const { turns, isLoading, statusMessage } = session
-const { setPageItems, clearPageItems } = useToolbar()
 
 const showSessions = ref(false)
 
@@ -32,18 +30,19 @@ async function handleSend(blocks: RequestBlock[]) {
 
   await session.send(blocks, { agentId: 'brainstorm' })
 }
-
-onMounted(() => {
-  setPageItems([
-    { id: 'oracle-new', icon: 'lucide:plus', label: 'New chat', type: 'action', onClick: () => session.clear() },
-    { id: 'oracle-sessions', icon: 'lucide:panel-right', label: 'Sessions', type: 'action', onClick: () => { showSessions.value = !showSessions.value } },
-  ])
-})
-onUnmounted(() => clearPageItems())
 </script>
 
 <template>
   <div class="flex flex-col h-full bg-app">
+    <!-- Toolbar right actions -->
+    <Teleport to="#toolbar-right">
+      <Tooltip text="New chat">
+        <Button icon="i-lucide-plus" variant="ghost" color="neutral" size="xs" class="text-app-muted hover:text-app" @click="session.clear()" />
+      </Tooltip>
+      <Tooltip text="Sessions">
+        <Button icon="i-lucide-panel-right" variant="ghost" color="neutral" size="xs" :class="showSessions ? 'text-app-accent' : 'text-app-muted hover:text-app'" @click="showSessions = !showSessions" />
+      </Tooltip>
+    </Teleport>
     <!-- Chat area (centered) -->
     <div class="flex-1 min-h-0 flex justify-center">
       <div class="w-full max-w-2xl flex flex-col h-full">
