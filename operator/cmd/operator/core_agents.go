@@ -10,12 +10,14 @@ import "construct-operator/internal/agent"
 // override these if they have the same ID via the "space:<id>" namespace.
 //
 // Agent definitions live in separate files:
+//   - agent_brainstorm.go
 //   - agent_architect.go
 //   - agent_vibe.go
 //   - agent_project.go
 //   - agent_space.go
 func coreAgents() []*agent.Config {
 	return []*agent.Config{
+		brainstormAgent(),
 		architectAgent(),
 		vibeAgent(),
 		projectAgent(),
