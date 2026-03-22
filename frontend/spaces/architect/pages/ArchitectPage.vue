@@ -141,15 +141,12 @@ function startVibe() {
         :status-message="statusMessage"
         @question-answer="handleQuestionAnswer"
       >
-        <template v-if="turns.length === 0">
-          <div class="flex flex-col items-center justify-center h-full px-8 text-center">
-            <Icon name="i-lucide-drafting-compass" class="size-10 text-app-accent/30 mb-4" />
-            <h2 class="text-lg font-semibold text-app mb-2">What are we building?</h2>
-            <p class="text-sm text-app-muted max-w-md">
-              Describe your project. I'll write detailed design docs and an implementation
-              plan, then hand off to Vibe to build it.
-            </p>
-          </div>
+        <template #empty>
+          <Icon name="i-lucide-drafting-compass" class="size-12 text-blue-400/30 mb-4" />
+          <h2 class="text-xl font-semibold text-app mb-1">Architect</h2>
+          <p class="text-sm text-app-muted max-w-md">
+            Describe your project. I'll write the design docs, then hand off to Agent Smith.
+          </p>
         </template>
       </AgentView>
     </div>

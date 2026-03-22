@@ -20,11 +20,11 @@ const inputPlaceholder = computed(() =>
   turns.value.length === 0 ? 'Ask anything...' : 'Continue...'
 )
 
-// Auto-save after each completed turn
+// Auto-save after each completed turn (only if session has content)
 watch(
   () => turns.value.filter(t => t.status === 'done').length,
   (count) => {
-    if (count > 0) session.saveSession('brainstorm')
+    if (count >= 1) session.saveSession('brainstorm')
   },
 )
 
@@ -33,13 +33,9 @@ watch(showSessions, async (open) => {
   if (open) await refreshSessions()
 })
 
-// Load most recent session on mount
-onMounted(async () => {
-  const list = await session.listSessions()
-  const oracleSessions = list.filter(s => s.agentId === 'brainstorm')
-  if (oracleSessions.length > 0) {
-    await session.loadSession(oracleSessions[0].id)
-  }
+// Start fresh — don't auto-load old session
+onMounted(() => {
+  session.newSession()
 })
 
 async function refreshSessions() {
@@ -195,12 +191,10 @@ function formatTime(dateStr: string): string {
             :status-message="statusMessage"
             @question-answer="handleQuestionAnswer"
           >
-            <template v-if="turns.length === 0">
-              <div class="flex flex-col items-center justify-center h-full px-8 text-center">
-                <Icon name="i-lucide-cookie" class="size-10 text-orange-800/40 mb-4" />
-                <h2 class="text-lg font-semibold text-orange-200/60 mb-2">Oracle</h2>
-                <p class="text-sm text-orange-300/30 max-w-xs">Ask anything</p>
-              </div>
+            <template #empty>
+              <Icon name="i-lucide-cookie" class="size-12 text-orange-700/30 mb-4" />
+              <h2 class="text-xl font-semibold text-orange-200/50 mb-1">Oracle</h2>
+              <p class="text-sm text-orange-400/25">Ask anything</p>
             </template>
           </AgentView>
         </div>
@@ -227,24 +221,24 @@ function formatTime(dateStr: string): string {
           No sessions yet
         </div>
 
-        <button
+        <div
           v-for="s in sessions"
           :key="s.id"
-          class="w-full rounded-lg px-3 py-2.5 text-left transition group"
-          :class="session.sessionId.value === s.id ? 'bg-app-accent/10 border border-app-accent/20' : 'hover:bg-white/5'"
+          class="relative w-full rounded-lg px-3 py-2.5 text-left transition group cursor-pointer"
+          :class="session.sessionId.value === s.id ? 'bg-orange-500/10 border border-orange-500/20' : 'hover:bg-white/5'"
           @click="openSession(s.id)"
         >
           <div class="flex items-center justify-between">
             <span class="text-xs font-medium text-app truncate">{{ s.turnCount }} turns</span>
             <span class="text-[10px] text-app-muted">{{ formatTime(s.updatedAt) }}</span>
           </div>
-          <button
-            class="absolute top-1 right-1 p-0.5 rounded text-app-muted/0 group-hover:text-app-muted hover:!text-red-400 transition"
+          <span
+            class="absolute top-1 right-1 p-0.5 rounded text-transparent group-hover:text-app-muted hover:!text-red-400 transition cursor-pointer"
             @click.stop="deleteSessionEntry(s.id)"
           >
             <Icon name="i-lucide-trash-2" class="size-3" />
-          </button>
-        </button>
+          </span>
+        </div>
       </div>
     </Slideover>
 
