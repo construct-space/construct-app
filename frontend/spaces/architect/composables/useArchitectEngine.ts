@@ -250,11 +250,22 @@ export function useArchitectEngine() {
     // Use streaming dispatch to avoid blocking the UI thread
     let content = ''
     await dispatchAgentTask('architect', task, signal, (chunk: StreamEvent) => {
-      if (chunk.content) content += chunk.content
+      // Accumulate text from all possible locations in the stream event
+      const text = chunk.content
+        || (chunk.data as Record<string, unknown>)?.text as string
+        || ''
+      if (text) content += text
+
+      // Also check for tool results that contain JSON (model may use write_file with our JSON)
+      const toolResult = (chunk.data as Record<string, unknown>)?.result as string
+      if (toolResult && !content.trim() && (toolResult.startsWith('[') || toolResult.startsWith('{'))) {
+        content += toolResult
+      }
     })
 
     if (signal?.aborted) throw new Error('Cancelled')
     if (!content.trim()) throw new Error('Empty response from AI. Check your AI provider settings.')
+    console.log(`[Architect] ${mode} response (${content.length} chars):`, content.slice(0, 200))
     return content
   }
 
