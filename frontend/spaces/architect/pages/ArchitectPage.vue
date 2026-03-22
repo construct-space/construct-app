@@ -71,23 +71,19 @@ async function handleSend(blocks: RequestBlock[]) {
     .join('\n')
   if (!text.trim()) return
 
-  // Add project path context if available
-  let taskText = text
+  // Build task with project context — but keep original blocks for display
   const path = projectPath.value || detectedProjectPath.value
+  let taskOverride: string | undefined
   if (path && !text.includes(path)) {
-    taskText = `${text}\n\nProject path: ${path}`
-  } else if (!path && projectsRoot.value) {
-    // Derive a project name from the description for first message
-    if (turns.value.length === 0) {
-      taskText = `${text}\n\nProjects root: ${projectsRoot.value}\nChoose a short creative project name (1-2 words, lowercase-kebab) and create docs at {projects_root}/{name}/docs/`
-    }
+    taskOverride = `${text}\n\nProject path: ${path}`
+  } else if (!path && projectsRoot.value && turns.value.length === 0) {
+    taskOverride = `${text}\n\nProjects root: ${projectsRoot.value}\nChoose a short creative project name (1-2 words, lowercase-kebab) and create docs at {projects_root}/{name}/docs/`
   }
 
-  await session.send(blocks.map(b =>
-    b.type === 'text' ? { ...b, content: taskText } : b
-  ), {
+  await session.send(blocks, {
     agentId: 'architect',
     projectPath: path || undefined,
+    taskOverride,
   })
 }
 

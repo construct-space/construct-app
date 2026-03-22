@@ -289,13 +289,14 @@ export function useAgentSession() {
       model?: string
       space?: string
       projectPath?: string
+      taskOverride?: string  // send this to agent instead of block text
     },
   ): Promise<void> {
     if (isLoading.value) return
 
     const agentId = options?.agentId || selectedAgent.value
 
-    // Extract text from request blocks
+    // Extract text from request blocks (for display)
     const textContent = requestBlocks
       .filter((b): b is TextBlock => b.type === 'text')
       .map(b => b.content)
@@ -319,7 +320,7 @@ export function useAgentSession() {
 
     // Build task with history context
     const history = turns.value.slice(0, -1).slice(-5)
-    let task = textContent.trim()
+    let task = options?.taskOverride?.trim() || textContent.trim()
     if (history.length > 0) {
       const historyStr = history.map(t => {
         const req = t.request.filter((b): b is TextBlock => b.type === 'text').map(b => b.content).join('\n')
