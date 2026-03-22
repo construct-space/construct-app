@@ -380,7 +380,6 @@ async function openGoalDoc() {
                 :space-action-starting="spaceActionStarting"
                 :completion-action-error="completionPanelError"
                 :progress-updates="vibe.progressUpdates.value"
-                :tool-history="vibe.toolHistory.value"
                 @update:draft="vibe.draft.value = $event"
                 @submit="submitDraft()"
                 @preview-start="preview.start(vibe.session.value?.project_path || vibe.projectPath.value || '')"
