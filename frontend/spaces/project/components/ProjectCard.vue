@@ -18,6 +18,15 @@ const emit = defineEmits<{
 
 const openMenu = ref(false)
 
+function shortPath(fullPath: string): string {
+  if (!fullPath) return ''
+  const home = '/Users/' + fullPath.split('/')[2]
+  if (fullPath.startsWith(home + '/')) {
+    return '~/' + fullPath.slice(home.length + 1)
+  }
+  return fullPath
+}
+
 function timeAgo(dateStr: string): string {
   if (!dateStr) return 'Never'
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -103,9 +112,7 @@ function timeAgo(dateStr: string): string {
       </div>
       <div class="min-w-0 flex-1 pr-6">
         <h3 class="text-sm font-semibold text-[var(--app-foreground)] truncate">{{ project.name }}</h3>
-        <p v-if="project.description" class="text-xs text-[var(--app-muted)] truncate mt-0.5">
-          {{ project.description }}
-        </p>
+        <p class="text-[10px] font-mono text-[var(--app-muted)]/50 mt-0.5 break-all">{{ shortPath(project.path) }}</p>
       </div>
     </div>
     <div class="flex items-center justify-between text-xs text-[var(--app-muted)]">
