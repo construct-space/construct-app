@@ -28,6 +28,7 @@ type Skill struct {
 	Trigger     string   `json:"trigger,omitempty" yaml:"trigger"`   // Regex or keyword trigger
 	Prompt      string   `json:"prompt" yaml:"-"`                    // The prompt template (markdown body)
 	Tools       []string `json:"tools,omitempty" yaml:"tools"`       // Additional tools this skill needs
+	Agents      []string `json:"agents,omitempty" yaml:"agents"`     // Optional agent IDs this skill applies to
 	Source      string   `json:"source" yaml:"-"`                    // "builtin", "space:<id>", "user"
 	Category    string   `json:"category,omitempty" yaml:"category"` // For grouping
 }
@@ -189,8 +190,33 @@ func (r *Registry) Metrics() map[string]Metrics {
 	return result
 }
 
+// AllForAgent returns all enabled skills available to a given agent.
+func (r *Registry) AllForAgent(agentID string) []*Skill {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []*Skill
+	for _, id := range r.sortedIDsLocked() {
+		s := r.skills[id]
+		state := r.states[id]
+		if !state.Loaded || !state.Enabled {
+			continue
+		}
+		if !matchesAgent(s.Agents, agentID) {
+			continue
+		}
+		result = append(result, s)
+	}
+	return result
+}
+
 // Match finds skills whose trigger matches the given input.
 func (r *Registry) Match(input string) []*Skill {
+	return r.MatchForAgent(input, "")
+}
+
+// MatchForAgent finds skills whose trigger matches the given input and agent.
+func (r *Registry) MatchForAgent(input, agentID string) []*Skill {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -202,7 +228,10 @@ func (r *Registry) Match(input string) []*Skill {
 		if !state.Loaded || !state.Enabled {
 			continue
 		}
-		if s.Trigger != "" && matchesTrigger(s.Trigger, input) {
+		if !matchesAgent(s.Agents, agentID) {
+			continue
+		}
+		if matchesExplicitSkillReference(s, input) || (s.Trigger != "" && matchesTrigger(s.Trigger, input)) {
 			matches = append(matches, s)
 			metric := r.metrics[id]
 			metric.LastUsed = now
@@ -210,6 +239,28 @@ func (r *Registry) Match(input string) []*Skill {
 		}
 	}
 	return matches
+}
+
+func matchesAgent(agents []string, agentID string) bool {
+	if len(agents) == 0 {
+		return true
+	}
+	normalizedID := normalizeAgentID(agentID)
+	if normalizedID == "" {
+		return false
+	}
+	for _, candidate := range agents {
+		if normalizeAgentID(candidate) == normalizedID {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeAgentID(agentID string) string {
+	normalized := strings.ToLower(strings.TrimSpace(agentID))
+	normalized = strings.TrimPrefix(normalized, "space:")
+	return normalized
 }
 
 // Expand renders a skill's prompt template with the given context variables.
@@ -256,6 +307,48 @@ func matchesTrigger(trigger, input string) bool {
 
 	// Single keyword
 	return strings.Contains(lower, strings.ToLower(trigger))
+}
+
+func matchesExplicitSkillReference(s *Skill, input string) bool {
+	refs := extractSkillReferences(input)
+	if len(refs) == 0 {
+		return false
+	}
+
+	id := normalizeSkillReference(s.ID)
+	name := normalizeSkillReference(s.Name)
+	for _, ref := range refs {
+		if ref == id || (name != "" && ref == name) {
+			return true
+		}
+	}
+	return false
+}
+
+func extractSkillReferences(input string) []string {
+	matches := regexp.MustCompile(`(?i)\bskill:([a-z0-9][a-z0-9_-]*)\b`).FindAllStringSubmatch(input, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	refs := make([]string, 0, len(matches))
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		ref := normalizeSkillReference(match[1])
+		if ref != "" {
+			refs = append(refs, ref)
+		}
+	}
+	return refs
+}
+
+func normalizeSkillReference(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, "_", "-")
+	value = strings.Join(strings.Fields(value), "-")
+	return value
 }
 
 // --- Loading ---
@@ -378,7 +471,8 @@ func nowUTC() string {
 
 // --- Built-in Skills ---
 
-var builtinSkillIDs = []string{"commit", "review", "explain", "test"}
+var builtinSkillIDs = []string{"architect-superpower", "commit", "review", "explain", "test"}
+var defaultEnabledBuiltinSkillIDs = map[string]bool{"architect-superpower": true}
 
 func BuiltinIDs() []string {
 	ids := make([]string, len(builtinSkillIDs))
@@ -386,8 +480,41 @@ func BuiltinIDs() []string {
 	return ids
 }
 
+func BuiltinEnabledByDefault(id string) bool {
+	return defaultEnabledBuiltinSkillIDs[id]
+}
+
 // RegisterBuiltins adds built-in skills to the registry.
 func RegisterBuiltins(reg *Registry) {
+	reg.Register(&Skill{
+		ID:          "architect-superpower",
+		Name:        "Architect Superpower",
+		Description: "Deepen architecture planning, refactor strategy, and migration design for the Architect and Brainstorm agents",
+		Trigger:     ".*",
+		Category:    "architect",
+		Agents:      []string{"architect", "brainstorm"},
+		Prompt: `Apply this architecture lens while following the Architect workflow.
+
+Before planning or writing docs:
+- Identify the current system boundaries, entry points, storage, side effects, and external dependencies
+- Name the invariants that must not break during the change
+- Call out the riskiest migrations, compatibility edges, concurrency concerns, and rollback paths
+- Prefer the smallest architecture that satisfies the current requirement; avoid speculative abstractions
+
+When producing the plan:
+- Break work along real seams in the codebase: packages, modules, routes, data models, background jobs, and integrations
+- Separate mechanical moves from behavioral changes when possible
+- Make changed files explicit, including verification paths for each task
+- Note what can ship incrementally behind compatibility layers, flags, or adapters
+
+When writing docs:
+- Include concrete before/after architecture, data flow, failure modes, testing strategy, and observability implications
+- Record assumptions, open questions, and decisions future implementers should not rediscover
+
+Stay in planning mode. Do not write implementation code.`,
+		Source: "builtin",
+	})
+
 	reg.Register(&Skill{
 		ID:          "commit",
 		Name:        "Commit",

@@ -148,10 +148,21 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 	// Build system prompt with project context
 	system := buildSystemWithContext(req.Agent.System, req.Project, req.Context)
 
-	// Match skills against the task and inject their prompts + tools
+	// Inject available skills index + matched skill prompts
 	var skillTools []string
 	if r.skills != nil {
-		if matched := r.skills.Match(req.Task); len(matched) > 0 {
+		// List all skills available to this agent so it knows what it has
+		allForAgent := r.skills.AllForAgent(req.Agent.ID)
+		if len(allForAgent) > 0 {
+			var skillIndex []string
+			for _, s := range allForAgent {
+				skillIndex = append(skillIndex, fmt.Sprintf("- %s: %s", s.Name, s.Description))
+			}
+			system += "\n\n## Available Skills\nYou have these skills. Follow them when their trigger matches the task.\n" + strings.Join(skillIndex, "\n")
+		}
+
+		// Match skills against the task and inject their full prompts
+		if matched := r.skills.MatchForAgent(req.Task, req.Agent.ID); len(matched) > 0 {
 			vars := map[string]any{"task": req.Task}
 			if req.Project != nil {
 				vars["project.name"] = req.Project.Name
