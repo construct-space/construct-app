@@ -170,6 +170,74 @@ export interface DiffBlock {
   language?: string
 }
 
+// ─── Question Detection ───
+// Parses agent text to detect multiple-choice questions and converts to QuestionBlocks.
+
+const OPTION_LINE = /^\s*(?:[-*]|\(?([a-z0-9])\)?[.):]\s*\*{0,2})(.+?)(?:\*{0,2}\s*[-—]\s*(.+))?$/i
+
+/**
+ * Try to split a completed text block into text + question block.
+ * Returns null if no question pattern is detected.
+ */
+export function extractQuestion(text: string): { before: string; question: QuestionBlock } | null {
+  const lines = text.trimEnd().split('\n')
+
+  // Walk backwards to find consecutive option lines
+  let optionEnd = lines.length
+  let optionStart = optionEnd
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim()
+    if (!line) { if (optionStart < optionEnd) break; continue }
+    if (OPTION_LINE.test(line)) {
+      optionStart = i
+    } else {
+      break
+    }
+  }
+
+  if (optionStart >= optionEnd || optionEnd - optionStart < 2) return null
+
+  // Parse options
+  const options: QuestionBlock['options'] = []
+  for (let i = optionStart; i < optionEnd; i++) {
+    const m = lines[i].trim().match(OPTION_LINE)
+    if (!m) continue
+    const label = (m[2] || '').replace(/\*{1,2}/g, '').trim()
+    const description = (m[3] || '').replace(/\*{1,2}/g, '').trim() || undefined
+    if (label) options.push({ value: label, label, description })
+  }
+
+  if (options.length < 2) return null
+
+  // Find the question line (first non-empty line above options)
+  let questionLine = ''
+  for (let i = optionStart - 1; i >= 0; i--) {
+    const line = lines[i].trim()
+    if (line) { questionLine = line.replace(/^#+\s*/, '').replace(/\*{1,2}/g, ''); break }
+  }
+  if (!questionLine) return null
+
+  // Everything before the question line is "before" text
+  let beforeEnd = optionStart - 1
+  for (; beforeEnd >= 0; beforeEnd--) {
+    if (lines[beforeEnd].trim() === questionLine.trim() || lines[beforeEnd].trim().replace(/^#+\s*/, '').replace(/\*{1,2}/g, '') === questionLine) {
+      break
+    }
+  }
+  const before = lines.slice(0, beforeEnd).join('\n').trimEnd()
+
+  return {
+    before,
+    question: {
+      type: 'question',
+      id: `q-${Date.now()}`,
+      question: questionLine,
+      questionType: 'single',
+      options,
+    },
+  }
+}
+
 export type RequestBlock = TextBlock | ImageBlock | FileBlock
 export type ResponseBlock =
   | TextBlock | ToolBlock | CodeBlock | SvgBlock | ImageBlock | ErrorBlock | StatusBlock
@@ -357,6 +425,24 @@ export function useAgentSession() {
             // Only append if the result content isn't already present
             if (!existingText.includes(result.content.slice(0, 50))) {
               turn.response.push({ type: 'text', content: result.content })
+            }
+          }
+
+          // Try to extract a question from the last text block
+          let lastTextIdx = -1
+          for (let i = turn.response.length - 1; i >= 0; i--) {
+            if (turn.response[i].type === 'text') { lastTextIdx = i; break }
+          }
+          if (lastTextIdx >= 0) {
+            const lastText = turn.response[lastTextIdx] as TextBlock
+            const parsed = extractQuestion(lastText.content)
+            if (parsed) {
+              if (parsed.before.trim()) {
+                lastText.content = parsed.before
+              } else {
+                turn.response.splice(lastTextIdx, 1)
+              }
+              turn.response.push(parsed.question)
             }
           }
 

@@ -66,23 +66,28 @@ function openUrl(url: string) {
 
       <!-- Question (interactive) -->
       <div v-else-if="block.type === 'question'" class="my-2 rounded-xl border border-app-border bg-white/[0.03] p-4">
-        <p class="text-sm font-medium text-app mb-2">{{ block.question }}</p>
+        <p class="text-sm font-medium text-app mb-3">{{ block.question }}</p>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="opt in block.options"
             :key="opt.value"
-            class="rounded-lg px-3 py-1.5 text-xs border transition"
+            :disabled="!!block.answer"
+            class="rounded-lg px-3 py-1.5 text-xs border transition cursor-pointer disabled:cursor-default"
             :class="[
               (Array.isArray(block.answer) ? block.answer.includes(opt.value) : block.answer === opt.value)
                 ? 'border-app-accent bg-app-accent/10 text-app-accent'
-                : 'border-app-border text-app-muted hover:border-app-accent/40'
+                : block.answer
+                  ? 'border-app-border/50 text-app-muted/50'
+                  : 'border-app-border text-app-muted hover:border-app-accent/50 hover:text-app hover:bg-white/5'
             ]"
-            @click="emit('question-answer', block.id, opt.value)"
+            @click="block.answer = opt.value; emit('question-answer', block.id, opt.value)"
           >
-            <Icon v-if="opt.icon" :name="opt.icon" class="size-3 inline mr-1" />
             {{ opt.label }}
           </button>
         </div>
+        <p v-if="block.options.find(o => o.value === block.answer)?.description" class="mt-2 text-xs text-app-muted">
+          {{ block.options.find(o => o.value === block.answer)?.description }}
+        </p>
       </div>
 
       <!-- Plan -->

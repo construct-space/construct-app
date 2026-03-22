@@ -64,6 +64,10 @@ const detectedProjectPath = computed(() => {
   return ''
 })
 
+function handleQuestionAnswer(_questionId: string, answer: string) {
+  handleSend([{ type: 'text', content: answer }])
+}
+
 async function handleSend(blocks: RequestBlock[]) {
   const text = blocks
     .filter(b => b.type === 'text')
@@ -135,6 +139,7 @@ function startVibe() {
         :turns="turns"
         :is-loading="isLoading"
         :status-message="statusMessage"
+        @question-answer="handleQuestionAnswer"
       >
         <template v-if="turns.length === 0">
           <div class="flex flex-col items-center justify-center h-full px-8 text-center">

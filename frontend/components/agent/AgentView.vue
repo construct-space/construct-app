@@ -17,6 +17,10 @@ const props = defineProps<{
   statusMessage?: string
 }>()
 
+const emit = defineEmits<{
+  'question-answer': [questionId: string, answer: string]
+}>()
+
 const scrollRef = ref<HTMLDivElement>()
 
 // Derive status from last tool activity
@@ -70,7 +74,7 @@ watch(
 
       <!-- Response -->
       <div v-if="turn.response.length" class="max-w-[90%]">
-        <ResponseBlocks :blocks="turn.response" />
+        <ResponseBlocks :blocks="turn.response" @question-answer="(qId, answer) => emit('question-answer', qId, answer as string)" />
       </div>
     </div>
 
