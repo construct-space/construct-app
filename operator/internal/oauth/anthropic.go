@@ -229,7 +229,17 @@ func startAnthropicCallbackServer(expectedState string, codeCh chan<- string, er
 		}
 
 		w.WriteHeader(200)
-		fmt.Fprint(w, "<html><body><h1>Success</h1><p>Authentication complete. You can close this window.</p></body></html>")
+		fmt.Fprint(w, `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Construct</title><style>
+body{font-family:-apple-system,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0a0a0a;color:#e5e5e5}
+.card{text-align:center;padding:3rem;border-radius:1rem;background:#141414;border:1px solid #222;max-width:400px}
+.check{width:48px;height:48px;margin:0 auto 1rem;color:#00ff41}
+h1{font-size:1.25rem;margin:0 0 .5rem}
+p{font-size:.875rem;color:#888;margin:0}
+</style></head><body><div class="card">
+<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+<h1>Connected</h1>
+<p>Authentication complete. You can close this window.</p>
+</div><script>setTimeout(()=>window.close(),2000)</script></body></html>`)
 		codeCh <- code
 	})
 

@@ -394,7 +394,7 @@ func startGeminiCallbackServer(codeCh chan<- struct{ code, state string }, errCh
 		}
 
 		w.WriteHeader(200)
-		fmt.Fprint(w, "<html><body><h1>Success</h1><p>Google authentication complete. You can close this window.</p></body></html>")
+		fmt.Fprint(w, "Connected. You can close this window.")
 		codeCh <- struct{ code, state string }{code, state}
 	})
 

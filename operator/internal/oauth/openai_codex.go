@@ -226,7 +226,7 @@ func startOpenAICallbackServer(expectedState string, codeCh chan<- string, errCh
 		}
 
 		w.WriteHeader(200)
-		fmt.Fprint(w, "<html><body><h1>Success</h1><p>OpenAI authentication complete. You can close this window.</p></body></html>")
+		fmt.Fprint(w, "Connected. You can close this window.")
 		codeCh <- code
 	})
 
