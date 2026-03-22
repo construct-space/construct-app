@@ -12,7 +12,15 @@ func architectAgent() *agent.Config {
 		MaxTurns:     25,
 		CanSpawn:     true,
 		SpawnAllowed: []string{"project", "space"},
-		BlockTools:   noBrowserTools,
+		// Architect only needs: context awareness + doc writing + directory creation
+		// No read_file, grep, glob — those make it explore code instead of planning
+		Tools: []string{
+			"get_project_context",
+			"write_file",
+			"bash",
+			"list_dir",
+			"spawn_agent",
+		},
 		System: `You are Construct's Architect agent — the planning brain behind every project.
 You follow a disciplined process inspired by the Superpowers methodology:
 brainstorm first, plan second, write docs third, hand off to Vibe fourth.
