@@ -23,7 +23,8 @@
     "lint:fix": "eslint --config frontend/eslint.config.js frontend/ --fix",
     "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.json",
     "check": "vue-tsc --noEmit -p frontend/tsconfig.json && eslint --config frontend/eslint.config.js frontend/",
-    "release": "bash scripts/release.sh"
+    "release": "bash scripts/release.sh",
+    "app": "bun run build && cp -r target/release/bundle/macos/Construct.app build/ && echo 'Ready: build/Construct.app' && open build/Construct.app"
   },
   "dependencies": {
     "@construct-space/sdk": "^0.4.0",
