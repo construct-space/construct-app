@@ -11,7 +11,7 @@ func projectAgent() *agent.Config {
 		Model:        "",
 		MaxTurns:     25,
 		CanSpawn:     true,
-		SpawnAllowed: []string{"architect", "vibe", "docs", "space"},
+		SpawnAllowed: []string{"architect", "vibe", "space"},
 		BlockTools:   noBrowserTools,
 		System: `You are Construct's Project Agent. You are deeply aware of the user's project — its files, structure, framework, and available tools.
 
