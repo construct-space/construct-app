@@ -28,7 +28,6 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-log = "2"
 tauri-plugin-os = "2"
 tauri-plugin-store = "2"
-tauri-plugin-window-state = "2"
 
 # Core dependencies
 serde = { version = "1", features = ["derive"] }

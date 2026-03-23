@@ -56,11 +56,7 @@ pub fn run() {
                 .level_for("sqlx::query", log::LevelFilter::Warn)
                 .build(),
         )
-        .plugin(
-            tauri_plugin_window_state::Builder::new()
-                .with_state_flags(tauri_plugin_window_state::StateFlags::POSITION)
-                .build(),
-        );
+        ;
 
     builder
         .manage(context_state)
