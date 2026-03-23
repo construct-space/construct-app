@@ -110,6 +110,6 @@
     "store:allow-length",
     "store:allow-clear",
     "store:allow-save",
-    "store:allow-load",
+    "store:allow-load"
   ]
 }
