@@ -16,7 +16,7 @@ const globalShortcuts = useGlobalShortcuts((id) => {
 // ─── Group shortcuts by space then group ─────────────────────────────────────
 
 const spaces: { id: ShortcutSpace; label: string; icon: string }[] = [
-  { id: 'global', label: 'Global',  icon: 'i-lucide-globe' },
+  // { id: 'global', label: 'Global',  icon: 'i-lucide-globe' },  // Hidden — requires accessibility permission
   { id: 'design', label: 'Design',  icon: 'i-lucide-pen-tool' },
   { id: 'code',   label: 'Code',    icon: 'i-lucide-code-2' },
   { id: 'git',    label: 'Git',     icon: 'i-lucide-git-branch' },
