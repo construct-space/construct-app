@@ -88,6 +88,9 @@ fn resolve_operator_path(_app: &tauri::AppHandle) -> Result<std::path::PathBuf, 
         .to_path_buf();
 
     let search_paths = [
+        // Tauri bundles externalBin as bare name in .app/Contents/MacOS/
+        exe_dir.join("construct-operator"),
+        // Dev mode: target-triple name in desktop/bin/
         exe_dir.join(&sidecar_name),
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("bin")
