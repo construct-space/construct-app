@@ -1,6 +1,6 @@
 [package]
 name = "construct"
-version = "0.6.2"
+version = "0.6.3"
 description = "Construct - AI-powered development environment"
 authors = ["Construct Team"]
 edition = "2021"
