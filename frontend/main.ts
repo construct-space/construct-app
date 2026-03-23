@@ -21,7 +21,7 @@ app.use(router)
 // Initialize auth, then project store, then mount
 import { useAuthStore } from './stores/auth'
 import { useProjectStore } from './stores/project'
-import { autoInstallRecommended, ensureEssentialSpaces } from './composables/useSpaceMarketplace'
+// Spaces are user-managed — no auto-install
 
 // Start desktop bridge listener only in the main window.
 // Other windows (standalone-assistant, browser tabs) must not compete for bridge requests.
@@ -44,11 +44,4 @@ authStore.initialize().then(() => {
     console.warn('[main] Project store init:', err)
   })
 
-  autoInstallRecommended().catch(err => {
-    console.warn('[main] Auto-install recommended spaces:', err)
-  })
-
-  ensureEssentialSpaces().catch(err => {
-    console.warn('[main] Ensure essential spaces:', err)
-  })
 })
