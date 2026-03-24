@@ -90,53 +90,6 @@ const updateWindowChromeState = async () => {
   }
 }
 
-// Window control handlers
-const handleClose = async () => {
-  if (!isTauri.value) return
-  try {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    await getCurrentWindow().close()
-  } catch (e) {
-    console.error('Failed to close window:', e)
-  }
-}
-
-const handleMinimize = async () => {
-  if (!isTauri.value) return
-  try {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    await getCurrentWindow().minimize()
-  } catch (e) {
-    console.error('Failed to minimize window:', e)
-  }
-}
-
-const handleMaximize = async () => {
-  if (!isTauri.value) return
-  try {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    const win = getCurrentWindow()
-    if (await win.isMaximized()) {
-      await win.unmaximize()
-    } else {
-      await win.maximize()
-    }
-  } catch (e) {
-    console.error('Failed to maximize window:', e)
-  }
-}
-
-// Hide native traffic lights (we use custom semaphore)
-const hideNativeTrafficLights = async () => {
-  if (!isTauri.value) return
-  try {
-    const { invoke } = await import('@tauri-apps/api/core')
-    await invoke('set_traffic_lights_visible', { visible: false })
-  } catch (e) {
-    console.error('Failed to hide traffic lights:', e)
-  }
-}
-
 // Telemetry: session end on page hide/unload
 const handleBeforeUnload = () => { telemetry.trackSessionEnd() }
 const handleVisibilityChange = () => {
@@ -180,7 +133,7 @@ onMounted(async () => {
       console.warn('[App] Launch route:', e)
     }
 
-    setTimeout(() => hideNativeTrafficLights(), 100)
+    // Native traffic lights are used — no need to hide them
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window')
       unlistenWindowResize = await getCurrentWindow().onResized(() => {
@@ -251,23 +204,9 @@ onUnmounted(() => {
 
 <template>
   <div class="bg-app text-app min-h-screen">
-    <!-- Tauri semaphore (traffic lights) placeholder -->
-    <div v-if="isTauri && showSidebar && !isWindowChromeHidden" class="fixed top-3 left-[10px] z-[200]" style="-webkit-app-region: no-drag">
-      <div class="flex gap-2">
-        <button
-          class="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 cursor-default"
-          @click="handleClose"
-        />
-        <button
-          class="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 cursor-default"
-          @click="handleMinimize"
-        />
-        <button
-          class="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600 cursor-default"
-          @click="handleMaximize"
-        />
-      </div>
-    </div>
+    <!-- Native traffic lights handled by macOS (titleBarStyle: Overlay) -->
+    <!-- Reserve space so content doesn't overlap the native buttons -->
+    <div v-if="isTauri && showSidebar && !isWindowChromeHidden" class="fixed top-0 left-0 w-[78px] h-[38px] z-[200]" style="-webkit-app-region: no-drag" />
 
     <div
       v-if="isTauri && IS_DEV_INSTANCE"

@@ -44,6 +44,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_decorum::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
@@ -100,14 +101,20 @@ pub fn run() {
                 }
             }
 
-            // Apply vibrancy on macOS
+            // Apply vibrancy and decorum on macOS
             #[cfg(target_os = "macos")]
             {
+                use tauri_plugin_decorum::WebviewWindowExt;
+
                 if let Some(window) = app.get_webview_window("main") {
                     platform::apply_window_vibrancy(&window);
+                    let _ = window.create_overlay_titlebar();
+                    let _ = window.set_traffic_lights_inset(10.0, 16.0);
                 }
                 if let Some(window) = app.get_webview_window("standalone-assistant") {
                     platform::apply_window_vibrancy(&window);
+                    let _ = window.create_overlay_titlebar();
+                    let _ = window.set_traffic_lights_inset(10.0, 16.0);
                 }
             }
 

@@ -37,8 +37,6 @@
         "fullscreen": false,
         "minWidth": 1024,
         "minHeight": 576,
-        "maxWidth": 3840,
-        "maxHeight": 2160,
         "titleBarStyle": "Overlay",
         "dragDropEnabled": true,
         "hiddenTitle": true
