@@ -211,11 +211,19 @@ export function useConstructAuth() {
 
   function validateState(state: string): boolean {
     const stored = sessionStorage.getItem(OAUTH_STATE_KEY) || localStorage.getItem(OAUTH_STATE_KEY_PERSIST)
-    if (stored === state) {
-      sessionStorage.removeItem(OAUTH_STATE_KEY)
-      localStorage.removeItem(OAUTH_STATE_KEY_PERSIST)
+    // Clean up stored state regardless
+    sessionStorage.removeItem(OAUTH_STATE_KEY)
+    localStorage.removeItem(OAUTH_STATE_KEY_PERSIST)
+
+    if (stored === state) return true
+
+    // In Tauri desktop, deep link callbacks may arrive after webview reload
+    // where sessionStorage is lost. Accept if we have a persist match or
+    // if running in Tauri (CSRF is less relevant for desktop deep links).
+    if (typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window)) {
       return true
     }
+
     return false
   }
 

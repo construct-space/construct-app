@@ -151,12 +151,6 @@ export const useAuthStore = defineStore('auth', {
         // Safe to ignore if store not ready
       }
 
-      try {
-        await api.request('/auth/logout', { method: 'POST', skipErrorHandling: true })
-      } catch {
-        // Ignore — we already cleared local state
-      }
-
       this.isLoading = false
     },
 

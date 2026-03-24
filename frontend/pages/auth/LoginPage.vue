@@ -102,7 +102,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-950">
+  <div class="min-h-screen bg-[var(--app-background)]">
     <div class="h-screen overflow-hidden flex items-center justify-center px-6">
       <div class="w-full max-w-sm">
         <!-- Header -->
@@ -114,9 +114,9 @@ watchEffect(() => {
             </svg>
           </RouterLink>
           <p class="text-2xl text-center">
-            <span class="text-gray-400">CONSTRUCT:</span><span class="font-bold text-gray-900 dark:text-white">SIGN IN</span>
+            <span class="text-[var(--app-muted)]">CONSTRUCT:</span><span class="font-bold text-[var(--app-foreground)]">SIGN IN</span>
           </p>
-          <p class="text-sm text-gray-500 text-center">
+          <p class="text-sm text-[var(--app-muted)] text-center">
             Access your spaces and continue building.
           </p>
         </div>
@@ -135,25 +135,25 @@ watchEffect(() => {
           <button
             @click="handlePasskeyLogin"
             :disabled="authStore.isLoading"
-            class="w-full py-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium hover:border-app-accent transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            class="w-full py-3 rounded-md border border-[var(--app-border)] bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] text-[var(--app-foreground)] font-medium hover:border-app-accent transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <KeyRound class="size-4" />
             SIGN IN WITH PASSKEY
           </button>
 
-          <p class="text-sm text-gray-500 text-center">
+          <p class="text-sm text-[var(--app-muted)] text-center">
             You'll be redirected to accounts.construct.space to sign in.
           </p>
 
           <!-- Manual code entry (shown after clicking sign in) -->
-          <div v-if="showCodeEntry" class="pt-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
-            <p class="text-sm text-gray-500">
+          <div v-if="showCodeEntry" class="pt-4 border-t border-[var(--app-border)] space-y-3">
+            <p class="text-sm text-[var(--app-muted)]">
               If the app didn't open, copy the authorization code and click below:
             </p>
             <button
               @click="handlePasteAndSubmit"
               :disabled="authStore.isLoading"
-              class="w-full py-2.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-medium hover:border-app-accent transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              class="w-full py-2.5 rounded-md border border-[var(--app-border)] bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] text-[var(--app-foreground)] text-sm font-medium hover:border-app-accent transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <ClipboardPaste class="size-4" />
               {{ authStore.isLoading ? 'Verifying...' : 'Paste Code & Sign In' }}
@@ -162,11 +162,11 @@ watchEffect(() => {
           </div>
 
           <!-- Footer Links -->
-          <div class="pt-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
+          <div class="pt-6 border-t border-[var(--app-border)] space-y-3">
             <a
               :href="constructAuth.getRegisterUrl()"
               target="_blank"
-              class="flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400 hover:text-app-accent transition-colors"
+              class="flex items-center justify-center gap-2 text-[var(--app-muted)] hover:text-app-accent transition-colors"
             >
               <UserPlus class="size-4" />
               <span class="text-sm uppercase tracking-wider">Create Account</span>
