@@ -25,6 +25,7 @@ const emit = defineEmits<{
   resize: [instanceId: string, sizeKey: string]
   swap: [idA: string, idB: string]
   move: [instanceId: string, x: number, y: number]
+  moveResize: [instanceId: string, x: number, y: number, sizeKey: string]
   addWidget: []
 }>()
 
@@ -33,7 +34,7 @@ const gridEl = ref<HTMLElement | null>(null)
 
 const dragId = ref<string | null>(null)
 const dropTargetId = ref<string | null>(null)          // widget swap target
-const dropCell = ref<{ x: number; y: number } | null>(null)  // empty cell move target
+const dropCell = ref<{ x: number; y: number; sizeKey?: string } | null>(null)  // empty cell move target
 const resizingId = ref<string | null>(null)
 const resizePreviewW = ref(0)
 const resizePreviewH = ref(0)
@@ -96,6 +97,26 @@ function fitsAt(x: number, y: number, w: number, h: number, excludeId: string): 
   return true
 }
 
+// Find the best fitting size for a widget at a position
+// Tries current size first, then largest-to-smallest available sizes
+function bestFitSize(item: WidgetPlacement, x: number, y: number): string | null {
+  // Try current size first
+  if (fitsAt(x, y, item.w, item.h, item.instanceId)) return item.sizeKey
+
+  const sizes = props.availableSizes(item.spaceId, item.widgetId)
+  if (sizes.length <= 1) return null
+
+  // Sort by area descending (prefer largest that fits)
+  const sorted = [...sizes]
+    .map(s => { const [w, h] = s.split('x').map(Number); return { key: s, w, h, area: w * h } })
+    .sort((a, b) => b.area - a.area)
+
+  for (const s of sorted) {
+    if (fitsAt(x, y, s.w, s.h, item.instanceId)) return s.key
+  }
+  return null
+}
+
 // Find which widget is at a cell
 function widgetAtCell(col: number, row: number, excludeId?: string): string | null {
   for (const item of props.items) {
@@ -138,10 +159,11 @@ function onMoveStart(e: MouseEvent, item: WidgetPlacement) {
       return
     }
 
-    // Check if dragged widget fits at this empty cell
+    // Check if dragged widget fits at this cell (auto-downsize if needed)
     dropTargetId.value = null
-    if (fitsAt(cell.col, cell.row, item.w, item.h, item.instanceId)) {
-      dropCell.value = { x: cell.col, y: cell.row }
+    const fitSize = bestFitSize(item, cell.col, cell.row)
+    if (fitSize) {
+      dropCell.value = { x: cell.col, y: cell.row, sizeKey: fitSize }
     } else {
       dropCell.value = null
     }
@@ -155,7 +177,11 @@ function onMoveStart(e: MouseEvent, item: WidgetPlacement) {
       if (dropTargetId.value) {
         emit('swap', item.instanceId, dropTargetId.value)
       } else if (dropCell.value) {
-        emit('move', item.instanceId, dropCell.value.x, dropCell.value.y)
+        if (dropCell.value.sizeKey && dropCell.value.sizeKey !== item.sizeKey) {
+          emit('moveResize', item.instanceId, dropCell.value.x, dropCell.value.y, dropCell.value.sizeKey)
+        } else {
+          emit('move', item.instanceId, dropCell.value.x, dropCell.value.y)
+        }
       }
     }
     dragId.value = null
@@ -235,9 +261,12 @@ const dropPreviewStyle = computed(() => {
   if (!dropCell.value || !dragId.value) return null
   const item = props.items.find(i => i.instanceId === dragId.value)
   if (!item) return null
+  // Use the fit size if auto-downsized, otherwise item's current size
+  const fitKey = dropCell.value.sizeKey || item.sizeKey
+  const { w, h } = parseSize(fitKey)
   return {
-    gridColumn: `${dropCell.value.x + 1} / span ${item.w}`,
-    gridRow: `${dropCell.value.y + 1} / span ${item.h}`,
+    gridColumn: `${dropCell.value.x + 1} / span ${w}`,
+    gridRow: `${dropCell.value.y + 1} / span ${h}`,
   }
 })
 </script>

@@ -227,6 +227,21 @@ export function useWidgetRegistry() {
     return true
   }
 
+  // Move and resize a widget in one operation
+  function moveAndResize(instanceId: string, x: number, y: number, newSizeKey: string): boolean {
+    const item = layout.value.items.find(i => i.instanceId === instanceId)
+    if (!item) return false
+    const { w, h } = parseSize(newSizeKey)
+    if (!canPlace(x, y, w, h, instanceId)) return false
+    item.x = x
+    item.y = y
+    item.w = w
+    item.h = h
+    item.sizeKey = newSizeKey
+    saveLayout()
+    return true
+  }
+
   // Resize a widget to a different size variant
   function resizeWidget(instanceId: string, newSizeKey: string): boolean {
     const item = layout.value.items.find(i => i.instanceId === instanceId)
@@ -329,6 +344,7 @@ export function useWidgetRegistry() {
     addWidget,
     removeWidget,
     moveWidget,
+    moveAndResize,
     resizeWidget,
     swapWidgets,
     getWidgetSizes,

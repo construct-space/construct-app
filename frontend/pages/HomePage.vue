@@ -31,6 +31,10 @@ function handleMoveWidget(instanceId: string, x: number, y: number) {
   widgetRegistry.moveWidget(instanceId, x, y)
 }
 
+function handleMoveResize(instanceId: string, x: number, y: number, sizeKey: string) {
+  widgetRegistry.moveAndResize(instanceId, x, y, sizeKey)
+}
+
 onMounted(async () => {
   await loadSpaces()
 
@@ -59,6 +63,7 @@ onMounted(async () => {
           @resize="handleResizeWidget"
           @swap="handleSwapWidgets"
           @move="handleMoveWidget"
+          @move-resize="handleMoveResize"
           @add-widget="showWidgetPicker = true"
         />
       </div>
