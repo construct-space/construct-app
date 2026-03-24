@@ -11,7 +11,8 @@ import { appConfig } from '@/utils/config'
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const CONSENT_KEY = 'construct_telemetry_consent'
-const DB_NAME = 'sqlite:telemetry.db'
+// Resolved at first DB access — uses centralized data dir, not Tauri's bundle-ID appDataDir
+let _resolvedDbName: string | null = null
 
 export const TELEMETRY_FEATURE_KEYS = [
   'ai.chat.sent',
@@ -53,7 +54,20 @@ async function getDb(): Promise<Database> {
   _dbPromise = (async () => {
     try {
       const Database = (await import('@tauri-apps/plugin-sql')).default
-      const db = await Database.load(DB_NAME)
+
+      // Build full path to telemetry.db inside centralized data dir
+      if (!_resolvedDbName) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core')
+          const dataDir = (await invoke<string>('get_data_dir')).replace(/\/+$/, '')
+          _resolvedDbName = `sqlite:${dataDir}/telemetry.db`
+        } catch {
+          // Fallback to relative name (resolves to appDataDir)
+          _resolvedDbName = 'sqlite:telemetry.db'
+        }
+      }
+
+      const db = await Database.load(_resolvedDbName)
       await migrate(db)
       _db = db
       return db
@@ -138,28 +152,15 @@ export function setTelemetryConsent(enabled: boolean) {
 
 // ─── Background API sync ─────────────────────────────────────────────────────
 
+// Read auth directly from the store — telemetry is always called after app mount
+import { useAuthStore } from '@/stores/auth'
+
 function getAuthToken(): string | null {
-  try {
-    const authState = localStorage.getItem('cp_auth')
-    if (authState) {
-      const parsed = JSON.parse(authState)
-      if (parsed.token) return parsed.token
-    }
-  } catch { /* ignore */ }
-  // Fallback to legacy key
-  return localStorage.getItem('cp_auth_token')
+  try { return useAuthStore().token || null } catch { return null }
 }
 
-/** Check if the user appears to be authenticated (auth state exists) */
 function isAuthenticated(): boolean {
-  const authState = localStorage.getItem('cp_auth')
-  if (!authState) return false
-  try {
-    const parsed = JSON.parse(authState)
-    return !!(parsed.token || parsed.accessToken)
-  } catch {
-    return false
-  }
+  try { return useAuthStore().isAuthenticated } catch { return false }
 }
 
 async function syncToApi(): Promise<void> {

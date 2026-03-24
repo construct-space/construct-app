@@ -1,7 +1,7 @@
 {
   "id": "vibe",
-  "name": "Agent Smith",
-  "description": "Relentless AI coding agent with full tool access",
-  "icon": "lucide:swords",
+  "name": "Vibe",
+  "description": "AI coding agent with full tool access",
+  "icon": "lucide:zap",
   "version": "1.0.0"
 }

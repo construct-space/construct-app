@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * OraclePanel — Right slideover chat panel.
+ * ChatPanel — Right slideover chat panel.
  * Persistent across navigation. Uses useAgentSession for streaming.
  */
 import { ref, computed, watch } from 'vue'
@@ -13,7 +13,7 @@ const { turns, isLoading, statusMessage } = session
 
 const inputPlaceholder = computed(() =>
   turns.value.length === 0
-    ? 'Ask Oracle anything...'
+    ? 'Ask anything...'
     : 'Continue...'
 )
 
@@ -44,7 +44,7 @@ const emit = defineEmits<{
     <div class="shrink-0 flex items-center justify-between px-4 py-2 border-b border-app">
       <div class="flex items-center gap-2">
         <Icon name="i-lucide-cookie" class="size-4 text-purple-400" />
-        <span class="text-sm font-medium text-app">Oracle</span>
+        <span class="text-sm font-medium text-app">Chat</span>
       </div>
       <div class="flex items-center gap-1">
         <button
@@ -76,7 +76,7 @@ const emit = defineEmits<{
         <template v-if="turns.length === 0">
           <div class="flex flex-col items-center justify-center h-full px-8 text-center">
             <Icon name="i-lucide-cookie" class="size-10 text-purple-400/30 mb-4" />
-            <h2 class="text-lg font-semibold text-app mb-2">Oracle</h2>
+            <h2 class="text-lg font-semibold text-app mb-2">Chat</h2>
             <p class="text-sm text-app-muted max-w-xs">
               Ask anything. Brainstorm ideas, get explanations, debug your thinking.
             </p>

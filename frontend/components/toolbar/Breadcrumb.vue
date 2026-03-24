@@ -18,9 +18,9 @@ const routeLabels: Record<string, string> = {
   'projects': 'PROJECTS',
   'spaces': 'SPACES',
   'settings': 'SETTINGS',
-  'brainstorm': 'ORACLE',
+  'brainstorm': 'CHAT',
   'architect': 'ARCHITECT',
-  'vibe': 'AGENT SMITH',
+  'vibe': 'VIBE',
   'media': 'MEDIA',
   'teams': 'TEAMS',
   'code': 'CODE',
@@ -101,7 +101,7 @@ const displayBreadcrumbs = computed(() => {
 
       <button
         v-if="crumb.to"
-        class="text-gray-500 dark:text-gray-400 font-light hover:text-gray-900 dark:hover:text-white transition-colors"
+        class="text-[var(--app-muted)] font-light hover:text-[var(--app-foreground)] transition-colors"
         @click="router.push(crumb.to)"
       >
         {{ crumb.label }}
@@ -109,7 +109,7 @@ const displayBreadcrumbs = computed(() => {
 
       <span
         v-else
-        class="text-gray-900 dark:text-white font-bold"
+        class="text-[var(--app-foreground)] font-bold"
       >
         {{ crumb.label }}
       </span>

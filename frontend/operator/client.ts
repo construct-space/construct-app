@@ -9,6 +9,7 @@
  */
 
 import { ref, readonly, computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import type { Ref } from 'vue'
 import type {
   AIProvider,
@@ -243,7 +244,7 @@ export function useOperator() {
   async function callTool(toolCall: ToolCall): Promise<ToolResult> {
     return send<ToolResult>('tools.call', {
       toolCall,
-      token: localStorage.getItem('cp_auth_token') || '',
+      token: useAuthStore().token || '',
     })
   }
 

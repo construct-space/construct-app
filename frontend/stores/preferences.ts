@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { useSource } from '@/composables/useSource'
+import { useApi } from '@/composables/useApi'
 import type { PreferenceKey, EditorSettings } from '~/types/preference'
 
 // Default editor settings
@@ -73,7 +73,7 @@ export const usePreferencesStore = defineStore('preferences', {
       this.error = null
 
       try {
-        const source = useSource()
+        const source = useApi()
         const response = await source.get<{ data: Record<string, unknown> }>('/preferences')
         this.preferences = response.data || {}
         this.initialized = true
@@ -99,7 +99,7 @@ export const usePreferencesStore = defineStore('preferences', {
       this.preferences[key] = value
 
       try {
-        const source = useSource()
+        const source = useApi()
         await source.put(`/preferences/${key}`, { value })
         return { success: true }
       } catch (error) {

@@ -1,76 +1,19 @@
 import { appConfig } from '@/utils/config'
-
-// Helper for localStorage-based token storage (for Tauri)
-function useLocalStorageToken() {
-  const TOKEN_KEY = 'cp_auth_token'
-
-  return computed({
-    get: () => {
-      return localStorage.getItem(TOKEN_KEY)
-    },
-    set: (newValue: string | null) => {
-      if (newValue) {
-        localStorage.setItem(TOKEN_KEY, newValue)
-      } else {
-        localStorage.removeItem(TOKEN_KEY)
-      }
-    }
-  })
-}
-
-// Helper for cookie-based token storage (web)
-function useCookieToken() {
-  const TOKEN_KEY = 'cp_auth_token'
-
-  function getCookie(name: string): string | null {
-    const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'))
-    return match ? decodeURIComponent(match[1]) : null
-  }
-
-  function setCookie(name: string, value: string) {
-    document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=${60 * 60 * 24 * 30};SameSite=Strict;Secure`
-  }
-
-  function deleteCookie(name: string) {
-    document.cookie = `${name}=;path=/;max-age=0`
-  }
-
-  return computed({
-    get: () => getCookie(TOKEN_KEY),
-    set: (newValue: string | null) => {
-      if (newValue) {
-        setCookie(TOKEN_KEY, newValue)
-      } else {
-        deleteCookie(TOKEN_KEY)
-      }
-    }
-  })
-}
+import { useAuthStore } from '@/stores/auth'
 
 export const useApi = () => {
   const baseURL = appConfig.apiBase
   const apiKey = appConfig.apiKey
-
-  // Detect if running in Tauri (tauri:// protocol or __TAURI__ global)
-  const isDesktopApp = (
-    window.location.protocol === 'tauri:' ||
-    window.location.hostname === 'tauri.localhost' ||
-    '__TAURI__' in window ||
-    '__TAURI_INTERNALS__' in window
-  )
-
-  // For Tauri: use localStorage since cookies don't work reliably with custom protocols
-  // For web: use cookies for better security
-  const token = isDesktopApp
-    ? useLocalStorageToken()
-    : useCookieToken()
+  const authStore = useAuthStore()
 
   const setToken = (newToken: string) => {
-    token.value = newToken
+    authStore.token = newToken
   }
 
   const removeToken = () => {
-    token.value = null
+    authStore.token = null
+    // Clean up legacy localStorage key
+    localStorage.removeItem('cp_auth_token')
   }
 
   const getHeaders = (includeAuth = true): Record<string, string> => {
@@ -79,8 +22,8 @@ export const useApi = () => {
       'X-API-Key': apiKey,
     }
 
-    if (includeAuth && token.value) {
-      headers.Authorization = `Bearer ${token.value}`
+    if (includeAuth && authStore.token) {
+      headers.Authorization = `Bearer ${authStore.token}`
     }
 
     return headers
@@ -111,7 +54,6 @@ export const useApi = () => {
       ...options.headers,
     }
 
-    // Append query params
     if (options.params && Object.keys(options.params).length > 0) {
       const searchParams = new URLSearchParams()
       for (const [key, value] of Object.entries(options.params)) {
@@ -138,11 +80,9 @@ export const useApi = () => {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        // Check for token expiration first (only for protected endpoints)
         if (!options.skipErrorHandling && response.status === 401) {
           if (!isAuthEndpoint(endpoint)) {
             if (import.meta.env.DEV) {
-              // In dev mode the local API may not be running — return empty
               return {} as T
             }
             await handleTokenExpired()
@@ -155,7 +95,6 @@ export const useApi = () => {
         throw new Error(errorMessage)
       }
 
-      // Handle empty responses (204, etc.)
       const text = await response.text()
       if (!text) return {} as T
       return JSON.parse(text) as T
@@ -176,11 +115,7 @@ export const useApi = () => {
   }
 
   const handleTokenExpired = async () => {
-    const { useAuthStore } = await import('@/stores/auth')
-    const authStore = useAuthStore()
     await authStore.logout()
-
-    // Redirect to login instead of showing errors
     const router = await import('@/router').then(m => m.router)
     if (router.currentRoute.value.path !== '/login') {
       router.push('/login')
@@ -240,12 +175,10 @@ export const useApi = () => {
   }
 
   return {
-    // Core functions
-    token: readonly(token),
+    token: computed(() => authStore.token),
     setToken,
     removeToken,
 
-    // HTTP Methods
     get: <T = unknown>(endpoint: string, options?: { params?: Record<string, string | number> }) =>
       apiRequest<T>(endpoint, { params: options?.params }),
     post: <T = unknown>(endpoint: string, data?: unknown) => apiRequest<T>(endpoint, { method: 'POST', body: data }),
@@ -253,11 +186,9 @@ export const useApi = () => {
     patch: <T = unknown>(endpoint: string, data?: unknown) => apiRequest<T>(endpoint, { method: 'PATCH', body: data }),
     delete: <T = unknown>(endpoint: string) => apiRequest<T>(endpoint, { method: 'DELETE' }),
 
-    // Auth-only requests (no Bearer token)
     authPost: <T = unknown>(endpoint: string, data?: unknown) => authRequest<T>(endpoint, { method: 'POST', body: data }),
     authGet: <T = unknown>(endpoint: string) => authRequest<T>(endpoint),
 
-    // Direct access to request methods (for advanced usage)
     authRequest: authRequest,
     request: apiRequest,
   }

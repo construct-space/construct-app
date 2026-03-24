@@ -14,6 +14,7 @@ import { useSpaces } from '@/composables/useSpaces'
 import { usePinnedStore } from '@/stores/pinned'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
+import { useDevMode } from '@/composables/useDevMode'
 import { getSpace as getSpaceConfig } from '@/config/spaces'
 import { BUILTIN_SPACE_IDS } from '@/space_loader/builtin'
 import {
@@ -27,6 +28,7 @@ const route = useRoute()
 const { state, exitSpace, exitProject } = useSidebar()
 const authStore = useAuthStore()
 const pinnedStore = usePinnedStore()
+const { isDeveloperMode } = useDevMode()
 const projectStore = useProjectStore()
 const { spaces, loadSpaces } = useSpaces()
 
@@ -186,6 +188,13 @@ watch(() => route.path, (newPath) => {
       </svg>
     </RouterLink>
 
+    <!-- Chat -->
+    <RouterLink to="/app/brainstorm" class="sidebar-btn mb-1"
+      :class="activeId === 'brainstorm' ? 'sidebar-btn-active' : 'sidebar-btn-inactive'"
+      title="Chat">
+      <Icon name="i-lucide-message-circle" class="size-5" />
+    </RouterLink>
+
     <!-- 3D Rotating Cube (2 panels) -->
     <div class="flex-1 w-full overflow-hidden py-1" style="perspective: 1000px">
       <div class="relative w-full h-full transition-transform duration-500 ease-out" :style="{
@@ -195,15 +204,17 @@ watch(() => route.path, (newPath) => {
         <!-- ====== Front Panel (main) — Home + pinned spaces + All Spaces + Settings ====== -->
         <div class="absolute inset-0 w-full h-full flex flex-col items-center gap-1 pt-2 overflow-y-auto scrollbar-none"
           style="backface-visibility: hidden; transform: translateZ(20px)">
-          <!-- Projects (primary entry point) -->
-          <button class="sidebar-btn"
-            :class="activeId === 'projects' ? 'sidebar-btn-active' : 'sidebar-btn-inactive'"
-            :title="activeId === 'projects' ? 'Open Folder' : 'Projects'"
-            @click="handleProjectsClick">
-            <Icon :name="activeId === 'projects' ? 'i-lucide-folder-open' : 'i-lucide-folder'" class="size-5" />
-          </button>
+          <!-- Projects (only visible in developer mode) -->
+          <template v-if="isDeveloperMode">
+            <button class="sidebar-btn"
+              :class="activeId === 'projects' ? 'sidebar-btn-active' : 'sidebar-btn-inactive'"
+              :title="activeId === 'projects' ? 'Open Folder' : 'Projects'"
+              @click="handleProjectsClick">
+              <Icon :name="activeId === 'projects' ? 'i-lucide-folder-open' : 'i-lucide-folder'" class="size-5" />
+            </button>
 
-          <div class="w-8 h-px bg-app-border my-0.5" />
+            <div class="w-8 h-px bg-app-border my-0.5" />
+          </template>
 
           <!-- Pinned spaces -->
           <RouterLink v-for="item in pinnedSpaceNavItems" :key="item.id" :to="item.to" class="sidebar-btn"

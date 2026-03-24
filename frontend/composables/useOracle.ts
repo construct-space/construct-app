@@ -1,6 +1,7 @@
 /**
- * useOracle — Global toggle state for the Oracle sidebar.
+ * useOracle — Global toggle state for the Chat sidebar panel.
  * Singleton ref so the panel persists across navigation.
+ * Kept as useOracle for backward compat with auto-imports.
  */
 import { ref } from 'vue'
 

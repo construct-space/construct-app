@@ -312,7 +312,7 @@ func startOpenAICallbackServer(expectedState string, codeCh chan<- string, errCh
 		}
 
 		w.WriteHeader(200)
-		fmt.Fprint(w, CallbackSuccessHTML)
+		fmt.Fprint(w, CallbackSuccessHTML("OpenAI"))
 		codeCh <- code
 	})
 

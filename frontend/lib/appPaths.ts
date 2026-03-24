@@ -22,14 +22,16 @@ export async function initAppPaths() {
     }
 
     // Get the data directory from the Rust side (respects --dev flag)
-    // This ensures dev instance uses space.construct.personal.dev/
+    // Resolves to ~/Library/Application Support/Construct (or Construct Dev)
     const dataDir = await invoke<string>('get_data_dir')
     if (dataDir) {
       resolvedDataDir = trimTrailingSlash(dataDir)
     } else {
-      // Fallback to Tauri's default appDataDir
-      const { appDataDir } = await import('@tauri-apps/api/path')
-      resolvedDataDir = trimTrailingSlash(await appDataDir())
+      // Fallback: construct the path manually to avoid Tauri's bundle-ID-based appDataDir
+      const { homeDir } = await import('@tauri-apps/api/path')
+      const home = trimTrailingSlash(await homeDir())
+      const name = IS_DEV_INSTANCE.value ? 'Construct Dev' : 'Construct'
+      resolvedDataDir = `${home}/Library/Application Support/${name}`
     }
   } catch {
     // Not in Tauri — fallback to home-relative path
@@ -38,14 +40,18 @@ export async function initAppPaths() {
 
 /**
  * Returns the app data directory.
- * In Tauri: ~/Library/Application Support/Construct/ (macOS)
- * Fallback: $HOME/.construct/
+ * macOS:   ~/Library/Application Support/Construct (or Construct Dev)
+ * Linux:   ~/.local/share/construct (or construct-dev)
+ * Windows: %APPDATA%/Construct (or Construct Dev)
  */
 export function getDataDir(home?: string): string {
   if (resolvedDataDir) return resolvedDataDir
-  // Fallback for non-Tauri contexts
-  const dirName = IS_DEV_INSTANCE.value ? '.construct-dev' : '.construct'
-  return home ? `${trimTrailingSlash(home)}/${dirName}` : dirName
+  // Fallback for non-Tauri contexts — match Rust/Go native dir logic
+  if (home) {
+    const name = IS_DEV_INSTANCE.value ? 'Construct Dev' : 'Construct'
+    return `${trimTrailingSlash(home)}/Library/Application Support/${name}`
+  }
+  return IS_DEV_INSTANCE.value ? 'Construct Dev' : 'Construct'
 }
 
 export function getAppDisplayName(): string {
@@ -59,13 +65,13 @@ export function getAppDeepLinkScheme(): string {
 export const SHOULD_USE_DEV_BEHAVIOR = import.meta.env.DEV || COMPILE_TIME_DEV
 
 // Backward-compat constants (compile-time only)
-export const APP_DIR_NAME = COMPILE_TIME_DEV ? '.construct-dev' : '.construct'
+export const APP_DIR_NAME = COMPILE_TIME_DEV ? 'Construct Dev' : 'Construct'
 export const APP_DISPLAY_NAME = COMPILE_TIME_DEV ? 'Construct DEV' : 'Construct'
 export const APP_DEEP_LINK_SCHEME = COMPILE_TIME_DEV ? 'construct-dev' : 'construct'
 
 /** @deprecated Use getDataDir() + '/spaces' instead */
 export function getAppDirName(): string {
-  return IS_DEV_INSTANCE.value ? '.construct-dev' : '.construct'
+  return IS_DEV_INSTANCE.value ? 'Construct Dev' : 'Construct'
 }
 
 export function getSpacesDir(): string {

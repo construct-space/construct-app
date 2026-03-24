@@ -438,8 +438,12 @@ func resolvePath(workDir, path string) string {
 	return filepath.Join(workDir, path)
 }
 
-// constructProjectsRoot returns ~/ConstructProjects — the default projects directory.
+// constructProjectsRoot returns the configured projects directory.
+// Reads CONSTRUCT_PROJECTS_ROOT env var (set by frontend), falls back to ~/ConstructProjects.
 func constructProjectsRoot() string {
+	if root := os.Getenv("CONSTRUCT_PROJECTS_ROOT"); root != "" {
+		return root
+	}
 	if home, err := os.UserHomeDir(); err == nil {
 		return filepath.Join(home, "ConstructProjects")
 	}

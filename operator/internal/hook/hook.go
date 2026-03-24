@@ -17,6 +17,9 @@ import (
 )
 
 func constructProjectsRoot() string {
+	if root := os.Getenv("CONSTRUCT_PROJECTS_ROOT"); root != "" {
+		return root
+	}
 	if home, err := os.UserHomeDir(); err == nil {
 		return filepath.Join(home, "ConstructProjects")
 	}

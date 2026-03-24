@@ -1,20 +1,20 @@
 {
   "id": "brainstorm",
-  "name": "Oracle",
-  "description": "Explore ideas and refine your vision before planning",
-  "icon": "lucide:cookie",
+  "name": "Chat",
+  "description": "Explore ideas and refine your vision",
+  "icon": "lucide:message-circle",
   "version": "1.0.0",
   "scope": "app",
   "navigation": {
-    "label": "Oracle",
-    "icon": "lucide:cookie",
+    "label": "Chat",
+    "icon": "lucide:message-circle",
     "to": "brainstorm",
     "order": 25
   },
   "pages": [
     {
       "path": "",
-      "label": "Oracle",
+      "label": "Chat",
       "default": true
     }
   ]

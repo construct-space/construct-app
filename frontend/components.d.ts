@@ -40,6 +40,7 @@ declare module 'vue' {
     MediaPickerModal: typeof import('./components/media/MediaPickerModal.vue')['default']
     MediaUploadModal: typeof import('./components/media/MediaUploadModal.vue')['default']
     Modal: typeof import('./components/ui/Modal.vue')['default']
+    OraclePanel: typeof import('./components/oracle/OraclePanel.vue')['default']
     Pagination: typeof import('./components/ui/Pagination.vue')['default']
     PanelSection: typeof import('./components/ui/PanelSection.vue')['default']
     Popover: typeof import('./components/ui/Popover.vue')['default']

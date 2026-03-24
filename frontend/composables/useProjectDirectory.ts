@@ -208,6 +208,14 @@ export function useProjectDirectory() {
 
       state.projectsRoot = normalizedPath
       localStorage.setItem(PROJECTS_ROOT_KEY, normalizedPath)
+
+      // Also sync to operator via settings so hooks/agents use the right root
+      try {
+        const { useOperator } = await import('@/operator')
+        const operator = useOperator()
+        await operator.send('settings.set', { key: 'construct_projects_root', value: normalizedPath })
+      } catch { /* operator may not be connected yet */ }
+
       return true
     } catch (e) {
       console.error('Failed to set projects root:', e)

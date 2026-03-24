@@ -19,7 +19,16 @@ export async function getTauriStore(): Promise<Store | null> {
   _storePromise = (async () => {
     try {
       const { load } = await import('@tauri-apps/plugin-store')
-      const store = await load('construct-settings.json', { defaults: {}, autoSave: true })
+      const { invoke } = await import('@tauri-apps/api/core')
+
+      // Use centralized data dir, not Tauri's bundle-ID-based appDataDir
+      let storePath = 'construct-settings.json'
+      try {
+        const dataDir = (await invoke<string>('get_data_dir')).replace(/\/+$/, '')
+        storePath = `${dataDir}/construct-settings.json`
+      } catch { /* fallback to relative */ }
+
+      const store = await load(storePath, { defaults: {}, autoSave: true })
       _store = store
       return store
     } catch {

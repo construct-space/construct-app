@@ -9,7 +9,16 @@ export const useSource = () => {
   const baseURL = appConfig.sourceUrl
 
   const getToken = (): string | null => {
-    return localStorage.getItem('cp_auth_token')
+    try {
+      // Dynamic import not possible here (sync), read from auth.json-backed store via localStorage fallback
+      // The auth store sets this on login; useApi is the primary API client
+      const stored = localStorage.getItem('cp_auth')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        return parsed.token || null
+      }
+    } catch { /* ignore */ }
+    return null
   }
 
   const headers = (): Record<string, string> => {

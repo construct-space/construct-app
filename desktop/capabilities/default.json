@@ -110,6 +110,8 @@
     "store:allow-length",
     "store:allow-clear",
     "store:allow-save",
-    "store:allow-load"
+    "store:allow-load",
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text"
   ]
 }

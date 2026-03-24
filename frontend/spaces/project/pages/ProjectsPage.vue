@@ -246,30 +246,62 @@ onUnmounted(() => {
             </button>
           </div>
           <div class="inline-flex rounded-full bg-[color-mix(in_srgb,var(--app-foreground)_8%,transparent)] p-1">
-            <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-orange-500/15 hover:text-orange-400" @click="$router.push('/app/brainstorm')">
-              <Icon name="i-lucide-cookie" class="size-4 inline mr-1.5 -mt-0.5" />Oracle
-            </button>
-            <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-blue-500/15 hover:text-blue-400" @click="$router.push('/app/architect')">
-              <Icon name="i-lucide-drafting-compass" class="size-4 inline mr-1.5 -mt-0.5" />Architect
-            </button>
-            <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-[#00cc34]/15 hover:text-[#00ff41]" @click="$router.push('/app/vibe')">
-              <Icon name="i-lucide-swords" class="size-4 inline mr-1.5 -mt-0.5" />Agent Smith
-            </button>
+            <Tooltip text="Describe your idea — creates project + docs, then hands off to Vibe">
+              <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-blue-500/15 hover:text-blue-400" @click="$router.push('/app/architect')">
+                <Icon name="i-lucide-drafting-compass" class="size-4 inline mr-1.5 -mt-0.5" />Let's Plan
+              </button>
+            </Tooltip>
+            <Tooltip text="Start coding — creates a project, writes docs if needed, and builds">
+              <button class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-[#00cc34]/15 hover:text-[#00ff41]" @click="$router.push('/app/vibe')">
+                <Icon name="i-lucide-zap" class="size-4 inline mr-1.5 -mt-0.5" />Let's Code
+              </button>
+            </Tooltip>
           </div>
         </div>
         <div v-if="sortedProjects.length === 0 && !searchQuery" class="flex-1 flex items-center justify-center">
-          <div class="text-center max-w-sm">
-            <div class="size-16 rounded-2xl bg-[var(--app-muted)]/10 flex items-center justify-center mx-auto mb-4">
-              <i class="i-lucide-package size-8 text-[var(--app-muted)]" />
-            </div>
-            <h2 class="text-lg font-semibold text-[var(--app-foreground)] mb-2">No projects yet</h2>
-            <p class="text-sm text-[var(--app-muted)] mb-6">Create your first project or open an existing folder.</p>
-            <div class="flex gap-3 justify-center">
-              <button class="px-4 py-2 rounded-lg bg-[var(--app-accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity" @click="showCreateModal = true">
-                <i class="i-lucide-plus mr-1.5" /> New Project
+          <div class="max-w-lg w-full">
+            <h2 class="text-2xl font-bold text-[var(--app-foreground)] text-center mb-2">Start a project</h2>
+            <p class="text-sm text-[var(--app-muted)] text-center mb-8">Choose how you want to begin.</p>
+
+            <div class="grid grid-cols-2 gap-3">
+              <!-- New Project -->
+              <button
+                class="p-5 rounded-xl border border-[var(--app-border)] text-left transition-all hover:border-[var(--app-accent)] hover:bg-[color-mix(in_srgb,var(--app-accent)_5%,transparent)] group"
+                @click="showCreateModal = true"
+              >
+                <Icon name="i-lucide-plus" class="size-5 text-[var(--app-muted)] group-hover:text-[var(--app-accent)] mb-3" />
+                <p class="text-sm font-semibold text-[var(--app-foreground)] mb-1">New Project</p>
+                <p class="text-xs text-[var(--app-muted)] leading-relaxed">Create an empty project and set it up yourself</p>
               </button>
-              <button class="px-4 py-2 rounded-lg border border-[var(--app-border)] text-sm text-[var(--app-foreground)] hover:bg-[var(--app-muted)]/5 transition-colors" @click="handleAddFolder">
-                <i class="i-lucide-folder-open mr-1.5" /> Open Folder
+
+              <!-- Open Folder -->
+              <button
+                class="p-5 rounded-xl border border-[var(--app-border)] text-left transition-all hover:border-[var(--app-foreground)]/30 hover:bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] group"
+                @click="handleAddFolder"
+              >
+                <Icon name="i-lucide-folder-open" class="size-5 text-[var(--app-muted)] group-hover:text-[var(--app-foreground)] mb-3" />
+                <p class="text-sm font-semibold text-[var(--app-foreground)] mb-1">Open Folder</p>
+                <p class="text-xs text-[var(--app-muted)] leading-relaxed">Open an existing project from your filesystem</p>
+              </button>
+
+              <!-- Let's Plan -->
+              <button
+                class="p-5 rounded-xl border border-[var(--app-border)] text-left transition-all hover:border-blue-500/40 hover:bg-blue-500/5 group"
+                @click="$router.push('/app/architect')"
+              >
+                <Icon name="i-lucide-drafting-compass" class="size-5 text-[var(--app-muted)] group-hover:text-blue-400 mb-3" />
+                <p class="text-sm font-semibold text-[var(--app-foreground)] mb-1">Let's Plan</p>
+                <p class="text-xs text-[var(--app-muted)] leading-relaxed">Describe your idea — Architect creates the project and writes the docs</p>
+              </button>
+
+              <!-- Let's Code -->
+              <button
+                class="p-5 rounded-xl border border-[var(--app-border)] text-left transition-all hover:border-[#00ff41]/30 hover:bg-[#00ff41]/5 group"
+                @click="$router.push('/app/vibe')"
+              >
+                <Icon name="i-lucide-zap" class="size-5 text-[var(--app-muted)] group-hover:text-[#00ff41] mb-3" />
+                <p class="text-sm font-semibold text-[var(--app-foreground)] mb-1">Let's Code</p>
+                <p class="text-xs text-[var(--app-muted)] leading-relaxed">Jump straight in — Vibe reads your docs or writes its own and builds</p>
               </button>
             </div>
           </div>

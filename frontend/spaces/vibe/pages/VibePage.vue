@@ -24,7 +24,7 @@ import VibeHeader from '../components/VibeHeader.vue'
 import VibeChat from '../components/VibeChat.vue'
 import VibeActivity from '../components/VibeActivity.vue'
 import VibeSessionList from '../components/VibeSessionList.vue'
-import MatrixRain from '../components/MatrixRain.vue'
+import CodeRain from '../components/MatrixRain.vue'
 import { useVibePreview } from '../composables/useVibePreview'
 import { buildConstructSpaceDevRoute, isConstructSpaceHandoff } from '../utils/spaceLaunch'
 import { sameVibeSessionProject } from '../utils/sessionProject'
@@ -221,13 +221,11 @@ async function openGoalDoc() {
   <DashboardPanel :grow="true" :ui="{ body: '!p-0 !overflow-hidden' }">
     <template #body>
       <div class="flex flex-col overflow-hidden" style="height: calc(100vh - 72px)">
-
-        <!-- ═══ Empty state: goal input + session history ═══ -->
+<!-- ═══ Empty state: goal input + session history ═══ -->
         <div v-if="!vibe.hasSession.value && !vibe.isRunning.value" class="flex-1 min-h-0 overflow-y-auto flex flex-col lg:flex-row">
-
-          <!-- Left: centered goal input -->
+<!-- Left: centered goal input -->
           <div class="relative isolate flex min-h-0 flex-1 items-center justify-center px-6 py-6 lg:px-10 xl:px-14">
-            <MatrixRain />
+            <CodeRain />
             <div class="relative z-10 w-full max-w-2xl space-y-6">
               <div class="space-y-4">
                 <div class="inline-flex h-14 w-14 items-center justify-center rounded-3xl bg-[#00ff41]/10">
@@ -356,8 +354,7 @@ async function openGoalDoc() {
 
           <!-- Split pane -->
           <div ref="containerRef" class="flex-1 flex min-h-0" :class="isDragging && 'select-none'">
-
-            <!-- LEFT: Chat -->
+<!-- LEFT: Chat -->
             <div class="flex flex-col min-w-0 min-h-0 overflow-hidden" :style="{ width: splitPercent + '%' }">
               <VibeChat
                 :messages="vibe.messages.value"

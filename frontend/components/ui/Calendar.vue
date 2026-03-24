@@ -353,7 +353,7 @@ function eventColor(event: CalendarEvent): string {
             @click="navigate(-1)"
             aria-label="Previous"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </button>
           <button
             class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150 cursor-pointer"
@@ -368,7 +368,7 @@ function eventColor(event: CalendarEvent): string {
             @click="navigate(1)"
             aria-label="Next"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3L11 8L6 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3L11 8L6 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </button>
         </div>
       </div>

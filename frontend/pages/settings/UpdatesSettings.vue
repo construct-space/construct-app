@@ -49,8 +49,13 @@ onMounted(async () => {
   <div>
     <!-- Current version -->
     <div class="mb-6">
-      <div class="border-b border-[var(--app-border)] pb-2 mb-4">
-        <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Current Version</h3>
+      <div class="flex items-center justify-between border-b border-[var(--app-border)] pb-2 mb-4">
+        <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Current Version <span v-if="appVersion" class="font-mono text-[var(--app-muted)] font-normal">v{{ appVersion }}</span></h3>
+        <a
+          href="https://construct.space/changelog"
+          target="_blank"
+          class="text-xs text-app-accent hover:underline"
+        >View Changelog</a>
       </div>
 
       <div class="flex items-center justify-between mb-4">

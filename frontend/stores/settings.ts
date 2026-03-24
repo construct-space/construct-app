@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { useSource } from '@/composables/useSource'
+import { useApi } from '@/composables/useApi'
 import type { Setting, SettingUpdate } from '~/types'
 
 interface SettingsState {
@@ -68,7 +68,7 @@ export const useSettingsStore = defineStore('settings', {
       this.error = null
 
       try {
-        const source = useSource()
+        const source = useApi()
         const response = await source.get<{ data: Record<string, unknown> }>('/settings')
 
         // Source returns flat key-value settings — convert to Setting[] for compatibility

@@ -22,30 +22,16 @@ export interface AppTheme {
 // Available app themes that sync with Monaco
 export const appThemes: AppTheme[] = [
   {
-    id: 'auto',
-    name: 'Auto (System)',
-    mode: 'dark',
-    primary: 'green',
-    neutral: 'slate',
-    colors: {
-      background: '#0f172a',
-      foreground: '#f8fafc',
-      muted: '#64748b',
-      accent: '#34C759',
-      accentForeground: '#ffffff',
-    }
-  },
-  {
     id: 'vs',
     name: 'Light',
     mode: 'light',
-    primary: 'green',
+    primary: 'red',
     neutral: 'slate',
     colors: {
-      background: '#ffffff',
-      foreground: '#1e293b',
+      background: '#f1f5f9',
+      foreground: '#0f172a',
       muted: '#64748b',
-      accent: '#34C759',
+      accent: '#E63946',
       accentForeground: '#ffffff',
     }
   },
@@ -53,13 +39,13 @@ export const appThemes: AppTheme[] = [
     id: 'vs-dark',
     name: 'Dark',
     mode: 'dark',
-    primary: 'green',
+    primary: 'red',
     neutral: 'slate',
     colors: {
-      background: '#1e1e1e',
-      foreground: '#d4d4d4',
-      muted: '#6b7280',
-      accent: '#34C759',
+      background: '#0f172a',
+      foreground: '#e2e8f0',
+      muted: '#64748b',
+      accent: '#E63946',
       accentForeground: '#ffffff',
     }
   },
@@ -236,53 +222,48 @@ export const appThemes: AppTheme[] = [
 // Local storage key for theme (for fast initial load)
 const THEME_STORAGE_KEY = 'app-theme-id'
 
+// Module-level reactive ref for theme ID — survives across useAppTheme() calls
+const _themeId = ref(localStorage.getItem(THEME_STORAGE_KEY) || 'auto')
+
 export const useAppTheme = () => {
-  const colorMode = useColorMode()
   const preferencesStore = usePreferencesStore()
 
-  // Current theme ID from preferences (with localStorage fallback)
-  const currentThemeId = computed(() => {
-    // Fast path: check localStorage first (set before API round-trip)
-    const stored = localStorage.getItem(THEME_STORAGE_KEY)
-    if (stored && stored !== 'auto') return stored
-    // Then check preferences store (from API)
-    const fromPrefs = preferencesStore.editorSettings.theme
-    if (fromPrefs && fromPrefs !== 'auto') return fromPrefs
-    return 'auto'
-  })
+  // Reactive theme ID
+  const currentThemeId = computed(() => _themeId.value)
 
-  // Get the actual theme object
+  // Reactive OS dark mode preference — detect via media query, sync via Tauri
+  const osDark = ref(typeof window !== 'undefined' ? window.matchMedia?.('(prefers-color-scheme: dark)').matches !== false : true)
+
+  // Get the actual theme object (auto resolves to vs/vs-dark based on OS)
   const currentTheme = computed(() => {
     const id = currentThemeId.value
     if (id === 'auto') {
-      // Return theme based on system preference
-      return colorMode.value === 'dark'
+      return osDark.value
         ? appThemes.find(t => t.id === 'vs-dark')!
         : appThemes.find(t => t.id === 'vs')!
     }
     return appThemes.find(t => t.id === id) || appThemes[0]
   })
 
-  // Set theme by ID
+  // Set theme by ID (supports 'auto' which resolves to vs/vs-dark)
   const setTheme = async (themeId: string) => {
-    const theme = appThemes.find(t => t.id === themeId)
-    if (!theme) return
-
-    // Update color mode
-    if (themeId === 'auto') {
-      colorMode.value = 'auto'
-    } else {
-      colorMode.value = theme.mode
-    }
-
-    // Save to localStorage for fast initial load
+    // Update reactive ref + localStorage
+    _themeId.value = themeId
     localStorage.setItem(THEME_STORAGE_KEY, themeId)
+
+    // Resolve the actual theme to apply
+    const resolved = themeId === 'auto'
+      ? (osDark.value ? appThemes.find(t => t.id === 'vs-dark')! : appThemes.find(t => t.id === 'vs')!)
+      : appThemes.find(t => t.id === themeId)
+
+    if (!resolved) return
+
+    // Set dark/light class on html
+    document.documentElement.classList.toggle('dark', resolved.mode === 'dark')
+    applyThemeColors(resolved)
 
     // Save to preferences (API)
     await preferencesStore.setEditorSettings({ theme: themeId })
-
-    // Apply CSS variables
-    applyThemeColors(theme)
   }
 
   // Apply theme CSS variables to document
@@ -346,15 +327,49 @@ export const useAppTheme = () => {
     return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('')
   }
 
-  // Initialize theme on mount
+  // Initialize theme on mount + watch OS changes for auto mode
   const initTheme = () => {
     const theme = currentTheme.value
     if (!theme) return
 
-    if (theme.id !== 'auto') {
-      colorMode.value = theme.mode
-    }
+    // Set dark/light class on html
+    document.documentElement.classList.toggle('dark', theme.mode === 'dark')
     applyThemeColors(theme)
+
+    // Listen for OS dark/light changes
+    const applyAutoIfNeeded = () => {
+      if (currentThemeId.value === 'auto') {
+        const resolved = currentTheme.value
+        document.documentElement.classList.toggle('dark', resolved.mode === 'dark')
+        applyThemeColors(resolved)
+      }
+    }
+
+    // Web: media query listener
+    if (typeof window !== 'undefined') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      mq.addEventListener('change', (e) => {
+        osDark.value = e.matches
+        applyAutoIfNeeded()
+      })
+    }
+
+    // Tauri: native theme change listener
+    ;(async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window')
+        const win = getCurrentWindow()
+        const theme = await win.theme()
+        if (theme) {
+          osDark.value = theme === 'dark'
+          applyAutoIfNeeded()
+        }
+        await win.onThemeChanged(({ payload }) => {
+          osDark.value = payload === 'dark'
+          applyAutoIfNeeded()
+        })
+      } catch { /* not in Tauri */ }
+    })()
   }
 
   return {

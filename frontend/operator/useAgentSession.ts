@@ -189,7 +189,7 @@ export function extractQuestion(text: string): { before: string; question: Quest
   const lines = trimmed.split('\n')
 
   // Walk backwards to find consecutive option lines
-  let optionEnd = lines.length
+  const optionEnd = lines.length
   let optionStart = optionEnd
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim()

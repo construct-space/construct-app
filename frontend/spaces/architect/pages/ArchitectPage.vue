@@ -2,7 +2,7 @@
 /**
  * Architect Space — describe a project, agent writes docs, hand off to Vibe.
  *
- * Flow: User describes → Architect writes docs to project/docs/ → "Start Agent Smith" button.
+ * Flow: User describes → Architect writes docs to project/docs/ → "Start Vibe" button.
  * No questions step, no plan JSON, no templates, no scaffolding.
  * Architect ONLY writes markdown docs. Vibe writes code.
  */
@@ -128,7 +128,7 @@ function startVibe() {
           @click="startVibe"
         >
           <Icon name="i-lucide-zap" class="size-3 inline mr-1" />
-          Start Agent Smith
+          Start Vibe
         </button>
       </div>
     </div>
@@ -145,7 +145,7 @@ function startVibe() {
           <Icon name="i-lucide-drafting-compass" class="size-12 text-blue-400/30 mb-4" />
           <h2 class="text-xl font-semibold text-app mb-1">Architect</h2>
           <p class="text-sm text-app-muted max-w-md">
-            Describe your project. I'll write the design docs, then hand off to Agent Smith.
+            Describe your project. I'll write the design docs, then hand off to Vibe.
           </p>
         </template>
       </AgentView>

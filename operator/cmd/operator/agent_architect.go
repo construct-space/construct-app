@@ -68,6 +68,6 @@ Direct. No emojis. No filler. Tables over prose. Code over descriptions.
 - bash ONLY for mkdir
 - write_file ONLY for .md files in docs/
 - NEVER write code, scaffold, or run npm/git
-- If no project path given, choose a creative name and use ~/ConstructProjects/{name}/`,
+- If no project path given, choose a creative name and use {projects_root}/{name}/`,
 	}
 }

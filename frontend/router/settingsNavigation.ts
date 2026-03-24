@@ -6,7 +6,6 @@ import {
   Code,
   Cpu,
   Download,
-  FolderOpen,
   Globe,
   Image,
   Keyboard,
@@ -32,7 +31,6 @@ const settingsDefinitions: SettingsDefinition[] = [
   { label: 'Profile', path: 'profile', group: 'Account', icon: CircleUser, component: () => import('@/pages/settings/ProfileSettings.vue') },
   { label: 'Privacy', path: 'privacy', group: 'Account', icon: Shield, component: () => import('@/pages/settings/PrivacySettings.vue') },
 
-  { label: 'Projects', path: 'projects', group: 'General', icon: FolderOpen, component: () => import('@/pages/settings/ProjectsSettings.vue') },
   { label: 'Appearance', path: 'appearance', group: 'General', icon: Brush, component: () => import('@/pages/settings/AppearanceSettings.vue') },
   { label: 'Shortcuts', path: 'shortcuts', group: 'General', icon: Keyboard, component: () => import('@/pages/settings/ShortcutsSettings.vue') },
   { label: 'Updates', path: 'updates', group: 'General', icon: Download, component: () => import('@/pages/settings/UpdatesSettings.vue') },

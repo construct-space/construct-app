@@ -218,66 +218,28 @@ export const useAuthStore = defineStore('auth', {
     async persistAuthState() {
       if (typeof window === 'undefined') return
 
-      const authState = {
-        user: this.user,
-        token: this.token,
-        oauthToken: this.oauthToken,
-        isAuthenticated: this.isAuthenticated,
-      }
-
-      const stateJson = JSON.stringify(authState)
-      localStorage.setItem('cp_auth', stateJson)
-
-      // Persist to Tauri store plugin (preferred) and SQLite (legacy)
-      try {
-        const { getTauriStore } = await import('@/composables/useTauriStore')
-        const store = await getTauriStore()
-        if (store) {
-          await store.set('cp_auth', authState)
-        }
-      } catch {
-        // Store plugin not available
-      }
-
-      try {
-        const { useContextDB } = await import('@/composables/useContextDB')
-        const db = useContextDB()
-        if (db.isTauri.value) {
-          await db.settingSet('auth_state', stateJson)
-        }
-      } catch {
-        // Context DB may not be available yet
-      }
-
-      // Persist to Application Support/space.construct.personal/auth.json
-      // Shared with CLI, operator, and other Construct tools
-      await this.persistToFile(authState)
-    },
-
-    async persistToFile(authState: Record<string, any>) {
+      // auth.json file in data dir — single source of truth (shared with CLI/operator)
       try {
         const { isTauriEnv } = await import('@/utils/tauri')
         if (!isTauriEnv()) return
 
-        const { appDataDir } = await import('@tauri-apps/api/path')
+        const { invoke } = await import('@tauri-apps/api/core')
         const { writeTextFile, mkdir, exists } = await import('@tauri-apps/plugin-fs')
 
-        // ~/Library/Application Support/space.construct.personal/
-        const baseDir = await appDataDir()
-        const authDir = baseDir.replace(/\/$/, '')
-        if (!await exists(authDir)) {
-          await mkdir(authDir, { recursive: true })
+        const baseDir = (await invoke<string>('get_data_dir')).replace(/\/$/, '')
+        if (!await exists(baseDir)) {
+          await mkdir(baseDir, { recursive: true })
         }
 
         const authFile = {
-          user: authState.user,
-          token: authState.token,
-          oauth_token: authState.oauthToken,
-          authenticated: authState.isAuthenticated,
+          user: this.user,
+          token: this.token,
+          oauth_token: this.oauthToken,
+          authenticated: this.isAuthenticated,
           updated_at: new Date().toISOString(),
         }
 
-        await writeTextFile(`${authDir}/auth.json`, JSON.stringify(authFile, null, 2))
+        await writeTextFile(`${baseDir}/auth.json`, JSON.stringify(authFile, null, 2))
       } catch {
         // File persistence is best-effort
       }
@@ -296,41 +258,32 @@ export const useAuthStore = defineStore('auth', {
         this.isAuthenticated = authState.isAuthenticated
       }
 
-      if (this.token) {
-        import('@/composables/useApi').then(({ useApi }) => {
-          const api = useApi()
-          api.setToken(this.token!)
-        })
-      }
     },
 
     async hydrateAuthState() {
       if (typeof window === 'undefined') return
 
       try {
-        // Phase 1: Try auth.json file first, then Tauri store, then localStorage
+        // Read from auth.json — single source of truth
         // Restore token/user but DON'T set isAuthenticated yet.
         // checkAuth() will set it after server validation.
-        let stored: string | null = null
-
-        // 1. Read from Application Support auth.json (shared with CLI/operator)
         try {
           const { isTauriEnv } = await import('@/utils/tauri')
           if (isTauriEnv()) {
-            const { appDataDir } = await import('@tauri-apps/api/path')
+            const { invoke } = await import('@tauri-apps/api/core')
             const { readTextFile, exists } = await import('@tauri-apps/plugin-fs')
-            const baseDir = (await appDataDir()).replace(/\/$/, '')
+            const baseDir = (await invoke<string>('get_data_dir')).replace(/\/$/, '')
             const authPath = `${baseDir}/auth.json`
             if (await exists(authPath)) {
               const raw = await readTextFile(authPath)
               const fileAuth = JSON.parse(raw)
               if (fileAuth.token) {
-                stored = JSON.stringify({
+                this._applyAuthState({
                   user: fileAuth.user,
                   token: fileAuth.token,
                   oauthToken: fileAuth.oauth_token,
                   isAuthenticated: fileAuth.authenticated,
-                })
+                }, { setAuthenticated: false })
               }
             }
           }
@@ -338,83 +291,11 @@ export const useAuthStore = defineStore('auth', {
           // File not available
         }
 
-        // 2. Tauri store fallback
-        if (!stored) {
-          try {
-            const { getTauriStore } = await import('@/composables/useTauriStore')
-            const tauriStore = await getTauriStore()
-            if (tauriStore) {
-              const tauriAuth = await tauriStore.get<{ user: AuthUserData | null; token: string | null; isAuthenticated: boolean }>('cp_auth')
-              if (tauriAuth?.token) {
-                stored = JSON.stringify(tauriAuth)
-              }
-            }
-          } catch {
-            // Tauri store not available
-          }
-        }
-
-        // 3. localStorage last resort (web mode)
-        if (!stored) {
-          stored = localStorage.getItem('cp_auth')
-        }
-
-        if (stored) {
-          const authState = JSON.parse(stored)
-          this._applyAuthState(authState, { setAuthenticated: false })
-        } else {
-          // Check for legacy token
-          const legacyToken = localStorage.getItem('cp_auth_token')
-          if (legacyToken) {
-            this.token = legacyToken
-            const { useApi } = await import('@/composables/useApi')
-            const api = useApi()
-            api.setToken(legacyToken)
-
-            try {
-              const profile = await api.get<{
-                id: number
-                email: string
-                username: string
-                first_name: string
-                last_name: string
-                phone?: string
-                avatar_url?: string
-              }>('/me')
-
-              if (profile) {
-                this.user = {
-                  id: profile.id,
-                  email: profile.email,
-                  username: profile.username,
-                  first_name: profile.first_name,
-                  last_name: profile.last_name,
-                  name: `${profile.first_name} ${profile.last_name}`.trim(),
-                  phone: profile.phone,
-                  avatar: profile.avatar_url,
-                  created_at: '',
-                  updated_at: '',
-                }
-                this.isAuthenticated = true
-                await this.persistAuthState()
-              }
-            } catch {
-              this.token = null
-              api.removeToken()
-            }
-          }
-        }
-
-        // Phase 2 (BACKGROUND): Sync with context service (Tauri only)
-        try {
-          const { isTauriEnv } = await import('@/utils/tauri')
-          if (isTauriEnv()) {
-            this._backgroundContextSync().catch((error) => {
-              console.warn('Background context sync failed:', error)
-            })
-          }
-        } catch {
-          // Tauri utils not available
+        // Sync token to operator if we have credentials
+        if (this.token && this.user) {
+          this.syncTokenToContextService(this.token, this.user).catch((error) => {
+            console.warn('Background context sync failed:', error)
+          })
         }
       } catch (error) {
         import('@/composables/useLogger').then(({ getLogger }) => getLogger().then(l => l.warn(`Failed to hydrate auth state: ${error}`))).catch(() => {})
@@ -422,62 +303,20 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async _backgroundContextSync() {
-      try {
-        const { useContextDB } = await import('@/composables/useContextDB')
-        const db = useContextDB()
-        const sqliteState = await db.settingGet('auth_state')
-
-        if (sqliteState) {
-          const authState = JSON.parse(sqliteState)
-          if (authState.token) {
-            // Only update credentials; isAuthenticated is managed by checkAuth()
-            this._applyAuthState(authState, { setAuthenticated: false })
-            localStorage.setItem('cp_auth', sqliteState)
-          }
-        }
-      } catch (error) {
-        console.warn('Background SQLite auth read failed:', error)
-      }
-
-      if (this.token && this.user) {
-        await this.syncTokenToContextService(this.token, this.user)
-      }
-    },
-
     async clearPersistedState() {
       if (typeof window === 'undefined') return
 
+      // Clean up legacy storage locations
       localStorage.removeItem('cp_auth')
       localStorage.removeItem('cp_auth_token')
 
-      try {
-        const { getTauriStore } = await import('@/composables/useTauriStore')
-        const store = await getTauriStore()
-        if (store) {
-          await store.delete('cp_auth')
-        }
-      } catch {
-        // Store plugin not available
-      }
-
-      try {
-        const { useContextDB } = await import('@/composables/useContextDB')
-        const db = useContextDB()
-        if (db.isTauri.value) {
-          await db.settingSet('auth_state', '')
-        }
-      } catch {
-        // Safe to ignore
-      }
-
-      // Remove auth.json file
+      // Remove auth.json — single source of truth
       try {
         const { isTauriEnv } = await import('@/utils/tauri')
         if (isTauriEnv()) {
-          const { appDataDir } = await import('@tauri-apps/api/path')
+          const { invoke } = await import('@tauri-apps/api/core')
           const { remove, exists } = await import('@tauri-apps/plugin-fs')
-          const baseDir = (await appDataDir()).replace(/\/$/, '')
+          const baseDir = (await invoke<string>('get_data_dir')).replace(/\/$/, '')
           const authPath = `${baseDir}/auth.json`
           if (await exists(authPath)) {
             await remove(authPath)

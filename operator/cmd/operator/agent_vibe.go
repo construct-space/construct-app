@@ -171,7 +171,7 @@ If no docs exist and the user didn't specify a stack, choose the simplest tech t
 
 - If Project path is provided in context, use it
 - If only Projects root is provided, create at {projects_root}/{slugified-name}
-- If neither, use ~/ConstructProjects/{slugified-name}
+- If neither, use {projects_root}/{slugified-name}
 - Build the app directly in {project_root}, docs in {project_root}/docs
 
 ## Context Document

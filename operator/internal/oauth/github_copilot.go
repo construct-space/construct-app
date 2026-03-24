@@ -7,6 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -192,6 +195,74 @@ func startDeviceFlow(deviceCodeURL string) (*deviceCodeResponse, error) {
 	return &result, nil
 }
 
+// PollCopilotDeviceFlowOnce makes a single poll to GitHub and returns immediately.
+// Returns: status ("pending", "success", "error"), credentials (on success), error (on failure).
+func PollCopilotDeviceFlowOnce(state *DeviceFlowState) (string, *Credentials, error) {
+	token, status, err := pollGitHubAccessTokenOnce(state.AccessTokenURL, state.DeviceCode)
+	if status == "pending" {
+		return "pending", nil, nil
+	}
+	if err != nil {
+		return "error", nil, err
+	}
+
+	creds, err := RefreshGitHubCopilotToken(token, state.Domain)
+	if err != nil {
+		return "error", nil, fmt.Errorf("get copilot token: %w", err)
+	}
+
+	if state.Domain != "github.com" {
+		if creds.Extra == nil {
+			creds.Extra = make(map[string]any)
+		}
+		creds.Extra["enterpriseUrl"] = state.Domain
+	}
+
+	return "success", creds, nil
+}
+
+// pollGitHubAccessTokenOnce makes a single poll request.
+// Returns: token (on success), status ("pending"/"success"/"error"), error.
+func pollGitHubAccessTokenOnce(accessTokenURL, deviceCode string) (string, string, error) {
+	data := url.Values{
+		"client_id":   {copilotClientID},
+		"device_code": {deviceCode},
+		"grant_type":  {"urn:ietf:params:oauth:grant-type:device_code"},
+	}
+
+	req, _ := http.NewRequest("POST", accessTokenURL, strings.NewReader(data.Encode()))
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", "GitHubCopilotChat/0.35.0")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", "error", err
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var result map[string]any
+	json.Unmarshal(body, &result)
+
+	if token, ok := result["access_token"].(string); ok && token != "" {
+		return token, "success", nil
+	}
+
+	if errStr, ok := result["error"].(string); ok {
+		switch errStr {
+		case "authorization_pending", "slow_down":
+			return "", "pending", nil
+		default:
+			desc, _ := result["error_description"].(string)
+			return "", "error", fmt.Errorf("device flow failed: %s: %s", errStr, desc)
+		}
+	}
+
+	return "", "pending", nil
+}
+
 func pollForGitHubAccessToken(accessTokenURL, deviceCode string, intervalSec, expiresIn int) (string, error) {
 	deadline := time.Now().Add(time.Duration(expiresIn) * time.Second)
 	interval := time.Duration(intervalSec) * time.Second
@@ -298,6 +369,70 @@ func normalizeDomain(input string) string {
 		return ""
 	}
 	return u.Hostname()
+}
+
+// DetectGitHubCLIAuth checks if the user is logged into GitHub via gh CLI.
+// Reads ~/.config/gh/hosts.yml for the username, and macOS keychain for the token.
+// Returns (username, token) — both empty if not logged in.
+func DetectGitHubCLIAuth() (string, string) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", ""
+	}
+
+	// Read gh hosts config
+	hostsPath := filepath.Join(home, ".config", "gh", "hosts.yml")
+	data, err := os.ReadFile(hostsPath)
+	if err != nil {
+		return "", ""
+	}
+
+	// Simple YAML parsing — look for "user: <username>" under "github.com:"
+	username := ""
+	inGitHub := false
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "github.com:" {
+			inGitHub = true
+			continue
+		}
+		if inGitHub && strings.HasPrefix(trimmed, "user:") {
+			username = strings.TrimSpace(strings.TrimPrefix(trimmed, "user:"))
+			break
+		}
+		// Stop if we hit another top-level key
+		if inGitHub && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") && trimmed != "" {
+			break
+		}
+	}
+
+	if username == "" {
+		return "", ""
+	}
+
+	// Try to get token from macOS keychain
+	token := ""
+	if out, err := exec.Command("security", "find-generic-password", "-s", "gh:github.com", "-w").Output(); err == nil {
+		raw := strings.TrimSpace(string(out))
+		// gh stores base64-encoded tokens with "go-keyring-base64:" prefix
+		if strings.HasPrefix(raw, "go-keyring-base64:") {
+			decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(raw, "go-keyring-base64:"))
+			if err == nil {
+				token = string(decoded)
+			}
+		} else {
+			token = raw
+		}
+	}
+
+	// Fallback: try gh auth token command
+	if token == "" {
+		if out, err := exec.Command("gh", "auth", "token").Output(); err == nil {
+			token = strings.TrimSpace(string(out))
+		}
+	}
+
+	return username, token
 }
 
 // GetGitHubCopilotBaseURL returns the API base URL for GitHub Copilot.

@@ -169,7 +169,9 @@ function getExtLabel(ext: string): string {
               v-for="doc in summary.docs.items.slice(0, 3)"
               :key="doc.title"
               class="text-[10px] text-[var(--app-muted)] truncate"
-            >{{ doc.title }}</p>
+            >
+{{ doc.title }}
+</p>
           </div>
         </div>
 

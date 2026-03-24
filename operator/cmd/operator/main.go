@@ -673,6 +673,13 @@ func main() {
 	// Initialize session store (persistent to disk)
 	sessStore := session.NewStore(appdir.SessionsDir())
 	stateStore := state.NewStore(appdir.StateDir())
+
+	// Restore projects root from settings (so hooks/agents use the user's configured path)
+	if savedRoot, ok := stateStore.SettingGet("construct_projects_root"); ok && strings.TrimSpace(savedRoot) != "" {
+		os.Setenv("CONSTRUCT_PROJECTS_ROOT", strings.TrimSpace(savedRoot))
+		fmt.Fprintf(os.Stderr, "[operator] Projects root: %s\n", strings.TrimSpace(savedRoot))
+	}
+
 	vibeStore := vibe.NewStore(filepath.Join(appdir.Dir, "vibe-sessions"))
 	chatSessStore := chatsession.NewStore(appdir.Dir)
 
@@ -853,7 +860,10 @@ func main() {
 			clientCtx := getClientContext(ctx)
 			if proj == nil {
 				home, _ := os.UserHomeDir()
-				projectsRoot := filepath.Join(home, "ConstructProjects")
+				projectsRoot := os.Getenv("CONSTRUCT_PROJECTS_ROOT")
+				if projectsRoot == "" {
+					projectsRoot = filepath.Join(home, "ConstructProjects")
+				}
 				content := "No project is currently active.\nProjects root: " + projectsRoot
 				if clientCtx != nil && clientCtx.Mode != "" {
 					content += "\nCurrent mode: " + clientCtx.Mode
@@ -1840,10 +1850,16 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				return transport.Response{ID: req.ID, Success: false, Error: "no pending device flow for " + payload.Provider}
 			}
 
-			// This blocks until user authorizes or timeout
-			creds, err := oauth.CompleteCopilotDeviceFlow(state)
+			// Non-blocking: poll GitHub once and return status
+			status, creds, err := oauth.PollCopilotDeviceFlowOnce(state)
+			if status == "pending" {
+				return transport.Response{
+					ID: req.ID, Success: true,
+					Data: map[string]any{"status": "pending"},
+				}
+			}
 
-			// Clean up pending state
+			// Flow finished (success or error) — clean up
 			pendingDeviceFlowsMu.Lock()
 			delete(pendingDeviceFlows, payload.Provider)
 			pendingDeviceFlowsMu.Unlock()
@@ -1865,6 +1881,49 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				ID: req.ID, Success: true,
 				Data: map[string]any{
 					"provider": payload.Provider,
+					"status":   "success",
+					"success":  true,
+				},
+			}
+
+		case req.Type == "oauth.gh-check":
+			// Check if gh CLI is authenticated by reading config files + keychain directly
+			username, token := oauth.DetectGitHubCLIAuth()
+			return transport.Response{
+				ID: req.ID, Success: true,
+				Data: map[string]any{
+					"logged_in": username != "",
+					"username":  username,
+					"token":     token,
+				},
+			}
+
+		case req.Type == "oauth.gh-use-token":
+			// Use an existing gh CLI token for GitHub Copilot
+			var payload struct {
+				Token string `json:"token"`
+			}
+			if req.Payload != nil {
+				json.Unmarshal(req.Payload, &payload)
+			}
+			if payload.Token == "" {
+				return transport.Response{ID: req.ID, Success: false, Error: "token is required"}
+			}
+			creds, err := oauth.RefreshGitHubCopilotToken(payload.Token, "github.com")
+			if err != nil {
+				return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("Failed to get Copilot token: %v", err)}
+			}
+			if err := oauthStorage.SetOAuth("github-copilot", creds); err != nil {
+				fmt.Fprintf(os.Stderr, "[oauth] warning: failed to save credentials: %v\n", err)
+			}
+			if runtimeProv := providerFromOAuthCredentials("github-copilot", creds); runtimeProv != nil {
+				run.AddProvider(runtimeProv)
+			}
+			fmt.Fprintf(os.Stderr, "[oauth] github-copilot: connected via gh CLI token\n")
+			return transport.Response{
+				ID: req.ID, Success: true,
+				Data: map[string]any{
+					"provider": "github-copilot",
 					"success":  true,
 				},
 			}
@@ -2445,6 +2504,10 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			}
 			if err := stateStore.SettingSet(payload.Key, payload.Value); err != nil {
 				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
+			}
+			// Sync projects root to env so hooks/agents use the configured path
+			if payload.Key == "construct_projects_root" && strings.TrimSpace(payload.Value) != "" {
+				os.Setenv("CONSTRUCT_PROJECTS_ROOT", strings.TrimSpace(payload.Value))
 			}
 			if envVar := providerEnvVarForSetting(payload.Key); envVar == "" || strings.TrimSpace(os.Getenv(envVar)) == "" {
 				if prov := providerFromSetting(payload.Key, strings.TrimSpace(payload.Value)); prov != nil {

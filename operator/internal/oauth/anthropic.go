@@ -229,7 +229,7 @@ func startAnthropicCallbackServer(expectedState string, codeCh chan<- string, er
 		}
 
 		w.WriteHeader(200)
-		fmt.Fprint(w, CallbackSuccessHTML)
+		fmt.Fprint(w, CallbackSuccessHTML("Claude"))
 		codeCh <- code
 	})
 

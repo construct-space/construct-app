@@ -6,7 +6,7 @@ import { useContextDB } from '@/composables/useContextDB'
 import Input from '@/components/ui/Input.vue'
 import Button from '@/components/ui/Button.vue'
 import Accordion from '@/components/ui/Accordion.vue'
-import { Eye, EyeOff, Check, Cpu, KeyRound, ShieldCheck } from 'lucide-vue-next'
+import { Eye, EyeOff, Check, Cpu, KeyRound, ShieldCheck, ClipboardCopy } from 'lucide-vue-next'
 
 const toast = useToast()
 const route = useRoute()
@@ -307,6 +307,8 @@ const oauthProviders = reactive<OAuthProviderCard[]>([
 
 const oauthLoading = ref<Record<string, boolean>>({})
 const deviceCode = ref<{ provider: string; code: string; url: string } | null>(null)
+const ghCheck = ref<{ username: string; token: string } | null>(null)
+let devicePollTimer: ReturnType<typeof setTimeout> | null = null
 
 async function refreshOAuthProviders() {
   try {
@@ -345,26 +347,24 @@ async function refreshOAuthProviders() {
 async function startOAuthLogin(providerId: string) {
   oauthLoading.value[providerId] = true
   try {
-    toast.add({ title: 'Opening browser for login...', color: 'info' })
-    const result = await operator.send('oauth.login', { provider: providerId })
-
-    // Device code flow — show code to user, then poll
-    if (result?.device_code && result?.user_code) {
-      deviceCode.value = { provider: providerId, code: String(result.user_code), url: String(result.url || '') }
-      // Poll for completion in background
+    // GitHub Copilot: check for existing gh CLI auth first
+    if (providerId === 'github-copilot') {
       try {
-        const pollResult = await operator.send('oauth.device-poll', { provider: providerId })
-        if (pollResult?.success) {
-          const provider = oauthProviders.find(entry => entry.id === providerId)
-          await refreshOAuthProviders()
-          await loadProviders()
-          toast.add({ title: `${provider?.name || providerId} connected`, color: 'success' })
+        const check = await operator.send('oauth.gh-check', {}) as { logged_in?: boolean; username?: string; token?: string }
+        if (check?.logged_in && check?.username && check?.token) {
+          ghCheck.value = { username: check.username, token: check.token }
+          oauthLoading.value[providerId] = false
+          return // Wait for user to accept/decline via UI
         }
-      } finally {
-        deviceCode.value = null
-      }
+      } catch { /* gh not available, proceed with device flow */ }
+      // No gh auth — start device code flow
+      await startDeviceCodeFlow(providerId)
       return
     }
+
+    // Standard OAuth flow (Anthropic, OpenAI, Gemini)
+    toast.add({ title: 'Opening browser for login...', color: 'info' })
+    const result = await operator.send('oauth.login', { provider: providerId })
 
     if (result?.success) {
       const provider = oauthProviders.find(entry => entry.id === providerId)
@@ -374,11 +374,103 @@ async function startOAuthLogin(providerId: string) {
     }
   } catch (e) {
     deviceCode.value = null
+    ghCheck.value = null
     const msg = e instanceof Error ? e.message : String(e)
     toast.add({ title: `Login failed: ${msg}`, color: 'error' })
   } finally {
     oauthLoading.value[providerId] = false
   }
+}
+
+async function acceptGhAuth() {
+  if (!ghCheck.value) return
+  oauthLoading.value['github-copilot'] = true
+  try {
+    const result = await operator.send('oauth.gh-use-token', { token: ghCheck.value.token })
+    if (result?.success) {
+      await refreshOAuthProviders()
+      await loadProviders()
+      toast.add({ title: 'GitHub Copilot connected', color: 'success' })
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    toast.add({ title: `Failed: ${msg}`, color: 'error' })
+  } finally {
+    ghCheck.value = null
+    oauthLoading.value['github-copilot'] = false
+  }
+}
+
+async function declineGhAuth() {
+  ghCheck.value = null
+  oauthLoading.value['github-copilot'] = true
+  await startDeviceCodeFlow('github-copilot')
+}
+
+async function startDeviceCodeFlow(providerId: string) {
+  try {
+    toast.add({ title: 'Starting device code flow...', color: 'info' })
+    const result = await operator.send('oauth.login', { provider: providerId })
+
+    if (result?.device_code && result?.user_code) {
+      deviceCode.value = { provider: providerId, code: String(result.user_code), url: String(result.url || '') }
+      // Start non-blocking polling
+      pollDeviceCode(providerId)
+    }
+  } catch (e) {
+    deviceCode.value = null
+    const msg = e instanceof Error ? e.message : String(e)
+    toast.add({ title: `Login failed: ${msg}`, color: 'error' })
+    oauthLoading.value[providerId] = false
+  }
+}
+
+async function pollDeviceCode(providerId: string) {
+  try {
+    const result = await operator.send('oauth.device-poll', { provider: providerId })
+    if (result?.status === 'pending') {
+      // Poll again in 5 seconds
+      devicePollTimer = setTimeout(() => pollDeviceCode(providerId), 5000)
+      return
+    }
+    if (result?.success) {
+      const provider = oauthProviders.find(entry => entry.id === providerId)
+      await refreshOAuthProviders()
+      await loadProviders()
+      toast.add({ title: `${provider?.name || providerId} connected`, color: 'success' })
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    toast.add({ title: `Login failed: ${msg}`, color: 'error' })
+  } finally {
+    deviceCode.value = null
+    oauthLoading.value[providerId] = false
+    if (devicePollTimer) {
+      clearTimeout(devicePollTimer)
+      devicePollTimer = null
+    }
+  }
+}
+
+async function copyDeviceCode() {
+  if (!deviceCode.value) return
+  try {
+    const { writeText } = await import('@tauri-apps/plugin-clipboard-manager')
+    await writeText(deviceCode.value.code)
+  } catch {
+    try { await navigator.clipboard.writeText(deviceCode.value.code) } catch { /* ignore */ }
+  }
+  toast.add({ title: 'Code copied to clipboard', color: 'success' })
+}
+
+function cancelDeviceCode() {
+  if (devicePollTimer) {
+    clearTimeout(devicePollTimer)
+    devicePollTimer = null
+  }
+  const providerId = deviceCode.value?.provider
+  deviceCode.value = null
+  if (providerId) oauthLoading.value[providerId] = false
 }
 
 async function disconnectOAuthProvider(providerId: string) {
@@ -791,11 +883,49 @@ onMounted(async () => {
       <h3 class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Direct OAuth Login</h3>
       <p class="text-xs text-[var(--app-muted)] mb-4">Login directly with your subscription — no CLI required. Opens browser to authenticate.</p>
 
+      <!-- GitHub CLI detected prompt -->
+      <div v-if="ghCheck" class="mb-4 p-4 rounded-lg border border-green-500/30 bg-green-500/5">
+        <p class="text-sm font-medium text-[var(--app-foreground)] mb-2">
+          You are logged in to GitHub as <span class="font-bold text-green-400">{{ ghCheck.username }}</span>. Use this account?
+        </p>
+        <div class="flex gap-2 mt-3">
+          <button
+            class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-500 transition-colors"
+            @click="acceptGhAuth"
+          >
+            Yes, connect
+          </button>
+          <button
+            class="px-4 py-2 rounded-lg border border-[var(--app-border)] text-sm text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] transition-colors"
+            @click="declineGhAuth"
+          >
+            No, use device code
+          </button>
+        </div>
+      </div>
+
       <!-- Device code prompt (GitHub Copilot) -->
       <div v-if="deviceCode" class="mb-4 p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5">
         <p class="text-sm font-medium text-[var(--app-foreground)] mb-2">Enter this code on GitHub:</p>
-        <p class="text-2xl font-mono font-bold text-center tracking-[0.3em] text-yellow-400 py-3">{{ deviceCode.code }}</p>
-        <p class="text-xs text-[var(--app-muted)] text-center">Waiting for authorization...</p>
+        <div class="flex items-center justify-center gap-3 py-3">
+          <p class="text-2xl font-mono font-bold tracking-[0.3em] text-yellow-400">{{ deviceCode.code }}</p>
+          <button
+            class="p-2 rounded-lg border border-[var(--app-border)] hover:bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] transition-colors"
+            title="Copy code"
+            @click="copyDeviceCode"
+          >
+            <ClipboardCopy class="size-4 text-[var(--app-muted)]" />
+          </button>
+        </div>
+        <p class="text-xs text-[var(--app-muted)] text-center mb-3">Waiting for authorization...</p>
+        <div class="flex justify-center">
+          <button
+            class="text-xs text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
+            @click="cancelDeviceCode"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
 
       <div class="space-y-3">

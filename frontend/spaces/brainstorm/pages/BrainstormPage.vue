@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Oracle — general chat with session persistence.
+ * Chat — general chat with session persistence.
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAgentSession, type RequestBlock } from '@/operator/useAgentSession'
@@ -170,7 +170,7 @@ function formatTime(dateStr: string): string {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-app oracle-bg">
+  <div class="flex flex-col h-full bg-app chat-bg">
     <!-- Toolbar right actions -->
     <Teleport to="#toolbar-right">
       <Tooltip text="New chat">
@@ -192,7 +192,7 @@ function formatTime(dateStr: string): string {
         >
           <template #empty>
             <Icon name="i-lucide-cookie" class="size-12 text-orange-700/30 mb-4" />
-            <h2 class="text-xl font-semibold text-orange-200/50 mb-1">Oracle</h2>
+            <h2 class="text-xl font-semibold text-orange-200/50 mb-1">Chat</h2>
             <p class="text-sm text-orange-400/25">Ask anything</p>
           </template>
         </AgentView>
@@ -248,7 +248,7 @@ function formatTime(dateStr: string): string {
 </template>
 
 <style scoped>
-.oracle-bg {
+.chat-bg {
   position: relative;
   background: radial-gradient(ellipse at 50% 120%, rgba(120, 60, 10, 0.08) 0%, transparent 60%);
 }

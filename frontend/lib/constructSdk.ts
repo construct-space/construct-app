@@ -28,7 +28,8 @@ export { useSettingsStore } from '@/stores/settings'
 // === Composables ===
 export { useAIModel, isVisionModel } from '@/composables/useAIModel'
 export { useApi } from '@/composables/useApi'
-export { useSource } from '@/composables/useSource'
+/** @deprecated Use useApi instead */
+export { useApi as useSource } from '@/composables/useApi'
 export { useApiHealth } from '@/composables/useApiHealth'
 export { useAppMenu } from '@/composables/useAppMenu'
 export { useAppTheme, appThemes } from '@/composables/useAppTheme'
