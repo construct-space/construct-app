@@ -7,7 +7,7 @@
           :class="iconColorClass"
           class="w-6 h-6"
         />
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h3 class="text-lg font-semibold text-[var(--app-foreground)]">
           {{ title }}
         </h3>
       </div>
@@ -15,12 +15,12 @@
 
     <template #body>
       <div class="space-y-4">
-        <p class="text-gray-600 dark:text-gray-400">
+        <p class="text-[var(--app-muted)]">
           {{ message }}
         </p>
 
-        <div v-if="details" class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-          <p class="text-sm text-gray-600 dark:text-gray-400">
+        <div v-if="details" class="bg-[var(--app-background)] rounded-lg p-3">
+          <p class="text-sm text-[var(--app-muted)]">
             {{ details }}
           </p>
         </div>
@@ -99,7 +99,7 @@ const iconColorClass = computed(() => {
     case 'success': return 'text-green-600 dark:text-green-400'
     case 'warning': return 'text-yellow-600 dark:text-yellow-400'
     case 'info': return 'text-blue-600 dark:text-blue-400'
-    default: return 'text-gray-600 dark:text-gray-400'
+    default: return 'text-[var(--app-muted)]'
   }
 })
 

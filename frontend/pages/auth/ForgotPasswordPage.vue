@@ -24,7 +24,7 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-950">
+  <div class="min-h-screen bg-[var(--app-background)]">
     <div class="h-screen overflow-hidden flex items-center justify-center px-6">
       <div class="w-full max-w-5xl">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
@@ -36,9 +36,9 @@ const handleSubmit = async () => {
               </svg>
             </RouterLink>
             <p class="text-2xl text-right">
-              <span class="text-gray-400">BASECODE:</span><span class="font-bold text-gray-900 dark:text-white">RESET</span>
+              <span class="text-[var(--app-muted)]">BASECODE:</span><span class="font-bold text-[var(--app-foreground)]">RESET</span>
             </p>
-            <p class="text-sm text-gray-500 text-right max-w-xs">Enter your email to receive password reset instructions.</p>
+            <p class="text-sm text-[var(--app-muted)] text-right max-w-xs">Enter your email to receive password reset instructions.</p>
           </div>
 
           <div class="space-y-6">
@@ -47,10 +47,10 @@ const handleSubmit = async () => {
                 <CheckCircle class="size-6" />
                 <h3 class="text-xl font-bold">CHECK YOUR EMAIL</h3>
               </div>
-              <p class="text-gray-600 dark:text-gray-400">
+              <p class="text-[var(--app-muted)]">
                 We've sent password reset instructions to <strong>{{ email }}</strong>.
               </p>
-              <RouterLink to="/login" class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-app-accent transition-colors">
+              <RouterLink to="/login" class="flex items-center gap-2 text-[var(--app-muted)] hover:text-app-accent transition-colors">
                 <ArrowLeft class="size-4" />
                 <span class="text-sm uppercase tracking-wider">Back to Sign In</span>
               </RouterLink>
@@ -58,20 +58,20 @@ const handleSubmit = async () => {
             <template v-else>
               <form class="space-y-5" @submit.prevent="handleSubmit">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Email</label>
-                  <input v-model="email" type="email" placeholder="you@example.com" required class="w-full px-4 py-3 rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:border-[var(--app-accent)] focus:outline-none" />
+                  <label class="block text-sm font-medium text-[var(--app-muted)] uppercase tracking-wider mb-2">Email</label>
+                  <input v-model="email" type="email" placeholder="you@example.com" required class="w-full px-4 py-3 rounded-md bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] border border-[var(--app-border)] text-[var(--app-foreground)] placeholder-[var(--app-muted)] focus:border-[var(--app-accent)] focus:outline-none" />
                 </div>
                 <div v-if="error" class="text-red-600 dark:text-red-400 text-sm">{{ error }}</div>
                 <button type="submit" :disabled="isLoading" class="w-full py-3 rounded-md bg-app-accent text-app-accent-foreground font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
                   {{ isLoading ? 'SENDING...' : 'SEND RESET LINK' }}
                 </button>
               </form>
-              <div class="pt-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
-                <RouterLink to="/login" class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-app-accent transition-colors">
+              <div class="pt-6 border-t border-[var(--app-border)] space-y-3">
+                <RouterLink to="/login" class="flex items-center gap-2 text-[var(--app-muted)] hover:text-app-accent transition-colors">
                   <ArrowLeft class="size-4" />
                   <span class="text-sm uppercase tracking-wider">Back to Sign In</span>
                 </RouterLink>
-                <RouterLink to="/register" class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-app-accent transition-colors">
+                <RouterLink to="/register" class="flex items-center gap-2 text-[var(--app-muted)] hover:text-app-accent transition-colors">
                   <UserPlus class="size-4" />
                   <span class="text-sm uppercase tracking-wider">Create Account</span>
                 </RouterLink>

@@ -4,20 +4,20 @@
       <div class="flex items-center justify-between w-full">
         <div class="flex-1">
           <h2 class="text-lg font-semibold">Select Media</h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400">Choose a file from your media library</p>
+          <p class="text-sm text-[var(--app-muted)]">Choose a file from your media library</p>
           <!-- Breadcrumb Navigation -->
           <nav class="flex items-center gap-1 text-sm mt-1" aria-label="Breadcrumb">
             <button
-              class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
+              class="text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
               @click="navigateToFolder(null)"
             >
               <Icon name="i-lucide-home" class="w-4 h-4" />
             </button>
             <template v-for="(crumb, index) in breadcrumbs" :key="crumb.id">
-              <Icon name="i-lucide-chevron-right" class="w-4 h-4 text-gray-400" />
+              <Icon name="i-lucide-chevron-right" class="w-4 h-4 text-[var(--app-muted)]" />
               <button
-                class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
-                :class="{ 'font-medium text-gray-900 dark:text-gray-100': index === breadcrumbs.length - 1 }"
+                class="text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
+                :class="{ 'font-medium text-[var(--app-foreground)]': index === breadcrumbs.length - 1 }"
                 @click="navigateToFolder(crumb.id)"
               >
                 {{ crumb.name }}
@@ -66,10 +66,10 @@
           <div
             v-for="folder in folders"
             :key="`folder-${folder.id}`"
-            class="cursor-pointer border-2 border-gray-200 dark:border-gray-700 rounded-lg p-3 transition-all hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600"
+            class="cursor-pointer border-2 border-[var(--app-border)] rounded-lg p-3 transition-all hover:shadow-md hover:border-[var(--app-border)]"
             @click="navigateToFolder(folder.id)"
           >
-            <div class="aspect-square flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded mb-2">
+            <div class="aspect-square flex items-center justify-center bg-[var(--app-background)] rounded mb-2">
               <Icon name="i-lucide-folder" class="w-12 h-12 text-amber-500" />
             </div>
             <p class="text-xs font-medium truncate text-center">{{ folder.name }}</p>
@@ -82,11 +82,11 @@
             class="cursor-pointer border-2 rounded-lg p-2 transition-all hover:shadow-md"
             :class="{
               'border-primary-500 bg-primary-50 dark:bg-primary-900/20': selectedMedia?.id === file.id,
-              'border-gray-200 dark:border-gray-700': selectedMedia?.id !== file.id
+              'border-[var(--app-border)]': selectedMedia?.id !== file.id
             }"
             @click="selectedMedia = file"
           >
-            <div class="aspect-square flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded overflow-hidden mb-2">
+            <div class="aspect-square flex items-center justify-center bg-[var(--app-background)] rounded overflow-hidden mb-2">
               <img
                 v-if="file.file && isImage(file.type)"
                 :src="file.file.url"
@@ -96,19 +96,19 @@
               <Icon
                 v-else
                 :name="getFileIcon(file.type)"
-                class="w-8 h-8 text-gray-400"
+                class="w-8 h-8 text-[var(--app-muted)]"
               />
             </div>
             <p class="text-xs font-medium truncate">{{ file.name }}</p>
-            <p class="text-xs text-gray-500 truncate">{{ file.type }}</p>
+            <p class="text-xs text-[var(--app-muted)] truncate">{{ file.type }}</p>
           </div>
         </div>
 
         <!-- Empty State -->
         <div v-else-if="!loading && folders.length === 0 && files.length === 0" class="flex-1 flex items-center justify-center">
           <div class="text-center">
-            <Icon name="i-lucide-folder-open" class="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-            <p class="text-sm text-gray-500 mb-2">No files or folders in this directory</p>
+            <Icon name="i-lucide-folder-open" class="w-16 h-16 text-[var(--app-muted)] mx-auto mb-3" />
+            <p class="text-sm text-[var(--app-muted)] mb-2">No files or folders in this directory</p>
             <div class="flex gap-2 justify-center">
               <Button size="sm" variant="outline" @click="showCreateFolder = true">
                 <Icon name="i-lucide-folder-plus" class="w-4 h-4 mr-1" />
@@ -124,7 +124,7 @@
 
         <!-- Loading -->
         <div v-if="loading" class="flex-1 flex items-center justify-center">
-          <Icon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-gray-400" />
+          <Icon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-[var(--app-muted)]" />
         </div>
 
         <!-- Pagination -->
@@ -141,7 +141,7 @@
 
     <template #footer>
       <div class="flex justify-between items-center gap-4">
-        <p v-if="selectedMedia" class="text-sm text-gray-600 dark:text-gray-400">
+        <p v-if="selectedMedia" class="text-sm text-[var(--app-muted)]">
           Selected: {{ truncatedSelectedName }}
         </p>
         <div v-else />
@@ -169,7 +169,7 @@
     <template #header>
       <div>
         <h3 class="text-lg font-semibold">Create New Folder</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-400">Organize your media files into folders</p>
+        <p class="text-sm text-[var(--app-muted)]">Organize your media files into folders</p>
       </div>
     </template>
     <template #body>

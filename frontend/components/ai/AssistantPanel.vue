@@ -157,13 +157,13 @@ async function winMaximize() {
 <template>
   <div
     :class="[
-      'flex flex-col bg-white/80 dark:bg-gray-950/90 backdrop-blur-xl text-app',
+      'flex flex-col bg-[var(--app-background)]/90 backdrop-blur-xl text-app',
       docked ? 'h-full' : 'w-[420px] rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden',
     ]"
   >
     <!-- Header -->
     <div
-      class="flex items-center gap-3 px-4 py-3 border-b border-gray-200/30 dark:border-gray-800/30 shrink-0"
+      class="flex items-center gap-3 px-4 py-3 border-b border-[var(--app-border)]/30 shrink-0"
       :class="standalone && 'select-none'"
       :data-tauri-drag-region="standalone || undefined"
     >
@@ -230,7 +230,7 @@ async function winMaximize() {
       :status-message="statusMessage"
     >
       <template #empty>
-        <div class="size-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+        <div class="size-12 rounded-2xl bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] flex items-center justify-center mb-4">
           <svg class="size-6 text-app-muted" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor" opacity="0.3" /></svg>
         </div>
         <p class="text-sm text-app-muted mb-1">Ask anything</p>

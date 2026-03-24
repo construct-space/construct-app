@@ -105,62 +105,35 @@ export const usePinnedStore = defineStore('pinned', {
         await retryLoadFromSQLite(attempt + 1)
       }
 
+      // Always load from localStorage first (instant, no async)
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) {
+        try {
+          this.items = JSON.parse(stored)
+        } catch {
+          this.items = []
+        }
+      }
+
+      // Then try SQLite in background (Tauri only) — merges any server-side pins
       if (db.isTauri.value) {
         try {
-          // Load from SQLite via context.db
-          const items = await db.pinnedList()
-          this.items = items
-
-          // Startup race: context service may still be booting. Retry in background
-          // so existing pinned items reappear once connection is ready.
+          const sqliteItems = await db.pinnedList()
+          if (sqliteItems.length > 0) {
+            this.items = sqliteItems
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.items))
+          } else if (this.items.length > 0 && db.connected.value) {
+            // Migrate localStorage pins to SQLite
+            for (const item of this.items) {
+              await db.pinnedAdd(item)
+            }
+          }
           if (!db.connected.value) {
             void retryLoadFromSQLite()
           }
-
-          // Check if we need to migrate from localStorage
-          const stored = localStorage.getItem(STORAGE_KEY)
-          if (stored && this.items.length === 0) {
-            try {
-              const localItems = JSON.parse(stored) as PinnedItem[]
-              if (localItems.length > 0) {
-                // Migrate each item to SQLite
-                for (const item of localItems) {
-                  await db.pinnedAdd(item)
-                }
-                this.items = localItems
-                // Clear localStorage after successful migration
-                localStorage.removeItem(STORAGE_KEY)
-              }
-            } catch (e) {
-              console.error('[PinnedStore] Migration failed:', e)
-            }
-          }
         } catch (error) {
-          if (!isContextNotConnectedError(error)) {
-            console.warn('[PinnedStore] Failed to load from SQLite:', error)
-          }
-          // Fallback to localStorage if SQLite fails
-          const stored = localStorage.getItem(STORAGE_KEY)
-          if (stored) {
-            try {
-              this.items = JSON.parse(stored)
-            } catch {
-              this.items = []
-            }
-          }
           if (isContextNotConnectedError(error)) {
             void retryLoadFromSQLite()
-          }
-        }
-      } else {
-        // Fallback for web
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) {
-          try {
-            this.items = JSON.parse(stored)
-          } catch (e) {
-            console.error('[PinnedStore] Failed to parse stored items:', e)
-            this.items = []
           }
         }
       }

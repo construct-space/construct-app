@@ -8,7 +8,7 @@
       <div class="space-y-4">
         <!-- Drag & Drop Area -->
         <div
-          class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center transition-colors"
+          class="border-2 border-dashed border-[var(--app-border)] rounded-lg p-8 text-center transition-colors"
           :class="{
             'border-primary-500 bg-primary-50 dark:bg-primary-900/20': isDragging
           }"
@@ -25,8 +25,8 @@
           >
 
           <div v-if="!uploadForm.file">
-            <Icon name="i-lucide-upload-cloud" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <Icon name="i-lucide-upload-cloud" class="w-12 h-12 text-[var(--app-muted)] mx-auto mb-3" />
+            <p class="text-sm text-[var(--app-muted)] mb-2">
               Drag and drop your file here, or
             </p>
             <Button
@@ -40,7 +40,7 @@
           <div v-else class="space-y-2">
             <Icon :name="getFileIcon(uploadForm.file.type)" class="w-12 h-12 text-primary-500 mx-auto" />
             <p class="text-sm font-medium">{{ uploadForm.file.name }}</p>
-            <p class="text-xs text-gray-500">{{ formatFileSize(uploadForm.file.size) }}</p>
+            <p class="text-xs text-[var(--app-muted)]">{{ formatFileSize(uploadForm.file.size) }}</p>
             <Button
               size="sm"
               variant="ghost"
