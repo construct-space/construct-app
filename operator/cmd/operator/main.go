@@ -37,7 +37,7 @@ import (
 	"construct-operator/internal/vibe"
 )
 
-const Version = "0.6.3"
+const Version = "0.6.4"
 
 func providerFromSetting(settingKey, value string) provider.Provider {
 	if value == "" {
