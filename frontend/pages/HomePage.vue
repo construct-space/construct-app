@@ -51,8 +51,8 @@ onMounted(async () => {
       <!-- Built-in Widgets Strip (12×2) — fixed, not configurable -->
       <BuiltinWidgets :get-component="widgetRegistry.getWidgetComponent" />
 
-      <!-- Space Widgets Grid (12×8) — user-configurable -->
-      <div v-if="widgetRegistry.layout.value.items.length > 0 || widgetRegistry.catalog.value.length > 0">
+      <!-- Space Widgets Grid (12×8) — user-customizable -->
+      <div>
         <HomeGrid
           :items="widgetRegistry.layout.value.items"
           :grid-cols="widgetRegistry.GRID_COLS"

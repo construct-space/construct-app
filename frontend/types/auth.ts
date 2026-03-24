@@ -37,6 +37,8 @@ export interface AuthResponse {
   }
 }
 
+export type DeveloperStatus = 'none' | 'pending' | 'enrolled' | 'rejected' | 'suspended'
+
 export interface AuthUserData {
   id: number
   email: string
@@ -46,6 +48,8 @@ export interface AuthUserData {
   name: string
   phone?: string
   avatar?: string
+  developer_status?: DeveloperStatus
+  developer_at?: string
   last_login?: string
   created_at: string
   updated_at: string

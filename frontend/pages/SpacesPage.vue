@@ -98,12 +98,26 @@ async function handleUpdate(spaceId: string) {
   closeMenu()
 }
 
+const updatingAll = ref(false)
+
 async function handleCheckUpdates() {
   const count = await marketplace.checkUpdates()
   toast.add(count > 0
     ? { title: `${count} update${count > 1 ? 's' : ''} available`, color: 'warning' }
     : { title: 'All spaces are up to date', color: 'success' },
   )
+}
+
+const updatableSpaces = computed(() => spaceCards.value.filter(s => s.hasUpdate))
+
+async function handleUpdateAll() {
+  updatingAll.value = true
+  for (const space of updatableSpaces.value) {
+    await marketplace.update(space.name)
+  }
+  await loadSpaces()
+  updatingAll.value = false
+  toast.add({ title: 'All spaces updated', color: 'success' })
 }
 
 async function handleUninstall(spaceId: string) {
@@ -140,6 +154,15 @@ function openMarketplace() {
           >
             <RefreshCw class="size-3" :class="marketplace.isCheckingUpdates.value ? 'animate-spin' : ''" />
             {{ marketplace.isCheckingUpdates.value ? 'Checking...' : 'Check Updates' }}
+          </button>
+          <button
+            v-if="updatableSpaces.length > 0"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+            :disabled="updatingAll"
+            @click.stop="handleUpdateAll()"
+          >
+            <Download class="size-3" :class="updatingAll ? 'animate-bounce' : ''" />
+            {{ updatingAll ? 'Updating...' : `Update All (${updatableSpaces.length})` }}
           </button>
           <button
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--app-accent)] text-white hover:opacity-90 transition-opacity"
@@ -260,12 +283,13 @@ function openMarketplace() {
             >
               v{{ space.version }}
             </span>
-            <span
+            <button
               v-if="space.hasUpdate"
-              class="text-[9px] font-semibold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded"
+              class="text-[9px] font-semibold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded hover:bg-amber-400/20 transition-colors cursor-pointer"
+              @click.stop="handleUpdate(space.name)"
             >
-              Update available
-            </span>
+              Update to v{{ space.latestVersion }}
+            </button>
           </div>
 
           <!-- Clickable card body -->
