@@ -17,6 +17,7 @@ declare module 'vue' {
     Badge: typeof import('./components/ui/Badge.vue')['default']
     BottomPanel: typeof import('./components/panels/BottomPanel.vue')['default']
     Breadcrumb: typeof import('./components/toolbar/Breadcrumb.vue')['default']
+    BuiltinWidgets: typeof import('./components/home/BuiltinWidgets.vue')['default']
     Button: typeof import('./components/ui/Button.vue')['default']
     Calendar: typeof import('./components/ui/Calendar.vue')['default']
     Card: typeof import('./components/ui/Card.vue')['default']
@@ -25,6 +26,7 @@ declare module 'vue' {
     ColorPicker: typeof import('./components/ui/ColorPicker.vue')['default']
     ConfirmationModal: typeof import('./components/common/ConfirmationModal.vue')['default']
     ContextMenu: typeof import('./components/ui/ContextMenu.vue')['default']
+    CurrentUser4x2: typeof import('./components/home/widgets/CurrentUser4x2.vue')['default']
     DashboardPanel: typeof import('./components/ui/DashboardPanel.vue')['default']
     Drawer: typeof import('./components/ui/Drawer.vue')['default']
     Dropdown: typeof import('./components/ui/Dropdown.vue')['default']
@@ -34,6 +36,7 @@ declare module 'vue' {
     FileExplorer: typeof import('./components/panels/files/FileExplorer.vue')['default']
     FileTreeItem: typeof import('./components/panels/files/FileTreeItem.vue')['default']
     FormField: typeof import('./components/ui/FormField.vue')['default']
+    HomeGrid: typeof import('./components/home/HomeGrid.vue')['default']
     Icon: typeof import('./components/ui/Icon.vue')['default']
     Input: typeof import('./components/ui/Input.vue')['default']
     Kbd: typeof import('./components/ui/Kbd.vue')['default']
@@ -74,5 +77,7 @@ declare module 'vue' {
     ToolCard: typeof import('./components/agent/ToolCard.vue')['default']
     Tooltip: typeof import('./components/ui/Tooltip.vue')['default']
     Tree: typeof import('./components/ui/Tree.vue')['default']
+    WidgetChrome: typeof import('./components/home/WidgetChrome.vue')['default']
+    WidgetPicker: typeof import('./components/home/WidgetPicker.vue')['default']
   }
 }

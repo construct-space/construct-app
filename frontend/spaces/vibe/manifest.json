@@ -3,5 +3,15 @@
   "name": "Vibe",
   "description": "AI coding agent with full tool access",
   "icon": "lucide:zap",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "widgets": [
+    {
+      "id": "quick-vibe",
+      "name": "Vibe Code",
+      "description": "Quick access to AI coding",
+      "icon": "lucide:zap",
+      "defaultSize": "4x1",
+      "sizes": { "2x1": "widgets/QuickVibe2x1.vue", "4x1": "widgets/QuickVibe4x1.vue" }
+    }
+  ]
 }

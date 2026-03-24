@@ -194,17 +194,14 @@ export function useProjectDirectory() {
    */
   const setProjectsRoot = async (path: string): Promise<boolean> => {
     const normalizedPath = normalizePath(path)
-    console.log('setProjectsRoot called with:', normalizedPath)
 
     try {
       // Create directory if it doesn't exist using shell command
-      console.log('Creating projects root directory:', normalizedPath)
       const mkdirResult = await runShellCommand('mkdir', ['-p', normalizedPath], '/')
       if (!mkdirResult.success) {
         console.error('Failed to create projects root:', mkdirResult.output)
         return false
       }
-      console.log('Projects root directory ready')
 
       state.projectsRoot = normalizedPath
       localStorage.setItem(PROJECTS_ROOT_KEY, normalizedPath)
@@ -267,7 +264,6 @@ export function useProjectDirectory() {
     spaces: string[] = ['code', 'ui', 'assets'],
     useDirectPath: boolean = false
   ): Promise<string | null> => {
-    console.log('createProjectStructure called:', { name, basePath, spaces, useDirectPath })
     await initTauri()
 
     try {
@@ -282,7 +278,6 @@ export function useProjectDirectory() {
       // Otherwise, create a subfolder with a sanitized directory name
       const dirName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       const projectPath = useDirectPath ? root : `${root}/${dirName}`
-      console.log('Creating project at:', projectPath)
 
       // Create project directory + docs subdirectory
       // Flat layout — no .construct/, no code/ subdirectory
@@ -291,7 +286,6 @@ export function useProjectDirectory() {
         `${projectPath}/docs`,
       ]
 
-      console.log('Creating directories:', allDirs)
 
       const mkdirResult = await runShellCommand('mkdir', ['-p', ...allDirs], '/')
       if (!mkdirResult.success) {
@@ -299,7 +293,6 @@ export function useProjectDirectory() {
         throw new Error(`Failed to create directories: ${mkdirResult.output}`)
       }
 
-      console.log('Project created at:', projectPath)
       return projectPath
     } catch (e) {
       console.error('Failed to create project structure:', e)
@@ -580,7 +573,6 @@ export function useProjectDirectory() {
       const defaultPath = IS_DEV_INSTANCE.value
         ? `${normalizedHome}/ConstructDevMode`
         : `${normalizedHome}/ConstructProjects`
-      console.log('Default projects root:', defaultPath)
       return defaultPath
     } catch (e) {
       console.error('Failed to get home directory:', e)
@@ -604,7 +596,6 @@ export function useProjectDirectory() {
       return false
     }
 
-    console.log('[ensureProjectStructure] Ensuring structure at:', targetPath)
 
     try {
       // Check if directory already has content (non-empty)
@@ -613,7 +604,6 @@ export function useProjectDirectory() {
 
       if (dirExists) {
         // Directory is not empty — only ensure .construct config dir, skip space folders
-        console.log('[ensureProjectStructure] Directory not empty, skipping space folders')
         const mkdirResult = await runShellCommand('mkdir', ['-p', `${targetPath}/.construct`], '/')
         if (!mkdirResult.success) {
           console.error('[ensureProjectStructure] Failed to create .construct dir:', mkdirResult.output)
@@ -635,7 +625,6 @@ export function useProjectDirectory() {
         return false
       }
 
-      console.log('[ensureProjectStructure] Directories created successfully')
       return true
     } catch (e) {
       console.error('[ensureProjectStructure] Error:', e)
@@ -666,7 +655,6 @@ export function useProjectDirectory() {
           return
         }
 
-        console.log('[LocalPathWatcher] Path changed from', normalizedOldPath, 'to', normalizedNewPath)
         previousLocalPath = normalizedNewPath
 
         // Get project's enabled spaces for directory creation
@@ -675,7 +663,6 @@ export function useProjectDirectory() {
         // Ensure the new directory structure exists
         const success = await ensureProjectStructure(normalizedNewPath, spaces)
         if (success) {
-          console.log('[LocalPathWatcher] Directory structure ensured at:', normalizedNewPath)
         } else {
           console.error('[LocalPathWatcher] Failed to ensure directory structure')
         }

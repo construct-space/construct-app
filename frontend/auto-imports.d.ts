@@ -6,12 +6,16 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const BUILTIN_ROWS_BASE: typeof import('./composables/useWidgetRegistry')['BUILTIN_ROWS_BASE']
+  const BUILTIN_ROWS_DEV: typeof import('./composables/useWidgetRegistry')['BUILTIN_ROWS_DEV']
   const ESSENTIAL_SPACE_IDS: typeof import('./composables/useSpaceMarketplace')['ESSENTIAL_SPACE_IDS']
   const EffectScope: typeof import('vue')['EffectScope']
+  const GRID_COLS: typeof import('./composables/useWidgetRegistry')['GRID_COLS']
   const NATIVE_SPACE_IDS: typeof import('./composables/useSpaceMarketplace')['NATIVE_SPACE_IDS']
   const POPULAR_FONTS: typeof import('./composables/useGoogleFonts')['POPULAR_FONTS']
   const PRESET_LAYOUTS: typeof import('./composables/usePanelLayout')['PRESET_LAYOUTS']
   const SHORTCUT_REGISTRY: typeof import('./composables/useShortcutStore')['SHORTCUT_REGISTRY']
+  const SPACE_ROWS: typeof import('./composables/useWidgetRegistry')['SPACE_ROWS']
   const TELEMETRY_FEATURE_KEYS: typeof import('./composables/useTelemetry')['TELEMETRY_FEATURE_KEYS']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const appConfig: typeof import('./utils/config')['appConfig']
@@ -428,6 +432,7 @@ declare global {
   const useWebSocket: typeof import('@vueuse/core')['useWebSocket']
   const useWebWorker: typeof import('@vueuse/core')['useWebWorker']
   const useWebWorkerFn: typeof import('@vueuse/core')['useWebWorkerFn']
+  const useWidgetRegistry: typeof import('./composables/useWidgetRegistry')['useWidgetRegistry']
   const useWindowChromeState: typeof import('./composables/useWindowChromeState')['useWindowChromeState']
   const useWindowFocus: typeof import('@vueuse/core')['useWindowFocus']
   const useWindowScroll: typeof import('@vueuse/core')['useWindowScroll']
@@ -536,6 +541,9 @@ declare global {
   export type { UserModuleState } from './composables/useUserModule'
   import('./composables/useUserModule')
   // @ts-ignore
+  export type { WidgetDefinition, WidgetPlacement, HomeLayout } from './composables/useWidgetRegistry'
+  import('./composables/useWidgetRegistry')
+  // @ts-ignore
   export type { Conversation } from './stores/conversations'
   import('./stores/conversations')
   // @ts-ignore
@@ -566,12 +574,16 @@ import { UnwrapRef } from 'vue'
 declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
+    readonly BUILTIN_ROWS_BASE: UnwrapRef<typeof import('./composables/useWidgetRegistry')['BUILTIN_ROWS_BASE']>
+    readonly BUILTIN_ROWS_DEV: UnwrapRef<typeof import('./composables/useWidgetRegistry')['BUILTIN_ROWS_DEV']>
     readonly ESSENTIAL_SPACE_IDS: UnwrapRef<typeof import('./composables/useSpaceMarketplace')['ESSENTIAL_SPACE_IDS']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly GRID_COLS: UnwrapRef<typeof import('./composables/useWidgetRegistry')['GRID_COLS']>
     readonly NATIVE_SPACE_IDS: UnwrapRef<typeof import('./composables/useSpaceMarketplace')['NATIVE_SPACE_IDS']>
     readonly POPULAR_FONTS: UnwrapRef<typeof import('./composables/useGoogleFonts')['POPULAR_FONTS']>
     readonly PRESET_LAYOUTS: UnwrapRef<typeof import('./composables/usePanelLayout')['PRESET_LAYOUTS']>
     readonly SHORTCUT_REGISTRY: UnwrapRef<typeof import('./composables/useShortcutStore')['SHORTCUT_REGISTRY']>
+    readonly SPACE_ROWS: UnwrapRef<typeof import('./composables/useWidgetRegistry')['SPACE_ROWS']>
     readonly TELEMETRY_FEATURE_KEYS: UnwrapRef<typeof import('./composables/useTelemetry')['TELEMETRY_FEATURE_KEYS']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly appConfig: UnwrapRef<typeof import('./utils/config')['appConfig']>
@@ -988,6 +1000,7 @@ declare module 'vue' {
     readonly useWebSocket: UnwrapRef<typeof import('@vueuse/core')['useWebSocket']>
     readonly useWebWorker: UnwrapRef<typeof import('@vueuse/core')['useWebWorker']>
     readonly useWebWorkerFn: UnwrapRef<typeof import('@vueuse/core')['useWebWorkerFn']>
+    readonly useWidgetRegistry: UnwrapRef<typeof import('./composables/useWidgetRegistry')['useWidgetRegistry']>
     readonly useWindowChromeState: UnwrapRef<typeof import('./composables/useWindowChromeState')['useWindowChromeState']>
     readonly useWindowFocus: UnwrapRef<typeof import('@vueuse/core')['useWindowFocus']>
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>

@@ -17,5 +17,15 @@
       "label": "Chat",
       "default": true
     }
+  ],
+  "widgets": [
+    {
+      "id": "quick-chat",
+      "name": "Quick Chat",
+      "description": "Quick chat input",
+      "icon": "lucide:message-circle",
+      "defaultSize": "4x2",
+      "sizes": { "2x1": "widgets/QuickChat2x1.vue", "4x2": "widgets/QuickChat4x2.vue" }
+    }
   ]
 }

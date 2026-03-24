@@ -23,6 +23,7 @@ export interface LoadedSpace {
   id: string
   manifest: SpaceManifest
   pages: Record<string, Component>
+  widgets?: Record<string, Record<string, Component>> // widgetId -> sizeKey -> Component
   components?: Record<string, Component>
   cssInjected: boolean
 }
@@ -60,6 +61,14 @@ export interface SpaceManifest {
     label: string
     action?: string
     to?: string
+  }>
+  widgets?: Array<{
+    id: string
+    name: string
+    description?: string
+    icon?: string
+    defaultSize: string
+    sizes: Record<string, string> | string[]
   }>
   contextMenus?: SpaceContextMenuConfig
   theme?: {
@@ -115,17 +124,13 @@ const devOverrideDir = import.meta.env.VITE_SPACE_DEV_DIR || ''
 export async function loadSpace(spaceId: string): Promise<LoadedSpace | null> {
   // Return from cache
   if (loadedSpaces.has(spaceId)) {
-    console.log(`[SpaceLoader] "${spaceId}" → cache hit`)
     return loadedSpaces.get(spaceId)!
   }
-
-  const t0 = performance.now()
 
   // Core spaces ship with the app — no disk/IIFE needed
   const coreSpace = getCoreSpace(spaceId)
   if (coreSpace) {
     loadedSpaces.set(spaceId, coreSpace)
-    console.log(`[SpaceLoader] "${spaceId}" → core space (${(performance.now() - t0).toFixed(1)}ms)`)
     return coreSpace
   }
 
@@ -134,7 +139,6 @@ export async function loadSpace(spaceId: string): Promise<LoadedSpace | null> {
     const devSpace = await loadSpaceFromDir(spaceId, devOverrideDir)
     if (devSpace) {
       loadedSpaces.set(spaceId, devSpace)
-      console.log(`[SpaceLoader] "${spaceId}" → dev override, ${Object.keys(devSpace.pages).length} pages (${(performance.now() - t0).toFixed(1)}ms)`)
       return devSpace
     }
   }
@@ -143,7 +147,6 @@ export async function loadSpace(spaceId: string): Promise<LoadedSpace | null> {
   const prodSpace = await loadSpaceFromDisk(spaceId)
   if (prodSpace) {
     loadedSpaces.set(spaceId, prodSpace)
-    console.log(`[SpaceLoader] "${spaceId}" → loaded v${prodSpace.manifest.version}, ${Object.keys(prodSpace.pages).length} pages, css:${prodSpace.cssInjected} (${(performance.now() - t0).toFixed(1)}ms)`)
     return prodSpace
   }
 
@@ -174,7 +177,6 @@ async function loadSpaceFromDir(spaceId: string, baseDir: string): Promise<Loade
     const { readTextFile, exists } = await import('@tauri-apps/plugin-fs')
 
     const spaceDir = baseDir.endsWith(`/${spaceId}`) ? baseDir : `${baseDir}/${spaceId}`
-    console.log(`[SpaceLoader] Loading "${spaceId}" from: ${spaceDir}`)
 
     // Read manifest
     const manifestPath = `${spaceDir}/manifest.json`
@@ -229,30 +231,13 @@ async function loadSpaceFromDir(spaceId: string, baseDir: string): Promise<Loade
       cssInjected = true
     }
 
-    // Verify operator files if referenced in manifest
-    if (manifest.agent) {
-      const agentPath = `${spaceDir}/${manifest.agent}`
-      if (await exists(agentPath)) {
-        console.log(`[SpaceLoader] "${spaceId}" operator agent: ${manifest.agent} ✓`)
-      } else {
-        console.warn(`[SpaceLoader] "${spaceId}" operator agent: ${manifest.agent} ✗ (file not found)`)
-      }
-    }
-    if (manifest.skills?.length) {
-      for (const skill of manifest.skills) {
-        const skillPath = `${spaceDir}/${skill}`
-        if (await exists(skillPath)) {
-          console.log(`[SpaceLoader] "${spaceId}" skill: ${skill} ✓`)
-        } else {
-          console.warn(`[SpaceLoader] "${spaceId}" skill: ${skill} ✗ (file not found)`)
-        }
-      }
-    }
+    const widgets = spaceExport.widgets as Record<string, Record<string, Component>> | undefined
 
     return {
       id: spaceId,
       manifest,
       pages: spaceExport.pages as Record<string, Component>,
+      widgets,
       components: spaceExport.components as Record<string, Component> | undefined,
       cssInjected,
     }
@@ -347,7 +332,6 @@ export async function watchSpace(
     // In production, only watch if .dev marker exists (construct dev is running)
     if (!devOverrideDir && !IS_DEV_INSTANCE.value && !import.meta.env.DEV) {
       if (!(await exists(devMarkerPath))) return null
-      console.log(`[SpaceLoader] Dev marker found for "${spaceId}" — enabling hot-reload`)
     }
 
     // Read initial builtAt timestamp
@@ -364,7 +348,6 @@ export async function watchSpace(
         // Stop polling if .dev marker is removed (construct dev stopped)
         if (!devOverrideDir && !IS_DEV_INSTANCE.value && !import.meta.env.DEV) {
           if (!(await exists(devMarkerPath))) {
-            console.log(`[SpaceLoader] Dev marker removed for "${spaceId}" — stopping watcher`)
             stopped = true
             return
           }
@@ -374,7 +357,6 @@ export async function watchSpace(
         const builtAt = json.build?.builtAt || ''
         if (builtAt && builtAt !== lastBuiltAt) {
           lastBuiltAt = builtAt
-          console.log(`[SpaceLoader] HMR: Reloading "${spaceId}"...`)
           const reloaded = await reloadSpace(spaceId)
           onReload(reloaded)
         }
@@ -384,7 +366,6 @@ export async function watchSpace(
 
     // Start polling
     setTimeout(poll, 2000)
-    console.log(`[SpaceLoader] Watching "${spaceId}" for changes (polling every 2s)`)
     return () => { stopped = true }
   } catch (err) {
     console.warn('[SpaceLoader] Could not set up file watcher:', err)

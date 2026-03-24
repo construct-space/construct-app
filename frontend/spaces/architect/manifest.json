@@ -3,5 +3,15 @@
   "name": "Architect",
   "description": "Plans project structure and generates technical specifications",
   "icon": "lucide:drafting-compass",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "widgets": [
+    {
+      "id": "quick-architect",
+      "name": "Architect",
+      "description": "Plan your project architecture",
+      "icon": "lucide:drafting-compass",
+      "defaultSize": "4x1",
+      "sizes": { "4x1": "widgets/QuickArchitect4x1.vue" }
+    }
+  ]
 }

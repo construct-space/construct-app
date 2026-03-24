@@ -3,5 +3,15 @@
   "name": "Project",
   "description": "Project-aware agent that knows your codebase, tools, and context",
   "icon": "lucide:folder-open",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "widgets": [
+    {
+      "id": "recent-projects",
+      "name": "Recent Projects",
+      "description": "Your recent projects",
+      "icon": "lucide:folder-open",
+      "defaultSize": "4x2",
+      "sizes": { "4x2": "widgets/RecentProjects4x2.vue" }
+    }
+  ]
 }
