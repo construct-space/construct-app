@@ -150,10 +150,11 @@ Spaces don't render the shell. They teleport content into it:
 
 ## SDK
 
-Spaces import components and composables from `@construct-space/sdk`:
+Spaces import shared UI from `@construct-space/ui` and host/runtime APIs from `@construct-space/sdk`:
 
 ```ts
-import { Button, Modal, useToast, useToolbar } from '@construct-space/sdk'
+import { Button, Modal, Notification, useNotification } from '@construct-space/ui'
+import { useToolbar, useConstructConfig } from '@construct-space/sdk'
 ```
 
-The SDK provides types at build time. Runtime implementations are injected by the Construct host via `window.__CONSTRUCT__`.
+The UI package provides shared components and UI composables at build time. The SDK provides host APIs and runtime context at build time. Runtime implementations are injected by the Construct host via `window.__CONSTRUCT__`.

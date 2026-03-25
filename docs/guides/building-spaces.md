@@ -7,7 +7,7 @@
 ```bash
 mkdir space-myapp && cd space-myapp
 bun init
-bun add @construct-space/sdk
+bun add @construct-space/sdk @construct-space/ui
 ```
 
 2. Create `space.manifest.json`:
@@ -48,13 +48,18 @@ bun add @construct-space/sdk
 ```vue
 <!-- pages/HomePage.vue -->
 <script setup lang="ts">
-import { Button, Card, useToast, useToolbar } from '@construct-space/sdk'
+import { Button, Card, Notification, useNotification } from '@construct-space/ui'
+import { useToolbar } from '@construct-space/sdk'
 
-const { toast } = useToast()
+const { add } = useNotification()
 const { setPageItems } = useToolbar()
 
 function handleAdd() {
-  toast.success('Added!', 'Your item was created.')
+  add({
+    title: 'Added!',
+    description: 'Your item was created.',
+    color: 'success',
+  })
 }
 </script>
 
@@ -66,20 +71,28 @@ function handleAdd() {
         <Button label="Add Item" @click="handleAdd" />
       </template>
     </Card>
+    <Notification />
   </div>
 </template>
 ```
 
-## SDK Components
+## Shared UI And Host APIs
 
-Import from `@construct-space/sdk`:
+Import shared UI from `@construct-space/ui`:
 
 ```ts
 // UI Components
-import { Button, Modal, Input, Select, Card, Badge, Tabs, Toast } from '@construct-space/sdk'
+import { Button, Modal, Input, Select, Card, Badge, Tabs, Notification, ConfirmationModal, SplitPane } from '@construct-space/ui'
 
-// Composables
-import { useToast, useToolbar, useSpaces, useAuth, useStorage } from '@construct-space/sdk'
+// UI composables
+import { useNotification } from '@construct-space/ui'
+```
+
+Import host/runtime APIs from `@construct-space/sdk`:
+
+```ts
+// Host composables
+import { useToolbar, useSpaces, useAuth, useStorage, useConstructConfig, getConstructRuntime } from '@construct-space/sdk'
 
 // Stores
 import { useProjectStore, useAuthStore, usePinnedStore } from '@construct-space/sdk'

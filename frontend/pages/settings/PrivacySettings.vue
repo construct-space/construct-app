@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import FormField from '@/components/ui/FormField.vue'
-import Switch from '@/components/ui/Switch.vue'
+import { FormField, Switch } from '@construct-space/ui'
+
 import {
   useTelemetry,
   isTelemetryEnabled,
@@ -8,7 +8,7 @@ import {
 } from '@/composables/useTelemetry'
 
 const telemetry = useTelemetry()
-const toast = useToast()
+const toast = useNotification()
 
 const enabled = ref(isTelemetryEnabled())
 const stats = ref<{
@@ -56,10 +56,8 @@ onMounted(() => {
 <template>
   <div>
     <div class="flex flex-col gap-6">
-      <FormField
-        label="Usage Analytics"
-        description="Help improve Construct by sharing anonymous usage data. No personal information is collected — only aggregate counters like session count, spaces visited, and features used."
-      >
+      <FormField label="Usage Analytics"
+        description="Help improve Construct by sharing anonymous usage data. No personal information is collected — only aggregate counters like session count, spaces visited, and features used.">
         <Switch v-model="enabled" />
       </FormField>
 
@@ -82,11 +80,9 @@ onMounted(() => {
           </div>
         </div>
 
-        <button
-          type="button"
+        <button type="button"
           class="self-start px-3 py-1.5 text-xs rounded-md border border-[var(--app-border)] text-[var(--app-muted)] hover:text-red-400 hover:border-red-400/50 transition-colors cursor-pointer"
-          @click="clearData"
-        >
+          @click="clearData">
           Clear Data
         </button>
       </div>

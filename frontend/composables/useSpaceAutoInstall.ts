@@ -6,14 +6,14 @@
  */
 
 import { useSpaceMarketplace, NATIVE_SPACE_IDS } from '@/composables/useSpaceMarketplace'
-import { useToast } from '@/composables/useToast'
+import { useNotification } from '@construct-space/ui'
 import { useSpaces } from '@/composables/useSpaces'
 
 const installing = new Set<string>()
 
 export function useSpaceAutoInstall() {
   const marketplace = useSpaceMarketplace()
-  const { add: addToast } = useToast()
+  const { add: addToast } = useNotification()
   const { loadSpaces } = useSpaces()
 
   async function installMissing(missingIds: string[]): Promise<void> {

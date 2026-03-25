@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { useOperator } from '@/operator'
-import Input from '@/components/ui/Input.vue'
-import Select from '@/components/ui/Select.vue'
-import Switch from '@/components/ui/Switch.vue'
-import Button from '@/components/ui/Button.vue'
+import { Input, Button, Select, Switch } from '@construct-space/ui'
 
-const toast = useToast()
+
+const toast = useNotification()
 const operator = useOperator()
 
 interface MCPTool {
@@ -161,8 +159,16 @@ onMounted(() => { loadServers() })
     <!-- Info -->
     <div class="mb-6 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
       <div class="flex gap-2">
-        <svg class="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
-        <p class="text-xs text-[var(--app-muted)]">MCP servers extend AI capabilities with additional tools like web search, database access, file operations, and more.</p>
+        <svg class="w-4 h-4 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+        <p class="text-xs text-[var(--app-muted)]">
+MCP servers extend AI capabilities with additional tools like web
+          search, database access, file operations, and more.
+</p>
       </div>
     </div>
 
@@ -172,13 +178,10 @@ onMounted(() => { loadServers() })
 
       <!-- Type selection -->
       <div class="flex gap-2">
-        <button
-          v-for="t in (['url', 'npm', 'local'] as const)"
-          :key="t"
+        <button v-for="t in (['url', 'npm', 'local'] as const)" :key="t"
           class="px-3 py-1.5 text-xs rounded-md border transition-colors cursor-pointer capitalize"
           :class="newServer.type === t ? 'border-[var(--app-accent)] bg-[color-mix(in_srgb,var(--app-accent)_10%,transparent)] text-app-accent' : 'border-[var(--app-border)] text-[var(--app-muted)]'"
-          @click="newServer.type = t"
-        >
+          @click="newServer.type = t">
           {{ t === 'npm' ? 'NPM Package' : t === 'url' ? 'URL' : 'Local Path' }}
         </button>
       </div>
@@ -191,7 +194,8 @@ onMounted(() => { loadServers() })
       </template>
 
       <!-- NPM field -->
-      <Input v-if="newServer.type === 'npm'" v-model="newServer.package" placeholder="@anthropic/mcp-server-filesystem" />
+      <Input v-if="newServer.type === 'npm'" v-model="newServer.package"
+        placeholder="@anthropic/mcp-server-filesystem" />
 
       <!-- Local path field -->
       <Input v-if="newServer.type === 'local'" v-model="newServer.path" placeholder="/path/to/mcp-server" />
@@ -209,7 +213,8 @@ onMounted(() => { loadServers() })
     <div v-if="isLoading" class="flex items-center justify-center py-12">
       <svg class="w-6 h-6 animate-spin text-[var(--app-muted)]" viewBox="0 0 24 24" fill="none">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        <path class="opacity-75" fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
       </svg>
     </div>
 
@@ -221,27 +226,30 @@ onMounted(() => { loadServers() })
 
     <!-- Server list -->
     <div v-else class="space-y-3">
-      <div
-        v-for="server in servers"
-        :key="server.id"
-        class="p-4 rounded-lg border transition-colors"
-        :class="server.enabled ? 'border-[var(--app-border)]' : 'border-[var(--app-border)] opacity-60'"
-      >
+      <div v-for="server in servers" :key="server.id" class="p-4 rounded-lg border transition-colors"
+        :class="server.enabled ? 'border-[var(--app-border)]' : 'border-[var(--app-border)] opacity-60'">
         <div class="flex items-start justify-between mb-2">
           <div>
             <div class="flex items-center gap-2">
               <h4 class="text-sm font-medium text-[var(--app-foreground)]">{{ server.name }}</h4>
-              <span :class="['px-1.5 py-0.5 text-[10px] rounded-full', statusColors[server.status] || 'bg-gray-500/10 text-gray-500']">
+              <span
+                :class="['px-1.5 py-0.5 text-[10px] rounded-full', statusColors[server.status] || 'bg-gray-500/10 text-gray-500']">
                 {{ server.status }}
               </span>
-              <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">
+              <span
+                class="px-1.5 py-0.5 text-[10px] rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">
                 {{ server.type }}
               </span>
             </div>
             <p class="text-xs text-[var(--app-muted)] mt-0.5">
-              {{ server.type === 'url' ? server.url : server.type === 'npm' ? server.package : server.path || server.id }}
+              {{ server.type === 'url' ? server.url : server.type === 'npm' ? server.package : server.path || server.id
+              }}
             </p>
-            <p class="text-xs text-[var(--app-muted)] mt-1">{{ server.tools.length }} tool{{ server.tools.length !== 1 ? 's' : '' }}</p>
+            <p class="text-xs text-[var(--app-muted)] mt-1">
+{{ server.tools.length }} tool{{ server.tools.length !== 1 ?
+              's'
+              : '' }}
+</p>
           </div>
           <Switch :model-value="server.enabled" size="sm" @update:model-value="toggleServer(server)" />
         </div>
@@ -251,15 +259,18 @@ onMounted(() => { loadServers() })
         <!-- Actions -->
         <div class="flex gap-2 mt-3">
           <Button variant="ghost" size="xs" label="Test" @click="testServer(server)" />
-          <Button variant="ghost" size="xs" label="Details" @click="selectedServer = selectedServer?.id === server.id ? null : server" />
-          <Button v-if="server.type !== 'builtin'" variant="ghost" color="error" size="xs" label="Remove" @click="removeServer(server)" />
+          <Button variant="ghost" size="xs" label="Details"
+            @click="selectedServer = selectedServer?.id === server.id ? null : server" />
+          <Button v-if="server.type !== 'builtin'" variant="ghost" color="error" size="xs" label="Remove"
+            @click="removeServer(server)" />
         </div>
 
         <!-- Details panel -->
         <div v-if="selectedServer?.id === server.id" class="mt-3 pt-3 border-t border-[var(--app-border)]">
           <div v-if="server.tools.length" class="space-y-1.5 max-h-40 overflow-y-auto">
             <p class="text-xs text-[var(--app-muted)] uppercase tracking-wider mb-2">Available Tools</p>
-            <div v-for="tool in server.tools" :key="tool.name" class="p-2 rounded bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)]">
+            <div v-for="tool in server.tools" :key="tool.name"
+              class="p-2 rounded bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)]">
               <p class="text-xs font-medium text-[var(--app-foreground)]">{{ tool.name }}</p>
               <p class="text-xs text-[var(--app-muted)]">{{ tool.description }}</p>
             </div>

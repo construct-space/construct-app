@@ -7,12 +7,14 @@ The HR Space is a Construct space that provides human resources management capab
 ## Target Users
 
 ### HR Admin
+
 - Full CRUD on all employee records
 - Approve/reject leave requests from any employee
 - Manage departments and system settings
 - View org-wide dashboards and reports
 
 ### Employee (Self-Service)
+
 - View own profile and leave balances
 - Submit leave requests
 - Browse the employee directory (read-only)
@@ -23,13 +25,16 @@ The HR Space is a Construct space that provides human resources management capab
 The space uses a sidebar navigation pattern with 6 pages:
 
 ### 1. Dashboard (`dashboard`)
+
 **Default landing page.**
+
 - **Stat Cards Row:** Total Employees (active), Total Departments, Pending Leave Requests, Employees On Leave Today
 - **Department Breakdown:** Horizontal list/bars showing employee count per department
 - **Pending Actions (HR Admin):** Up to 5 pending leave requests with quick approve/reject
 - **My Upcoming Leave (Employee):** Shows the logged-in employee's upcoming approved leave
 
 ### 2. Employee Directory (`directory`)
+
 - **Header:** Title + "Add Employee" button (HR admin only)
 - **Search & Filter Bar:** Real-time text search across name, email, title + Department dropdown filter
 - **Employee Grid:** Cards showing avatar, name, title, department, status
@@ -37,6 +42,7 @@ The space uses a sidebar navigation pattern with 6 pages:
 - **Empty State:** Shown when search/filter yields no results
 
 ### 3. Employee Detail (`employee-detail`)
+
 - **Header:** Back button + large profile with avatar, name, title, department, status
 - **Action Buttons (HR Admin):** Edit, Delete
 - **Info Grid:** Two columns — Personal Info (email, phone, employment type, start date) + Organization (department, manager, job title)
@@ -46,6 +52,7 @@ The space uses a sidebar navigation pattern with 6 pages:
 - **Delete:** Confirm dialog → removes employee → navigates to directory
 
 ### 4. Leave Management (`leave`)
+
 - **Two-panel layout** (side by side on desktop, stacked on mobile)
 - **Left Panel:**
   - Tab toggle: All Requests / Pending (HR Admin) or All / My Requests (Employee)
@@ -56,6 +63,7 @@ The space uses a sidebar navigation pattern with 6 pages:
   - Month navigation (prev/next)
 
 ### 5. Org Chart (`org-chart`)
+
 - **Tree visualization** of reporting hierarchy
 - Root nodes = employees with no manager
 - Each node shows avatar, name, title, department
@@ -65,6 +73,7 @@ The space uses a sidebar navigation pattern with 6 pages:
 - Mobile: falls back to indented list
 
 ### 6. Settings (`settings`)
+
 - **HR Admin only** (employee role sees message to contact admin)
 - **Departments Management:** List with inline edit/delete + add new department form
 - **Data Management:** Reset demo data, Export JSON, Clear all data (with confirm)
@@ -73,31 +82,35 @@ The space uses a sidebar navigation pattern with 6 pages:
 ## User Flows
 
 ### Flow 1: Add New Employee (HR Admin)
+
 1. Navigate to Directory
 2. Click "Add Employee"
 3. Fill in EmployeeForm (name, email, department, manager, etc.)
 4. Click Save
 5. Employee appears in directory grid
-6. Toast: "Employee added successfully"
+6. Notify: "Employee added successfully"
 
 ### Flow 2: Submit Leave Request (Employee)
+
 1. Navigate to Leave Management
 2. Click "New Request"
 3. Select leave type, dates, optional reason
 4. See remaining balance for selected type
 5. Submit
 6. Request appears in list as "Pending"
-7. Toast: "Leave request submitted"
+7. Notify: "Leave request submitted"
 
 ### Flow 3: Approve Leave (HR Admin)
+
 1. See pending request on Dashboard or Leave page
 2. Click "Approve" button
 3. Request status changes to "Approved"
 4. Employee's leave balance updated (used +1 for each day)
 5. Leave appears on calendar
-6. Toast: "Leave request approved"
+6. Notify: "Leave request approved"
 
 ### Flow 4: View Org Chart
+
 1. Navigate to Org Chart
 2. See tree of all employees grouped by reporting structure
 3. Click on any node to view their detail page

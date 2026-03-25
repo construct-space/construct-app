@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { useSkills } from '@/composables/useSkills'
 import type { SkillInfo, HookInfo } from '@/composables/useSkills'
-import Switch from '@/components/ui/Switch.vue'
-import Select from '@/components/ui/Select.vue'
-import Button from '@/components/ui/Button.vue'
+import { Switch, Select, Button } from '@construct-space/ui'
 
-const toast = useToast()
+
+
+const toast = useNotification()
 const { skills, hooks, isLoading, loadSkill, enableSkill, disableSkill, enableHook, disableHook, loadBuiltins, refresh } = useSkills()
 
 const activeTab = ref<'skills' | 'hooks'>('skills')
@@ -91,27 +91,24 @@ onMounted(() => { refresh() })
 
     <!-- Tabs -->
     <div class="flex gap-1 p-1 bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] rounded-lg w-fit mb-6">
-      <button
-        class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
+      <Button class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
         :class="activeTab === 'skills' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-        @click="activeTab = 'skills'"
-      >
+        @click="activeTab = 'skills'">
         Skills ({{ skills.length }})
-      </button>
-      <button
-        class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
+      </Button>
+      <Button class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
         :class="activeTab === 'hooks' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-        @click="activeTab = 'hooks'"
-      >
+        @click="activeTab = 'hooks'">
         Hooks ({{ hooks.length }})
-      </button>
+      </Button>
     </div>
 
     <!-- Loading -->
     <div v-if="isLoading" class="flex items-center justify-center py-12">
       <svg class="w-6 h-6 animate-spin text-[var(--app-muted)]" viewBox="0 0 24 24" fill="none">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        <path class="opacity-75" fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
       </svg>
     </div>
 
@@ -123,30 +120,23 @@ onMounted(() => { refresh() })
       </div>
 
       <div v-else class="space-y-3">
-        <div
-          v-for="skill in skills"
-          :key="skill.id"
-          class="p-4 rounded-lg border transition-colors cursor-pointer"
+        <div v-for="skill in skills" :key="skill.id" class="p-4 rounded-lg border transition-colors cursor-pointer"
           :class="skill.state === 'active' ? 'border-[var(--app-border)]' : 'border-[var(--app-border)] opacity-60'"
-          @click="selectedSkill = selectedSkill?.id === skill.id ? null : skill"
-        >
+          @click="selectedSkill = selectedSkill?.id === skill.id ? null : skill">
           <div class="flex items-start justify-between mb-2">
             <div>
               <div class="flex items-center gap-2">
                 <h4 class="text-sm font-medium text-[var(--app-foreground)]">{{ skill.name }}</h4>
                 <span class="text-[10px] text-[var(--app-muted)]">v{{ skill.version }}</span>
-                <span :class="['px-1.5 py-0.5 text-[10px] rounded-full', stateColors[skill.state] || stateColors.unloaded]">
+                <span
+                  :class="['px-1.5 py-0.5 text-[10px] rounded-full', stateColors[skill.state] || stateColors.unloaded]">
                   {{ skill.state }}
                 </span>
               </div>
               <p class="text-xs text-[var(--app-muted)] mt-0.5 line-clamp-2">{{ skill.description }}</p>
             </div>
-            <Switch
-              :model-value="skill.state === 'active'"
-              size="sm"
-              @click.stop
-              @update:model-value="toggleSkill(skill)"
-            />
+            <Switch :model-value="skill.state === 'active'" size="sm" @click.stop
+              @update:model-value="toggleSkill(skill)" />
           </div>
 
           <div class="flex items-center gap-3 text-xs text-[var(--app-muted)]">
@@ -158,10 +148,22 @@ onMounted(() => { refresh() })
           <!-- Detail panel -->
           <div v-if="selectedSkill?.id === skill.id" class="mt-3 pt-3 border-t border-[var(--app-border)]">
             <div class="grid grid-cols-2 gap-3 text-xs">
-              <div><span class="text-[var(--app-muted)]">Category:</span> <span class="text-[var(--app-foreground)]">{{ skill.category }}</span></div>
-              <div><span class="text-[var(--app-muted)]">Hooks:</span> <span class="text-[var(--app-foreground)]">{{ skill.hooksCount }}</span></div>
-              <div><span class="text-[var(--app-muted)]">Tools:</span> <span class="text-[var(--app-foreground)]">{{ skill.toolsCount }}</span></div>
-              <div v-if="skill.dependencies?.length"><span class="text-[var(--app-muted)]">Deps:</span> <span class="text-[var(--app-foreground)]">{{ skill.dependencies.join(', ') }}</span></div>
+              <div>
+                <span class="text-[var(--app-muted)]">Category:</span> <span class="text-[var(--app-foreground)]">{{
+                  skill.category }}</span>
+              </div>
+              <div>
+                <span class="text-[var(--app-muted)]">Hooks:</span> <span class="text-[var(--app-foreground)]">{{
+                  skill.hooksCount }}</span>
+              </div>
+              <div>
+                <span class="text-[var(--app-muted)]">Tools:</span> <span class="text-[var(--app-foreground)]">{{
+                  skill.toolsCount }}</span>
+              </div>
+              <div v-if="skill.dependencies?.length">
+                <span class="text-[var(--app-muted)]">Deps:</span> <span class="text-[var(--app-foreground)]">{{
+                  skill.dependencies.join(', ') }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -180,16 +182,14 @@ onMounted(() => { refresh() })
       </div>
 
       <div v-else class="space-y-2">
-        <div
-          v-for="hook in filteredHooks"
-          :key="hook.id"
+        <div v-for="hook in filteredHooks" :key="hook.id"
           class="p-3 rounded-lg border flex items-center justify-between"
-          :class="hook.enabled ? 'border-[var(--app-border)]' : 'border-[var(--app-border)] opacity-60'"
-        >
+          :class="hook.enabled ? 'border-[var(--app-border)]' : 'border-[var(--app-border)] opacity-60'">
           <div>
             <div class="flex items-center gap-2">
               <h4 class="text-sm font-medium text-[var(--app-foreground)]">{{ hook.name }}</h4>
-              <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">
+              <span
+                class="px-1.5 py-0.5 text-[10px] rounded-full bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]">
                 {{ hook.type }}
               </span>
             </div>

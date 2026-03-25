@@ -33,7 +33,7 @@ const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
 const { setBreadcrumbs } = useToolbar()
-const toast = useToast()
+const toast = useNotification()
 const vibe = useVibe()
 const preview = useVibePreview()
 const spaceActionStarting = ref(false)
@@ -132,17 +132,17 @@ const currentProjectSessions = computed(() => {
   const currentProject = vibe.currentProject.value
   const projectRef = activeSession?.project_id || activeSession?.project_path || activeSession?.project_name
     ? {
-        session_id: activeSession.session_id || undefined,
-        project_id: activeSession.project_id,
-        project_path: activeSession.project_path,
-        project_name: activeSession.project_name,
-      }
+      session_id: activeSession.session_id || undefined,
+      project_id: activeSession.project_id,
+      project_path: activeSession.project_path,
+      project_name: activeSession.project_name,
+    }
     : isProjectVibeRoute.value && (routeProjectId.value || currentProject)
       ? {
-          project_id: routeProjectId.value || (currentProject?.id ? String(currentProject.id) : undefined),
-          project_path: vibe.projectPath.value || undefined,
-          project_name: currentProject?.name,
-        }
+        project_id: routeProjectId.value || (currentProject?.id ? String(currentProject.id) : undefined),
+        project_path: vibe.projectPath.value || undefined,
+        project_name: currentProject?.name,
+      }
       : null
 
   if (!projectRef) return vibe.savedSessions.value
@@ -221,9 +221,10 @@ async function openGoalDoc() {
   <DashboardPanel :grow="true" :ui="{ body: '!p-0 !overflow-hidden' }">
     <template #body>
       <div class="flex flex-col overflow-hidden" style="height: calc(100vh - 72px)">
-<!-- ═══ Empty state: goal input + session history ═══ -->
-        <div v-if="!vibe.hasSession.value && !vibe.isRunning.value" class="flex-1 min-h-0 overflow-y-auto flex flex-col lg:flex-row">
-<!-- Left: centered goal input -->
+        <!-- ═══ Empty state: goal input + session history ═══ -->
+        <div v-if="!vibe.hasSession.value && !vibe.isRunning.value"
+          class="flex-1 min-h-0 overflow-y-auto flex flex-col lg:flex-row">
+          <!-- Left: centered goal input -->
           <div class="relative isolate flex min-h-0 flex-1 items-center justify-center px-6 py-6 lg:px-10 xl:px-14">
             <CodeRain />
             <div class="relative z-10 w-full max-w-2xl space-y-6">
@@ -247,15 +248,11 @@ async function openGoalDoc() {
               <div class="rounded-3xl border border-app bg-app-panel p-4 shadow-[0_18px_48px_rgba(0,0,0,0.18)] sm:p-5">
                 <p class="text-[11px] uppercase tracking-[0.18em] text-app-muted/70">Goal</p>
                 <div class="mt-3">
-                  <textarea
-                    v-model="vibe.draft.value"
+                  <textarea v-model="vibe.draft.value"
                     class="w-full rounded-2xl border border-app bg-[var(--app-background)] px-4 py-3 text-sm text-app-foreground placeholder-app-muted/40 outline-none focus:border-[#00ff41]/30 focus:ring-1 focus:ring-[#00ff41]/30 resize-none transition-colors"
                     placeholder="e.g. Build an HTML landing page for a SaaS product with hero, pricing, testimonials, and a contact form..."
-                    rows="5"
-                    @keydown.enter.exact.prevent="submitDraft()"
-                    @keydown.enter.meta.prevent="submitDraft()"
-                    @keydown.enter.ctrl.prevent="submitDraft()"
-                  />
+                    rows="5" @keydown.enter.exact.prevent="submitDraft()" @keydown.enter.meta.prevent="submitDraft()"
+                    @keydown.enter.ctrl.prevent="submitDraft()" />
                 </div>
 
                 <div v-if="vibe.error.value" class="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
@@ -266,14 +263,10 @@ async function openGoalDoc() {
                 </div>
 
                 <div class="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    class="flex-1 rounded-2xl py-3 text-sm font-semibold transition-all duration-200"
-                    :class="vibe.draft.value.trim()
-                      ? 'bg-[#00ff41] text-black hover:bg-[#33ff6a] cursor-pointer'
-                      : 'bg-app-panel text-app-muted/40 cursor-not-allowed'"
-                    :disabled="!vibe.draft.value.trim()"
-                    @click="submitDraft()"
-                  >
+                  <button class="flex-1 rounded-2xl py-3 text-sm font-semibold transition-all duration-200" :class="vibe.draft.value.trim()
+                    ? 'bg-[#00ff41] text-black hover:bg-[#33ff6a] cursor-pointer'
+                    : 'bg-app-panel text-app-muted/40 cursor-not-allowed'" :disabled="!vibe.draft.value.trim()"
+                    @click="submitDraft()">
                     Start Vibing
                   </button>
                 </div>
@@ -287,42 +280,26 @@ async function openGoalDoc() {
           </div>
 
           <!-- Right: session history -->
-          <VibeSessionList
-            v-if="isProjectVibeRoute"
+          <VibeSessionList v-if="isProjectVibeRoute"
             class="w-full max-h-[300px] lg:max-h-none lg:w-[380px] xl:w-[420px] shrink-0"
-            :sessions="visibleSavedSessions"
-            :is-loading="vibe.isLoadingHistory.value"
-            @open="vibe.openSession($event)"
-            @delete="vibe.deleteSession($event)"
-            @refresh="vibe.refreshHistory()"
-          />
+            :sessions="visibleSavedSessions" :is-loading="vibe.isLoadingHistory.value" @open="vibe.openSession($event)"
+            @delete="vibe.deleteSession($event)" @refresh="vibe.refreshHistory()" />
         </div>
 
         <!-- ═══ Active session: header + split pane ═══ -->
         <template v-else>
-          <VibeHeader
-            :project-name="vibe.currentProject.value?.name || vibe.session.value?.project_name || ''"
-            :status-label="headerStatus"
-            :is-running="vibe.isRunning.value"
-            :is-construct-space="isConstructSpace"
-            :preview-url="preview.serverUrl.value"
-            :preview-starting="preview.isStarting.value"
-            :preview-running="preview.isRunning.value"
-            :space-action-starting="spaceActionStarting"
+          <VibeHeader :project-name="vibe.currentProject.value?.name || vibe.session.value?.project_name || ''"
+            :status-label="headerStatus" :is-running="vibe.isRunning.value" :is-construct-space="isConstructSpace"
+            :preview-url="preview.serverUrl.value" :preview-starting="preview.isStarting.value"
+            :preview-running="preview.isRunning.value" :space-action-starting="spaceActionStarting"
             :project-path="vibe.session.value?.project_path || vibe.projectPath.value || ''"
             :is-done="vibe.status.value.state === 'complete' || vibe.session.value?.status === 'complete'"
-            :saved-sessions="currentProjectSessions"
-            :current-session-id="vibe.session.value?.session_id || ''"
-            @new-goal="vibe.newGoal()"
-            @new-project="vibe.newProject()"
-            @switch-session="vibe.openSession($event)"
-            @reset="vibe.reset(); preview.stop()"
-            @stop="vibe.stop()"
+            :saved-sessions="currentProjectSessions" :current-session-id="vibe.session.value?.session_id || ''"
+            @new-goal="vibe.newGoal()" @new-project="vibe.newProject()" @switch-session="vibe.openSession($event)"
+            @reset="vibe.reset(); preview.stop()" @stop="vibe.stop()"
             @preview-start="preview.start(vibe.session.value?.project_path || vibe.projectPath.value || '')"
-            @preview-open="preview.openInConstruct()"
-            @preview-stop="preview.stop()"
-            @space-open="openSpaceInConstructDev()"
-          />
+            @preview-open="preview.openInConstruct()" @preview-stop="preview.stop()"
+            @space-open="openSpaceInConstructDev()" />
 
           <!-- Goal banner -->
           <div class="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-app bg-[#00ff41]/[0.03]">
@@ -332,19 +309,17 @@ async function openGoalDoc() {
                 {{ vibe.session.value?.goal || vibe.submittedGoal.value || vibe.draft.value || 'Waiting for goal...' }}
               </p>
             </div>
-            <button
-              v-if="vibe.session.value?.project_path"
+            <button v-if="vibe.session.value?.project_path"
               class="shrink-0 ml-3 rounded-lg border border-app bg-white/5 px-2.5 py-1 text-[10px] font-medium text-app-muted transition hover:bg-white/8 hover:text-app"
-              title="Open goal doc"
-              @click="openGoalDoc()"
-            >
+              title="Open goal doc" @click="openGoalDoc()">
               <Icon name="i-lucide-file-text" class="size-3 inline mr-0.5" />
               Goal Doc
             </button>
           </div>
 
           <!-- Error banner (persistent, visible) -->
-          <div v-if="vibe.error.value" class="shrink-0 flex items-start gap-2 px-4 py-2.5 border-b border-red-500/20 bg-red-500/8">
+          <div v-if="vibe.error.value"
+            class="shrink-0 flex items-start gap-2 px-4 py-2.5 border-b border-red-500/20 bg-red-500/8">
             <Icon name="i-lucide-alert-circle" class="size-4 text-red-400 mt-0.5 shrink-0" />
             <p class="text-sm text-red-300 flex-1">{{ vibe.error.value }}</p>
             <button class="shrink-0 text-red-400/60 hover:text-red-300 transition" @click="vibe.clearError()">
@@ -354,60 +329,37 @@ async function openGoalDoc() {
 
           <!-- Split pane -->
           <div ref="containerRef" class="flex-1 flex min-h-0" :class="isDragging && 'select-none'">
-<!-- LEFT: Chat -->
+            <!-- LEFT: Chat -->
             <div class="flex flex-col min-w-0 min-h-0 overflow-hidden" :style="{ width: splitPercent + '%' }">
-              <VibeChat
-                :messages="vibe.messages.value"
-                :draft="vibe.draft.value"
-                :is-running="vibe.isRunning.value"
-                :queue-count="vibe.inputQueue.value.length"
-                :error="vibe.error.value"
+              <VibeChat :messages="vibe.messages.value" :draft="vibe.draft.value" :is-running="vibe.isRunning.value"
+                :queue-count="vibe.inputQueue.value.length" :error="vibe.error.value"
                 :goal="vibe.session.value?.goal || vibe.submittedGoal.value || ''"
-                :tool-count="vibe.toolHistory.value.length"
-                :is-done="vibe.status.value.state === 'complete'"
-                :status-message="vibe.statusMessage.value"
-                :status-update="vibe.statusNarration.value"
-                :status-state="vibe.status.value.state"
-                :session-status="vibe.session.value?.status || ''"
+                :tool-count="vibe.toolHistory.value.length" :is-done="vibe.status.value.state === 'complete'"
+                :status-message="vibe.statusMessage.value" :status-update="vibe.statusNarration.value"
+                :status-state="vibe.status.value.state" :session-status="vibe.session.value?.status || ''"
                 :project-path="vibe.session.value?.project_path || vibe.projectPath.value || ''"
-                :is-construct-space="isConstructSpace"
-                :preview-url="preview.serverUrl.value"
-                :preview-starting="preview.isStarting.value"
-                :preview-running="preview.isRunning.value"
-                :space-action-starting="spaceActionStarting"
-                :completion-action-error="completionPanelError"
-                :progress-updates="vibe.progressUpdates.value"
-                @update:draft="vibe.draft.value = $event"
+                :is-construct-space="isConstructSpace" :preview-url="preview.serverUrl.value"
+                :preview-starting="preview.isStarting.value" :preview-running="preview.isRunning.value"
+                :space-action-starting="spaceActionStarting" :completion-action-error="completionPanelError"
+                :progress-updates="vibe.progressUpdates.value" @update:draft="vibe.draft.value = $event"
                 @submit="submitDraft()"
                 @preview-start="preview.start(vibe.session.value?.project_path || vibe.projectPath.value || '')"
-                @preview-open="preview.openInConstruct()"
-                @preview-stop="preview.stop()"
-                @space-open="openSpaceInConstructDev()"
-              />
+                @preview-open="preview.openInConstruct()" @preview-stop="preview.stop()"
+                @space-open="openSpaceInConstructDev()" />
             </div>
 
             <!-- DIVIDER -->
             <div
               class="w-1 shrink-0 cursor-col-resize group relative flex items-center justify-center hover:bg-[#00ff41]/10 transition-colors"
-              :class="isDragging && 'bg-[#00ff41]/10'"
-              @mousedown="onDividerMouseDown"
-              @dblclick="onDividerDblClick"
-            >
-              <div
-                class="w-px h-full group-hover:w-0.5 rounded-full transition-all"
-                :class="isDragging ? 'w-0.5 bg-[#00ff41]/40' : 'bg-[var(--app-border)]/20 group-hover:bg-[#00ff41]/30'"
-              />
+              :class="isDragging && 'bg-[#00ff41]/10'" @mousedown="onDividerMouseDown" @dblclick="onDividerDblClick">
+              <div class="w-px h-full group-hover:w-0.5 rounded-full transition-all"
+                :class="isDragging ? 'w-0.5 bg-[#00ff41]/40' : 'bg-[var(--app-border)]/20 group-hover:bg-[#00ff41]/30'" />
             </div>
 
             <!-- RIGHT: Activity -->
             <div class="min-h-0 overflow-hidden flex-1 flex flex-col bg-black/10">
-              <VibeActivity
-                :tool-history="vibe.toolHistory.value"
-                :turn="vibe.status.value.turn"
-                :max-turns="vibe.status.value.maxTurns"
-                :is-running="vibe.isRunning.value"
-                @stop="vibe.stop()"
-              />
+              <VibeActivity :tool-history="vibe.toolHistory.value" :turn="vibe.status.value.turn"
+                :max-turns="vibe.status.value.maxTurns" :is-running="vibe.isRunning.value" @stop="vibe.stop()" />
             </div>
           </div>
         </template>

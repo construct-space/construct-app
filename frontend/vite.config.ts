@@ -6,6 +6,62 @@ import Components from 'unplugin-vue-components/vite'
 import { resolve } from 'path'
 import pkg from '../package.json'
 
+const sharedUiComponents = new Set([
+  'Accordion',
+  'Alert',
+  'Autocomplete',
+  'Avatar',
+  'Badge',
+  'Breadcrumbs',
+  'Button',
+  'Calendar',
+  'Card',
+  'Checkbox',
+  'Chip',
+  'ColorPicker',
+  'ContextMenu',
+  'DashboardPanel',
+  'DatePicker',
+  'Drawer',
+  'Dropdown',
+  'DropdownMenu',
+  'DropdownMenuItem',
+  'Empty',
+  'FileInput',
+  'FormField',
+  'Group',
+  'HeaderLayout',
+  'Icon',
+  'Input',
+  'Kbd',
+  'Modal',
+  'MultiSelect',
+  'Notification',
+  'Pagination',
+  'PanelSection',
+  'Popover',
+  'Progress',
+  'PropRow',
+  'RadioGroup',
+  'ScrollArea',
+  'Select',
+  'SelectMenu',
+  'Separator',
+  'SidebarLayout',
+  'Skeleton',
+  'Slideover',
+      'Slider',
+      'Switch',
+      'Tab',
+      'Table',
+      'Tabs',
+      'Textarea',
+      'Timeline',
+      'ToggleGroup',
+      'Tooltip',
+      'Tree',
+])
+
 export default defineConfig({
   root: resolve(__dirname),
   build: {
@@ -17,7 +73,15 @@ export default defineConfig({
     vue(),
     tailwindcss(),
     AutoImport({
-      imports: ['vue', 'vue-router', 'pinia', '@vueuse/core'],
+      imports: [
+        'vue',
+        'vue-router',
+        'pinia',
+        '@vueuse/core',
+        {
+          '@construct-space/ui': ['useNotification', 'notify'],
+        },
+      ],
       ignore: [
         // Local overrides in composables/ take precedence
         'useDateFormat',
@@ -39,12 +103,20 @@ export default defineConfig({
         // In dev, SpaceLoader uses import.meta.glob to load space pages.
         // In prod, spaces ship as self-contained IIFE bundles.
       ],
+      resolvers: [
+        (componentName) => {
+          if (sharedUiComponents.has(componentName)) {
+            return { name: componentName, from: '@construct-space/ui' }
+          }
+        },
+      ],
       dts: 'components.d.ts',
     }),
   ],
   resolve: {
     alias: {
       '@construct/sdk': resolve(__dirname, 'lib/constructSdk.ts'),
+      '@construct-space/ui': resolve(__dirname, 'lib/constructUiRuntime.js'),
       '~': resolve(__dirname, '.'),
       '@': resolve(__dirname, '.'),
     },

@@ -99,7 +99,7 @@ export {
   migratePinnedItems,
 } from '@/composables/useStorage'
 export { useTauriContext } from '@/composables/useTauriContext'
-export { useToast } from '@/composables/useToast'
+export { useNotification } from '@construct-space/ui'
 export { useToolbar } from '@/composables/useToolbar'
 export { useUpdater } from '@/composables/useUpdater'
 export { useUserModule } from '@/composables/useUserModule'
@@ -119,39 +119,8 @@ export {
   resolveSpacePath,
 } from '@/lib/spaceNavigation'
 
-// === UI Components ===
-export { default as Accordion } from '@/components/ui/Accordion.vue'
-export { default as Avatar } from '@/components/ui/Avatar.vue'
-export { default as Badge } from '@/components/ui/Badge.vue'
-export { default as Button } from '@/components/ui/Button.vue'
-export { default as Card } from '@/components/ui/Card.vue'
-export { default as Checkbox } from '@/components/ui/Checkbox.vue'
-export { default as ContextMenu } from '@/components/ui/ContextMenu.vue'
-export { default as DashboardPanel } from '@/components/ui/DashboardPanel.vue'
-export { default as Dropdown } from '@/components/ui/Dropdown.vue'
-export { default as DropdownMenu } from '@/components/ui/DropdownMenu.vue'
-export { default as DropdownMenuItem } from '@/components/ui/DropdownMenuItem.vue'
-export { default as FormField } from '@/components/ui/FormField.vue'
-export { default as Icon } from '@/components/ui/Icon.vue'
-export { default as Input } from '@/components/ui/Input.vue'
-export { default as Modal } from '@/components/ui/Modal.vue'
-export { default as Pagination } from '@/components/ui/Pagination.vue'
-export { default as PanelSection } from '@/components/ui/PanelSection.vue'
-export { default as Popover } from '@/components/ui/Popover.vue'
-export { default as ScrollArea } from '@/components/ui/ScrollArea.vue'
-export { default as Select } from '@/components/ui/Select.vue'
-export { default as SelectMenu } from '@/components/ui/SelectMenu.vue'
-export { default as Slideover } from '@/components/ui/Slideover.vue'
-export { default as Slider } from '@/components/ui/Slider.vue'
-export { default as Switch } from '@/components/ui/Switch.vue'
-export { default as Tabs } from '@/components/ui/Tabs.vue'
-export { default as Textarea } from '@/components/ui/Textarea.vue'
-export { default as Toast } from '@/components/ui/Toast.vue'
-export { default as Tooltip } from '@/components/ui/Tooltip.vue'
-
 // === Common Components ===
 export { default as ConfirmationModal } from '@/components/common/ConfirmationModal.vue'
-export { default as PropRow } from '@/components/ui/PropRow.vue'
 export { default as SplitPane } from '@/components/panels/SplitPane.vue'
 
 // === Space Context Bus ===

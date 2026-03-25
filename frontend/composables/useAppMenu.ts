@@ -19,7 +19,7 @@ const unlisteners: UnlistenFn[] = []
 export function useAppMenu() {
   const route = useRoute()
   const router = useRouter()
-  const toast = useToast()
+  const toast = useNotification()
 
   const ensureFolderAccess = async (folderPath: string): Promise<string | null> => {
     if (!folderPath) return null

@@ -3,6 +3,7 @@
 ## Global Design System
 
 ### Theme Integration
+
 All colors use Construct CSS custom properties. Never hard-code colors.
 
 ```css
@@ -21,6 +22,7 @@ All colors use Construct CSS custom properties. Never hard-code colors.
 ```
 
 ### Typography
+
 - **Page titles:** text-xl font-semibold text-[--c-text-base]
 - **Section headers:** text-lg font-medium text-[--c-text-base]
 - **Body text:** text-sm text-[--c-text-base]
@@ -28,12 +30,14 @@ All colors use Construct CSS custom properties. Never hard-code colors.
 - **Stat values:** text-2xl font-bold text-[--c-text-base]
 
 ### Spacing
+
 - Page padding: p-6
 - Card padding: p-4
 - Card gap in grids: gap-4
 - Section vertical spacing: space-y-6
 
 ### Cards
+
 ```
 bg-[--c-bg-subtle]
 border border-[--c-border]
@@ -43,18 +47,21 @@ shadow-sm (optional, subtle)
 ```
 
 ### Buttons
+
 - **Primary:** bg-[--c-primary] text-white px-4 py-2 rounded-md text-sm font-medium
 - **Secondary:** bg-transparent border border-[--c-border] text-[--c-text-base] px-4 py-2 rounded-md
 - **Danger:** bg-[--c-danger] text-white px-4 py-2 rounded-md
 - **Ghost:** bg-transparent text-[--c-text-subtle] hover:bg-[--c-bg-muted] px-2 py-1 rounded
 
 ### Status Badges
+
 - **Active/Approved:** bg-green-500/15 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full text-xs font-medium
 - **Pending:** bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 ...
 - **Rejected/Inactive:** bg-red-500/15 text-red-600 dark:text-red-400 ...
 - **On Leave:** bg-blue-500/15 text-blue-600 dark:text-blue-400 ...
 
 ### Department Badges
+
 Small colored badge: `bg-[dept.color]/15 text-[dept.color] px-2 py-0.5 rounded-full text-xs font-medium`
 
 ---
@@ -338,17 +345,20 @@ Small colored badge: `bg-[dept.color]/15 text-[dept.color] px-2 py-0.5 rounded-f
 ## Modal/Dialog Patterns
 
 ### EmployeeForm Modal
+
 - Full-width on mobile, max-w-lg centered on desktop
 - Overlay backdrop with bg-black/50
 - Form in a card with header (Add/Edit Employee), body (form fields), footer (Cancel + Save)
 - Fields: 2-column grid on desktop for first/last name, email/phone pairs
 
 ### LeaveRequestForm Modal
+
 - Same modal pattern as EmployeeForm
 - Shows remaining balance inline below the leave type dropdown
 - Date range picker: two date inputs side by side
 
 ### ConfirmDialog
+
 - Smaller modal (max-w-sm)
 - Title, message text, Cancel + Confirm buttons
 - Danger variant: confirm button is red
@@ -361,14 +371,15 @@ Small colored badge: `bg-[dept.color]/15 text-[dept.color] px-2 py-0.5 rounded-f
 - **Modal enter:** Scale from 0.95 + fade in (200ms)
 - **Modal leave:** Scale to 0.95 + fade out (150ms)
 - **Sidebar collapse:** Width transition (200ms ease)
-- **Toast notifications:** Slide in from top-right, auto-dismiss after 3s
+- **Notifications:** Slide in from top-right, auto-dismiss after 3s
 - **Loading skeletons:** Pulse animation on placeholder rectangles while data loads
 
-## Toast Notifications
+## Notifications
 
 Position: fixed top-4 right-4, z-50. Stack vertically with gap-2.
 
 Types:
+
 - **Success:** border-l-4 border-green-500 bg-[--c-bg-subtle]
 - **Error:** border-l-4 border-red-500 bg-[--c-bg-subtle]
 - **Info:** border-l-4 border-blue-500 bg-[--c-bg-subtle]

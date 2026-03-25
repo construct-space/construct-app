@@ -232,7 +232,7 @@ onUnmounted(() => {
     <RouterView v-if="appReady" />
 
     <!-- Global toast notifications -->
-    <Toast />
+    <Notification />
   </div>
 </template>
 

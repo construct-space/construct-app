@@ -47,17 +47,17 @@ export function useUserModule() {
 
   // ===== API COMPOSABLES =====
   const api = useApi()
-  const toast  = useToast()
+  const toast = useNotification()
 
   // ===== EMPLOYEE OPERATIONS =====
-  
+
   /**
    * Fetch all users with optional filters
    */
   const fetchUsers = async (filters: Record<string, unknown> = {}) => {
     state.loading = true
     state.error = null
-    
+
     try {
       const params = new URLSearchParams()
       Object.entries(filters).forEach(([key, value]) => {
@@ -75,7 +75,7 @@ export function useUserModule() {
       toast.add({
         title: 'Error',
         description: state.error,
-       
+
       })
       throw error
     } finally {
@@ -89,7 +89,7 @@ export function useUserModule() {
   const fetchUser = async (id: number) => {
     state.loading = true
     state.error = null
-    
+
     try {
       const user = await api.get<User>(`/users/${id}`)
       state.selectedUser = user
@@ -100,7 +100,7 @@ export function useUserModule() {
       toast.add({
         title: 'Error',
         description: state.error,
-       
+
       })
       throw error
     } finally {
@@ -114,17 +114,17 @@ export function useUserModule() {
   const createUser = async (userData: CreateUserRequest) => {
     state.loading = true
     state.error = null
-    
+
     try {
       const newUser = await api.post<User>('/users', userData)
       state.users.unshift(newUser)
-      
+
       toast.add({
         title: 'Success',
         description: 'User created successfully',
-        
+
       })
-      
+
       return newUser
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : ''
@@ -132,7 +132,7 @@ export function useUserModule() {
       toast.add({
         title: 'Error',
         description: state.error,
-       
+
       })
       throw error
     } finally {
@@ -146,25 +146,25 @@ export function useUserModule() {
   const updateUser = async (id: number, userData: UpdateUserRequest) => {
     state.loading = true
     state.error = null
-    
+
     try {
       const updatedUser = await api.put<User>(`/users/${id}`, userData)
-      
+
       const index = state.users.findIndex((emp: User) => emp.id === id)
       if (index !== -1) {
         state.users[index] = updatedUser
       }
-      
+
       if (state.selectedUser?.id === id) {
         state.selectedUser = updatedUser
       }
-      
+
       toast.add({
         title: 'Success',
         description: 'User updated successfully',
-        
+
       })
-      
+
       return updatedUser
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : ''
@@ -172,7 +172,7 @@ export function useUserModule() {
       toast.add({
         title: 'Error',
         description: state.error,
-       
+
       })
       throw error
     } finally {
@@ -186,19 +186,19 @@ export function useUserModule() {
   const deleteUser = async (id: number) => {
     state.loading = true
     state.error = null
-    
+
     try {
       await api.delete(`/users/${id}`)
-      
+
       state.users = state.users.filter((emp: User) => emp.id !== id)
       if (state.selectedUser?.id === id) {
         state.selectedUser = null
       }
-      
+
       toast.add({
         title: 'Success',
         description: 'User deleted successfully',
-        
+
       })
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : ''
@@ -206,7 +206,7 @@ export function useUserModule() {
       toast.add({
         title: 'Error',
         description: state.error,
-       
+
       })
       throw error
     } finally {
@@ -215,14 +215,14 @@ export function useUserModule() {
   }
 
   // ===== ROLE OPERATIONS =====
-  
+
   /**
    * Fetch all roles
    */
   const fetchRoles = async () => {
     state.loading = true
     state.error = null
-    
+
     try {
       const response = await api.get<Role[] | { data: Role[] }>('/authorization/roles')
       state.roles = Array.isArray(response) ? response : response.data || []
@@ -242,19 +242,19 @@ export function useUserModule() {
   const createRole = async (roleData: RoleCreateRequest) => {
     state.loading = true
     state.error = null
-    
+
     try {
       const newRole = await api.post<Role>('/authorization/roles', roleData)
       // Ensure the role is properly typed
       const typedRole = newRole as Role
       state.roles.unshift(typedRole)
-      
+
       toast.add({
         title: 'Success',
         description: 'Role created successfully',
-        
+
       })
-      
+
       return typedRole
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create role'
@@ -262,7 +262,7 @@ export function useUserModule() {
       toast.add({
         title: 'Error',
         description: state.error,
-       
+
       })
       throw error
     } finally {
@@ -276,21 +276,21 @@ export function useUserModule() {
   const updateRole = async (id: number, roleData: RoleUpdateRequest) => {
     state.loading = true
     state.error = null
-    
+
     try {
       const updatedRole = await api.put<Role>(`/authorization/roles/${id}`, roleData)
-      
+
       const index = state.roles.findIndex(role => role.id === id)
       if (index !== -1) {
         state.roles[index] = updatedRole
       }
-      
+
       toast.add({
         title: 'Success',
         description: 'Role updated successfully',
-        
+
       })
-      
+
       return updatedRole
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : ''
@@ -298,7 +298,7 @@ export function useUserModule() {
       toast.add({
         title: 'Error',
         description: state.error,
-       
+
       })
       throw error
     } finally {
@@ -312,16 +312,16 @@ export function useUserModule() {
   const deleteRole = async (id: number) => {
     state.loading = true
     state.error = null
-    
+
     try {
       await api.delete(`/authorization/roles/${id}`)
-      
+
       state.roles = state.roles.filter(role => role.id !== id)
-      
+
       toast.add({
         title: 'Success',
         description: 'Role deleted successfully',
-        
+
       })
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : ''
@@ -329,7 +329,7 @@ export function useUserModule() {
       toast.add({
         title: 'Error',
         description: state.error,
-       
+
       })
       throw error
     } finally {
@@ -338,14 +338,14 @@ export function useUserModule() {
   }
 
   // ===== PERMISSION OPERATIONS =====
-  
+
   /**
    * Fetch all permissions
    */
   const fetchPermissions = async () => {
     state.loading = true
     state.error = null
-    
+
     try {
       const response = await api.get<Permission[] | { data: Permission[] }>('/authorization/permissions')
       state.permissions = Array.isArray(response) ? response : response.data || []
@@ -369,7 +369,7 @@ export function useUserModule() {
         action,
         resource_id: resourceId
       })
-      
+
       return response.has_permission || false
     } catch (error) {
       console.error('Permission check failed:', error)
@@ -378,7 +378,7 @@ export function useUserModule() {
   }
 
   // ===== COMPUTED PROPERTIES =====
-  
+
   const userOptions = computed(() => {
     return state.users.map((emp: User) => ({
       id: emp.id,
@@ -398,7 +398,7 @@ export function useUserModule() {
   })
 
   // ===== UTILITY FUNCTIONS =====
-  
+
   const setSelectedUser = (user: User | null) => {
     state.selectedUser = user
   }
@@ -425,28 +425,28 @@ export function useUserModule() {
     permissions: computed(() => state.permissions),
     loading: computed(() => state.loading),
     error: computed(() => state.error),
-    
+
     // User operations
     fetchUsers,
     fetchUser,
     createUser,
     updateUser,
     deleteUser,
-    
+
     // Role operations
     fetchRoles,
     createRole,
     updateRole,
     deleteRole,
-    
+
     // Permission operations
     fetchPermissions,
     checkPermission,
-    
+
     // Computed properties
     userOptions: readonly(userOptions),
     roleOptions: readonly(roleOptions),
-    
+
     // Utility functions
     setSelectedUser,
     clearError,

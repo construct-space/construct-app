@@ -43,10 +43,11 @@ bun run dev
 
 ## Spaces
 
-Spaces are the core building block. Each space teleports its icon into the sidebar, toolbar actions into the toolbar, and pages into the main area. Build a space with the SDK:
+Spaces are the core building block. Each space teleports its icon into the sidebar, toolbar actions into the toolbar, and pages into the main area. Build a space with shared UI plus the host SDK:
 
 ```ts
-import { Button, Modal, useToast } from '@construct-space/sdk'
+import { Button, Modal, Notification, useNotification } from '@construct-space/ui'
+import { useToolbar } from '@construct-space/sdk'
 ```
 
 See [docs/guides/building-spaces.md](docs/guides/building-spaces.md).

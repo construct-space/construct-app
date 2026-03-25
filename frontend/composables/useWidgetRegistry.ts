@@ -140,6 +140,7 @@ export function useWidgetRegistry() {
     }
 
     catalog.value = widgets
+    reconcileLayout()
     loading.value = false
   }
 
@@ -158,6 +159,38 @@ export function useWidgetRegistry() {
   // Save layout to localStorage
   function saveLayout() {
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout.value))
+  }
+
+  function reconcileLayout() {
+    let changed = false
+
+    const items = layout.value.items.flatMap((item) => {
+      const def = catalog.value.find(w => w.spaceId === item.spaceId && w.id === item.widgetId)
+      if (!def) {
+        changed = true
+        return []
+      }
+
+      const sizeKey = def.sizes.includes(item.sizeKey)
+        ? item.sizeKey
+        : (def.defaultSize || def.sizes[0])
+      if (!sizeKey) {
+        changed = true
+        return []
+      }
+
+      const { w, h } = parseSize(sizeKey)
+      if (item.sizeKey !== sizeKey || item.w !== w || item.h !== h) {
+        changed = true
+      }
+
+      return [{ ...item, sizeKey, w, h }]
+    })
+
+    if (changed) {
+      layout.value = { ...layout.value, items }
+      saveLayout()
+    }
   }
 
   // Parse size key like "4x2" into { w: 4, h: 2 }

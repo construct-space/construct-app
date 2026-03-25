@@ -6,7 +6,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAgentSession, type RequestBlock } from '@/operator/useAgentSession'
 import AgentView from '@/components/agent/AgentView.vue'
 import AgentInput from '@/components/agent/AgentInput.vue'
-import Slideover from '@/components/ui/Slideover.vue'
+import { Slideover } from '@construct-space/ui'
 
 const session = useAgentSession()
 const { turns, isLoading, statusMessage } = session
@@ -174,22 +174,21 @@ function formatTime(dateStr: string): string {
     <!-- Toolbar right actions -->
     <Teleport to="#toolbar-right">
       <Tooltip text="New chat">
-        <Button icon="i-lucide-plus" variant="ghost" color="neutral" size="xs" class="text-app-muted hover:text-app" @click="startNewChat" />
+        <Button icon="i-lucide-plus" variant="ghost" color="neutral" size="xs" class="text-app-muted hover:text-app"
+          @click="startNewChat" />
       </Tooltip>
       <Tooltip text="Sessions">
-        <Button icon="i-lucide-panel-right" variant="ghost" color="neutral" size="xs" :class="showSessions ? 'text-app-accent' : 'text-app-muted hover:text-app'" @click="showSessions = !showSessions" />
+        <Button icon="i-lucide-panel-right" variant="ghost" color="neutral" size="xs"
+          :class="showSessions ? 'text-app-accent' : 'text-app-muted hover:text-app'"
+          @click="showSessions = !showSessions" />
       </Tooltip>
     </Teleport>
 
     <!-- Chat area -->
     <div class="flex-1 min-h-0 flex justify-center overflow-hidden">
       <div class="w-full max-w-2xl">
-        <AgentView
-          :turns="turns"
-          :is-loading="isLoading"
-          :status-message="statusMessage"
-          @question-answer="handleQuestionAnswer"
-        >
+        <AgentView :turns="turns" :is-loading="isLoading" :status-message="statusMessage"
+          @question-answer="handleQuestionAnswer">
           <template #empty>
             <Icon name="i-lucide-cookie" class="size-12 text-orange-700/30 mb-4" />
             <h2 class="text-xl font-semibold text-orange-200/50 mb-1">Chat</h2>
@@ -211,8 +210,7 @@ function formatTime(dateStr: string): string {
       <div class="p-3 space-y-1">
         <button
           class="w-full rounded-lg px-3 py-2.5 text-xs font-medium text-app hover:bg-white/5 transition flex items-center gap-2 border border-dashed border-app-border"
-          @click="startNewChat"
-        >
+          @click="startNewChat">
           <Icon name="i-lucide-plus" class="size-3.5" />
           New chat
         </button>
@@ -221,21 +219,17 @@ function formatTime(dateStr: string): string {
           No sessions yet
         </div>
 
-        <div
-          v-for="s in sessions"
-          :key="s.id"
+        <div v-for="s in sessions" :key="s.id"
           class="relative w-full rounded-lg px-3 py-2.5 text-left transition group cursor-pointer"
           :class="session.sessionId.value === s.id ? 'bg-orange-500/10 border border-orange-500/20' : 'hover:bg-white/5'"
-          @click="openSession(s.id)"
-        >
+          @click="openSession(s.id)">
           <div class="flex items-center justify-between">
             <span class="text-xs font-medium text-app truncate">{{ s.turnCount }} turns</span>
             <span class="text-[10px] text-app-muted">{{ formatTime(s.updatedAt) }}</span>
           </div>
           <span
             class="absolute top-1 right-1 p-0.5 rounded text-transparent group-hover:text-app-muted hover:!text-red-400 transition cursor-pointer"
-            @click.stop="deleteSessionEntry(s.id)"
-          >
+            @click.stop="deleteSessionEntry(s.id)">
             <Icon name="i-lucide-trash-2" class="size-3" />
           </span>
         </div>

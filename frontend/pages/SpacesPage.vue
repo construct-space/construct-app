@@ -9,7 +9,7 @@
 import { useSpaces } from '@/composables/useSpaces'
 import { useSpaceMarketplace } from '@/composables/useSpaceMarketplace'
 import { usePinnedStore, createSpacePin } from '@/stores/pinned'
-import { useToast } from '@/composables/useToast'
+import { useNotification } from '@construct-space/ui'
 import { getSpace as getSpaceConfig } from '@/config/spaces'
 import {
   Pin, PinOff, ArrowRight, Store,
@@ -21,7 +21,7 @@ const router = useRouter()
 const { spaces, loadSpaces } = useSpaces()
 const marketplace = useSpaceMarketplace()
 const pinnedStore = usePinnedStore()
-const toast = useToast()
+const toast = useNotification()
 
 const openMenu = ref<string | null>(null)
 const confirmUninstall = ref<string | null>(null)
@@ -142,32 +142,27 @@ function openMarketplace() {
       <div class="flex items-center justify-between mb-8">
         <div>
           <p class="text-lg tracking-wide select-none mb-1">
-            <span class="text-[var(--app-muted)] font-normal">CONSTRUCT:</span><span class="font-bold text-[var(--app-foreground)]">SPACES</span>
+            <span class="text-[var(--app-muted)] font-normal">CONSTRUCT:</span><span
+              class="font-bold text-[var(--app-foreground)]">SPACES</span>
           </p>
           <p class="text-sm text-[var(--app-muted)]">All available spaces. Pin your favorites to the sidebar dock.</p>
         </div>
         <div class="flex gap-2">
           <button
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-[var(--app-border)] text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors disabled:opacity-50"
-            :disabled="marketplace.isCheckingUpdates.value"
-            @click.stop="handleCheckUpdates()"
-          >
+            :disabled="marketplace.isCheckingUpdates.value" @click.stop="handleCheckUpdates()">
             <RefreshCw class="size-3" :class="marketplace.isCheckingUpdates.value ? 'animate-spin' : ''" />
             {{ marketplace.isCheckingUpdates.value ? 'Checking...' : 'Check Updates' }}
           </button>
-          <button
-            v-if="updatableSpaces.length > 0"
+          <button v-if="updatableSpaces.length > 0"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-            :disabled="updatingAll"
-            @click.stop="handleUpdateAll()"
-          >
+            :disabled="updatingAll" @click.stop="handleUpdateAll()">
             <Download class="size-3" :class="updatingAll ? 'animate-bounce' : ''" />
             {{ updatingAll ? 'Updating...' : `Update All (${updatableSpaces.length})` }}
           </button>
           <button
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--app-accent)] text-white hover:opacity-90 transition-opacity"
-            @click="openMarketplace"
-          >
+            @click="openMarketplace">
             <Store class="size-3" />
             Browse Marketplace
           </button>
@@ -176,65 +171,50 @@ function openMarketplace() {
 
       <!-- Space grid -->
       <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
-        <div
-          v-for="space in spaceCards"
-          :key="space.name"
-          class="group relative text-left p-5 rounded-xl border transition-all"
-          :class="space.enabled
+        <div v-for="space in spaceCards" :key="space.name"
+          class="group relative text-left p-5 rounded-xl border transition-all" :class="space.enabled
             ? 'border-[var(--app-border)] hover:border-[color-mix(in_srgb,var(--app-accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--app-accent)_3%,transparent)]'
-            : 'border-[var(--app-border)] opacity-50'"
-        >
+            : 'border-[var(--app-border)] opacity-50'">
           <!-- Top-right: 3-dot menu on hover -->
           <div class="absolute top-3 right-3 z-10">
-            <button
-              class="p-1 rounded-md text-[var(--app-muted)] transition-all cursor-pointer"
+            <button class="p-1 rounded-md text-[var(--app-muted)] transition-all cursor-pointer"
               :class="openMenu === space.name ? 'opacity-100 bg-[color-mix(in_srgb,var(--app-muted)_10%,transparent)]' : 'opacity-0 group-hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--app-muted)_10%,transparent)]'"
-              @click.stop="toggleMenu(space.name)"
-            >
+              @click.stop="toggleMenu(space.name)">
               <MoreVertical class="size-4" />
             </button>
 
             <!-- Dropdown menu -->
-            <div
-              v-if="openMenu === space.name"
+            <div v-if="openMenu === space.name"
               class="absolute top-8 right-0 w-44 py-1 rounded-lg border border-[var(--app-border)] bg-[var(--app-background)] shadow-xl z-20"
-              @click.stop
-            >
+              @click.stop>
               <!-- Pin/Unpin -->
               <button
                 class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] transition-colors"
-                @click.stop="togglePin(space); closeMenu()"
-              >
+                @click.stop="togglePin(space); closeMenu()">
                 <component :is="space.isPinned ? PinOff : Pin" class="size-3.5" />
                 {{ space.isPinned ? 'Unpin from sidebar' : 'Pin to sidebar' }}
               </button>
 
               <!-- Enable/Disable (installed spaces only) -->
-              <button
-                v-if="space.isInstalled"
+              <button v-if="space.isInstalled"
                 class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] transition-colors"
-                @click.stop="handleToggle(space)"
-              >
+                @click.stop="handleToggle(space)">
                 <component :is="space.enabled ? ToggleLeft : ToggleRight" class="size-3.5" />
                 {{ space.enabled ? 'Disable' : 'Enable' }}
               </button>
 
               <!-- Check for update -->
-              <button
-                v-if="space.isInstalled"
+              <button v-if="space.isInstalled"
                 class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] transition-colors"
-                @click.stop="handleCheckUpdates(); closeMenu()"
-              >
+                @click.stop="handleCheckUpdates(); closeMenu()">
                 <RefreshCw class="size-3.5" />
                 Check for update
               </button>
 
               <!-- Update (if available) -->
-              <button
-                v-if="space.hasUpdate"
+              <button v-if="space.hasUpdate"
                 class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-amber-400 hover:bg-amber-400/10 transition-colors"
-                @click.stop="handleUpdate(space.name)"
-              >
+                @click.stop="handleUpdate(space.name)">
                 <Download class="size-3.5" />
                 Update to v{{ space.latestVersion }}
               </button>
@@ -243,25 +223,21 @@ function openMarketplace() {
 
               <!-- Uninstall -->
               <template v-if="space.isInstalled">
-                <button
-                  v-if="confirmUninstall !== space.name"
+                <button v-if="confirmUninstall !== space.name"
                   class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-red-400/10 transition-colors"
-                  @click.stop="confirmUninstall = space.name"
-                >
+                  @click.stop="confirmUninstall = space.name">
                   <Trash2 class="size-3.5" />
                   Uninstall
                 </button>
                 <div v-else class="flex items-center gap-1 px-3 py-1.5">
                   <button
                     class="px-2 py-1 rounded text-[10px] font-medium text-red-400 bg-red-400/10 hover:bg-red-400/20 transition-colors"
-                    @click.stop="handleUninstall(space.name)"
-                  >
+                    @click.stop="handleUninstall(space.name)">
                     Confirm uninstall
                   </button>
                   <button
                     class="px-2 py-1 rounded text-[10px] text-[var(--app-muted)] hover:bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] transition-colors"
-                    @click.stop="confirmUninstall = null"
-                  >
+                    @click.stop="confirmUninstall = null">
                     Cancel
                   </button>
                 </div>
@@ -271,37 +247,25 @@ function openMarketplace() {
 
           <!-- Installed badge + version -->
           <div class="flex items-center gap-1.5 mb-3 min-h-[18px]">
-            <span
-              v-if="space.isInstalled"
-              class="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--app-accent)_12%,transparent)] text-[var(--app-accent)]"
-            >
+            <span v-if="space.isInstalled"
+              class="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--app-accent)_12%,transparent)] text-[var(--app-accent)]">
               Installed
             </span>
-            <span
-              v-if="space.version"
-              class="text-[9px] text-[var(--app-muted)] bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] px-1.5 py-0.5 rounded"
-            >
+            <span v-if="space.version"
+              class="text-[9px] text-[var(--app-muted)] bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] px-1.5 py-0.5 rounded">
               v{{ space.version }}
             </span>
-            <button
-              v-if="space.hasUpdate"
+            <button v-if="space.hasUpdate"
               class="text-[9px] font-semibold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded hover:bg-amber-400/20 transition-colors cursor-pointer"
-              @click.stop="handleUpdate(space.name)"
-            >
+              @click.stop="handleUpdate(space.name)">
               Update to v{{ space.latestVersion }}
             </button>
           </div>
 
           <!-- Clickable card body -->
-          <button
-            class="block w-full text-left"
-            @click="navigateToSpace(space.name)"
-          >
+          <button class="block w-full text-left" @click="navigateToSpace(space.name)">
             <!-- Icon -->
-            <div
-              class="size-10 rounded-lg flex items-center justify-center mb-3"
-              :class="space.bg"
-            >
+            <div class="size-10 rounded-lg flex items-center justify-center mb-3" :class="space.bg">
               <Icon :name="space.icon" class="size-5" :class="space.color" />
             </div>
 
@@ -311,7 +275,8 @@ function openMarketplace() {
           </button>
 
           <!-- Navigate arrow -->
-          <ArrowRight class="absolute bottom-4 right-4 size-3.5 text-[var(--app-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+          <ArrowRight
+            class="absolute bottom-4 right-4 size-3.5 text-[var(--app-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </div>
 
@@ -319,8 +284,7 @@ function openMarketplace() {
       <div class="border-t border-[var(--app-border)] pt-8">
         <button
           class="flex items-center gap-3 px-5 py-3.5 rounded-xl border border-dashed border-[var(--app-border)] hover:border-[var(--app-accent)] hover:bg-[color-mix(in_srgb,var(--app-accent)_3%,transparent)] transition-all w-full text-left"
-          @click="openMarketplace"
-        >
+          @click="openMarketplace">
           <Store class="size-5 text-[var(--app-muted)]" />
           <div>
             <p class="text-sm font-medium text-[var(--app-foreground)]">Browse Marketplace</p>

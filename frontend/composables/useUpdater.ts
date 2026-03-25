@@ -48,7 +48,7 @@ export function useUpdater() {
       // Also persist to Tauri store
       import('@/composables/useTauriStore').then(({ getTauriStore }) =>
         getTauriStore().then(s => s?.set(LAST_CHECK_KEY, new Date().toISOString()))
-      ).catch(() => {})
+      ).catch(() => { })
 
       if (update) {
         updateAvailable.value = true
@@ -132,7 +132,7 @@ export function useUpdater() {
     localStorage.setItem(AUTO_CHECK_KEY, String(enabled))
     import('@/composables/useTauriStore').then(({ getTauriStore }) =>
       getTauriStore().then(s => s?.set(AUTO_CHECK_KEY, String(enabled)))
-    ).catch(() => {})
+    ).catch(() => { })
   }
 
   function getLastChecked(): Date | null {
@@ -146,8 +146,8 @@ export function useUpdater() {
     if (!getAutoCheck()) return
     const info = await checkForUpdates()
     if (info) {
-      const { useToast } = await import('@/composables/useToast')
-      const { add } = useToast()
+      const { useNotification } = await import('@construct-space/ui')
+      const { add } = useNotification()
       add({
         title: `Update available: v${info.version}`,
         description: 'A new version of Construct is ready to install.',

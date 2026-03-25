@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { router } from './router'
 import App from './App.vue'
 import './assets/css/main.css'
+import { Icon, Notification } from './lib/constructUiRuntime.js'
 
 // Initialize space host globals early so window.__CONSTRUCT__ is
 // available before any space IIFE bundles are loaded/evaluated.
@@ -12,11 +13,12 @@ initSpaceHost()
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)
+app.component('Icon', Icon)
+app.component('Notification', Notification)
 
-// UI components are NOT registered globally to avoid stack overflow with
-// unplugin-vue-components. Instead, space IIFE bundles import them via
-// @construct/sdk (auto-imported from host-api.ts exports).
-// Host .vue files get them via unplugin-vue-components auto-import.
+// Keep the icon/notification primitives global because they are used pervasively
+// across host-owned views. Other shared UI components resolve through
+// unplugin-vue-components or package imports.
 
 // Initialize auth, then project store, then mount
 import { useAuthStore } from './stores/auth'

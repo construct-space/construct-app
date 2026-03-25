@@ -3,12 +3,10 @@ import { useProviderAuth } from '@/composables/useProviderAuth'
 import { useAIModel } from '@/composables/useAIModel'
 import { useOperator } from '@/operator'
 import { useContextDB } from '@/composables/useContextDB'
-import Input from '@/components/ui/Input.vue'
-import Button from '@/components/ui/Button.vue'
-import Accordion from '@/components/ui/Accordion.vue'
-import { Eye, EyeOff, Check, Cpu, KeyRound, ShieldCheck, ClipboardCopy } from 'lucide-vue-next'
+import { Input, Button, Accordion } from '@construct-space/ui'
+import { Eye, EyeOff, Check, Cpu, ClipboardCopy } from 'lucide-vue-next'
 
-const toast = useToast()
+const toast = useNotification()
 const route = useRoute()
 
 const activeTab = ref<'models' | 'providers' | 'auth'>('models')
@@ -593,18 +591,18 @@ async function logoutAnthropic() {
 }
 
 async function checkOpenAIStatus() {
-	if (!operator.isTauri.value) return
-	try {
-		const result = await operator.send('auth.openai.status', {}) as { authenticated?: boolean }
-		openAIAuthenticated.value = !!result?.authenticated
-	} catch {
-		openAIAuthenticated.value = false
-	}
+  if (!operator.isTauri.value) return
+  try {
+    const result = await operator.send('auth.openai.status', {}) as { authenticated?: boolean }
+    openAIAuthenticated.value = !!result?.authenticated
+  } catch {
+    openAIAuthenticated.value = false
+  }
 }
 
 async function logoutOpenAI() {
-	if (!operator.isTauri.value) return
-	openAIAuthLoading.value = true
+  if (!operator.isTauri.value) return
+  openAIAuthLoading.value = true
   try {
     await operator.send('auth.openai.clear', {})
     openAIAuthenticated.value = false
@@ -615,22 +613,22 @@ async function logoutOpenAI() {
     toast.add({ title: 'Failed to disconnect OpenAI', color: 'error' })
   } finally {
     openAIAuthLoading.value = false
-	}
+  }
 }
 
 onMounted(async () => {
-	try {
+  try {
     await loadCatalog()
     if (route.query.connect === 'oauth' || route.query.connect === 'openai') {
       activeTab.value = 'auth'
     }
-			await refreshOAuthProviders()
-		await providerAuth.checkStatus()
-		await checkOpenAIStatus()
-		await loadKeys()
-	} catch {
-		// silent
-	}
+    await refreshOAuthProviders()
+    await providerAuth.checkStatus()
+    await checkOpenAIStatus()
+    await loadKeys()
+  } catch {
+    // silent
+  }
 })
 </script>
 
@@ -638,335 +636,311 @@ onMounted(async () => {
   <div>
     <!-- Tabs -->
     <div class="flex gap-1 p-1 bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] rounded-lg w-fit mb-6">
-      <button
-        class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
+      <button class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
         :class="activeTab === 'models' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-        @click="activeTab = 'models'"
-      >
+        @click="activeTab = 'models'">
         Models
       </button>
-      <button
-        class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
+      <button class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
         :class="activeTab === 'providers' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-        @click="activeTab = 'providers'"
-      >
+        @click="activeTab = 'providers'">
         Providers
       </button>
-      <button
-        class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
+      <button class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
         :class="activeTab === 'auth' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-        @click="activeTab = 'auth'"
-      >
+        @click="activeTab = 'auth'">
         Auth
       </button>
     </div>
 
     <!-- Models Tab -->
     <template v-if="activeTab === 'models'">
-    <div class="space-y-4">
-      <!-- Current default -->
-      <div class="flex items-center justify-between rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3">
-        <div class="flex items-center gap-3 min-w-0">
-          <Cpu class="size-4 shrink-0 text-[var(--app-muted)]" />
-          <div class="min-w-0">
-            <p class="text-sm font-medium text-[var(--app-foreground)] truncate">{{ defaultModelLabel }}</p>
-            <p class="text-xs text-[var(--app-muted)]">{{ defaultModelSubtext }}</p>
+      <div class="space-y-4">
+        <!-- Current default -->
+        <div
+          class="flex items-center justify-between rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <Cpu class="size-4 shrink-0 text-[var(--app-muted)]" />
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-[var(--app-foreground)] truncate">{{ defaultModelLabel }}</p>
+              <p class="text-xs text-[var(--app-muted)]">{{ defaultModelSubtext }}</p>
+            </div>
+          </div>
+          <div class="flex gap-3 text-xs text-[var(--app-muted)] shrink-0">
+            <span>{{ availableProviderCount }} providers</span>
+            <span>{{ availableModelCount }} models</span>
           </div>
         </div>
-        <div class="flex gap-3 text-xs text-[var(--app-muted)] shrink-0">
-          <span>{{ availableProviderCount }} providers</span>
-          <span>{{ availableModelCount }} models</span>
+
+        <!-- Grouped model list (collapsible) -->
+        <div v-if="availableModelGroups.length > 0"
+          class="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] overflow-hidden">
+          <Accordion :items="accordionItems" type="multiple" :default-value="accordionDefaultValue"
+            :ui="{ trigger: 'flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-[var(--app-foreground)] hover:bg-[var(--app-background)] transition-colors [&[data-state=open]>svg]:rotate-180' }">
+            <template #body="{ item }">
+              <div class="px-4 pb-2">
+                <button v-for="model in availableModelGroups.find(g => g.provider.id === item.value)?.models || []"
+                  :key="model.compositeId"
+                  class="flex items-center justify-between w-full px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer"
+                  :class="resolvedDefaultModelId === model.compositeId
+                    ? 'bg-[var(--app-accent)]/10 text-[var(--app-foreground)]'
+                    : 'text-[var(--app-muted)] hover:bg-[var(--app-background)] hover:text-[var(--app-foreground)]'"
+                  @click="setDefaultModel(model.compositeId)">
+                  <span class="text-sm">{{ model.displayLabel }}</span>
+                  <Check v-if="resolvedDefaultModelId === model.compositeId"
+                    class="size-3.5 text-[var(--app-accent)] shrink-0" />
+                </button>
+              </div>
+            </template>
+          </Accordion>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else
+          class="rounded-lg border border-dashed border-[var(--app-border)] bg-[var(--app-surface)] px-6 py-8 text-center">
+          <p class="text-sm font-medium text-[var(--app-foreground)]">No providers connected</p>
+          <p class="mt-1 text-xs text-[var(--app-muted)]">
+Add an API key or connect Claude Code / Codex to get started.
+          </p>
+          <div class="mt-3 flex justify-center gap-2">
+            <Button size="sm" label="Providers" @click="activeTab = 'providers'" />
+            <Button size="sm" label="Auth" variant="ghost" @click="activeTab = 'auth'" />
+          </div>
         </div>
       </div>
-
-      <!-- Grouped model list (collapsible) -->
-      <div v-if="availableModelGroups.length > 0" class="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] overflow-hidden">
-        <Accordion
-          :items="accordionItems"
-          type="multiple"
-          :default-value="accordionDefaultValue"
-          :ui="{ trigger: 'flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-[var(--app-foreground)] hover:bg-[var(--app-background)] transition-colors [&[data-state=open]>svg]:rotate-180' }"
-        >
-          <template #body="{ item }">
-            <div class="px-4 pb-2">
-              <button
-                v-for="model in availableModelGroups.find(g => g.provider.id === item.value)?.models || []"
-                :key="model.compositeId"
-                class="flex items-center justify-between w-full px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer"
-                :class="resolvedDefaultModelId === model.compositeId
-                  ? 'bg-[var(--app-accent)]/10 text-[var(--app-foreground)]'
-                  : 'text-[var(--app-muted)] hover:bg-[var(--app-background)] hover:text-[var(--app-foreground)]'"
-                @click="setDefaultModel(model.compositeId)"
-              >
-                <span class="text-sm">{{ model.displayLabel }}</span>
-                <Check
-                  v-if="resolvedDefaultModelId === model.compositeId"
-                  class="size-3.5 text-[var(--app-accent)] shrink-0"
-                />
-              </button>
-            </div>
-          </template>
-        </Accordion>
-      </div>
-
-      <!-- Empty state -->
-      <div v-else class="rounded-lg border border-dashed border-[var(--app-border)] bg-[var(--app-surface)] px-6 py-8 text-center">
-        <p class="text-sm font-medium text-[var(--app-foreground)]">No providers connected</p>
-        <p class="mt-1 text-xs text-[var(--app-muted)]">Add an API key or connect Claude Code / Codex to get started.</p>
-        <div class="mt-3 flex justify-center gap-2">
-          <Button size="sm" label="Providers" @click="activeTab = 'providers'" />
-          <Button size="sm" label="Auth" variant="ghost" @click="activeTab = 'auth'" />
-        </div>
-      </div>
-    </div>
     </template>
 
     <!-- Providers Tab -->
     <template v-else-if="activeTab === 'providers'">
-    <div>
-      <h3 class="text-sm font-semibold text-[var(--app-foreground)] mb-1">Provider API Keys</h3>
-      <p class="text-xs text-[var(--app-muted)] mb-2">{{ providers.filter(p => configuredProviders[p.id]).length }} of {{ providers.length }} providers configured</p>
-      <p class="text-xs text-[var(--app-muted)] mb-4">Add API keys to enable additional providers. Keys are stored locally in the operator service.</p>
+      <div>
+        <h3 class="text-sm font-semibold text-[var(--app-foreground)] mb-1">Provider API Keys</h3>
+        <p class="text-xs text-[var(--app-muted)] mb-2">
+{{ providers.filter(p => configuredProviders[p.id]).length }} of
+          {{ providers.length }} providers configured
+</p>
+        <p class="text-xs text-[var(--app-muted)] mb-4">
+Add API keys to enable additional providers. Keys are stored
+          locally in the operator service.
+</p>
 
-      <div class="space-y-3">
-        <div
-          v-for="provider in providers"
-          :key="provider.id"
-          class="p-4 rounded-lg border border-[var(--app-border)]"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <div>
-              <p class="text-sm font-medium text-[var(--app-foreground)]">{{ provider.name }}</p>
-              <p class="text-xs text-[var(--app-muted)]">{{ provider.description }}</p>
-            </div>
-            <span
-              v-if="configuredProviders[provider.id]"
-              class="px-2 py-0.5 text-[10px] rounded-full bg-green-500/10 text-green-500"
-            >
-              Configured
-            </span>
-          </div>
-
-          <div class="flex gap-2">
-            <div class="flex-1 relative">
-              <Input
-                v-model="apiKeys[provider.id]"
-                :type="visibleKeys[provider.id] ? 'text' : 'password'"
-                :placeholder="provider.placeholder"
-                size="sm"
-              />
-              <button
-                v-if="apiKeys[provider.id]"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
-                @click="toggleVisibility(provider.id)"
-              >
-                <component :is="visibleKeys[provider.id] ? EyeOff : Eye" class="size-3.5" />
-              </button>
+        <div class="space-y-3">
+          <div v-for="provider in providers" :key="provider.id"
+            class="p-4 rounded-lg border border-[var(--app-border)]">
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <p class="text-sm font-medium text-[var(--app-foreground)]">{{ provider.name }}</p>
+                <p class="text-xs text-[var(--app-muted)]">{{ provider.description }}</p>
+              </div>
+              <span v-if="configuredProviders[provider.id]"
+                class="px-2 py-0.5 text-[10px] rounded-full bg-green-500/10 text-green-500">
+                Configured
+              </span>
             </div>
 
-            <Button
-              v-if="savedKeys[provider.id]"
-              size="sm"
-              variant="ghost"
-              disabled
-            >
-              <Check class="size-3.5 text-green-500" />
-            </Button>
-            <Button
-              v-else
-              size="sm"
-              :loading="savingKeys[provider.id]"
-              :disabled="!apiKeys[provider.id]?.trim()"
-              label="Save"
-              @click="saveKey(provider)"
-            />
-            <Button
-              v-if="apiKeys[provider.id]"
-              size="sm"
-              variant="ghost"
-              color="error"
-              label="Clear"
-              @click="clearKey(provider)"
-            />
+            <div class="flex gap-2">
+              <div class="flex-1 relative">
+                <Input v-model="apiKeys[provider.id]" :type="visibleKeys[provider.id] ? 'text' : 'password'"
+                  :placeholder="provider.placeholder" size="sm" />
+                <button v-if="apiKeys[provider.id]"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
+                  @click="toggleVisibility(provider.id)">
+                  <component :is="visibleKeys[provider.id] ? EyeOff : Eye" class="size-3.5" />
+                </button>
+              </div>
+
+              <Button v-if="savedKeys[provider.id]" size="sm" variant="ghost" disabled>
+                <Check class="size-3.5 text-green-500" />
+              </Button>
+              <Button v-else size="sm" :loading="savingKeys[provider.id]" :disabled="!apiKeys[provider.id]?.trim()"
+                label="Save" @click="saveKey(provider)" />
+              <Button v-if="apiKeys[provider.id]" size="sm" variant="ghost" color="error" label="Clear"
+                @click="clearKey(provider)" />
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </template>
 
     <!-- Auth Tab -->
     <template v-else-if="activeTab === 'auth'">
-    <div class="space-y-6">
-<!-- Claude Max OAuth -->
-    <div>
-      <div class="flex items-center justify-between mb-4">
+      <div class="space-y-6">
+        <!-- Claude Max OAuth -->
         <div>
-          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Claude Code Authentication</h3>
-          <p class="text-xs text-[var(--app-muted)]">Use Claude Code CLI tokens for Anthropic models</p>
-        </div>
-        <span
-          class="px-2 py-0.5 text-xs rounded-full"
-          :class="providerAuth.isAuthenticated.value ? 'bg-green-500/10 text-green-500' : 'bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]'"
-        >
-          {{ providerAuth.isAuthenticated.value ? 'Connected' : 'Not Connected' }}
-        </span>
-      </div>
-
-      <!-- Connected state -->
-      <div v-if="providerAuth.isAuthenticated.value" class="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+          <div class="flex items-center justify-between mb-4">
             <div>
-              <p class="text-sm font-medium text-[var(--app-foreground)]">Claude Code Connected</p>
-              <p class="text-xs text-[var(--app-muted)]">Using tokens from Claude Code CLI</p>
+              <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Claude Code Authentication</h3>
+              <p class="text-xs text-[var(--app-muted)]">Use Claude Code CLI tokens for Anthropic models</p>
             </div>
+            <span class="px-2 py-0.5 text-xs rounded-full"
+              :class="providerAuth.isAuthenticated.value ? 'bg-green-500/10 text-green-500' : 'bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]'">
+              {{ providerAuth.isAuthenticated.value ? 'Connected' : 'Not Connected' }}
+            </span>
           </div>
-          <Button variant="ghost" color="error" size="sm" label="Disconnect" @click="logoutAnthropic" />
-        </div>
-      </div>
 
-      <!-- Login button -->
-      <div v-else class="p-4 rounded-lg border border-[var(--app-border)]">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-[var(--app-foreground)]">Connect your Claude Pro or Max subscription</p>
-            <p class="text-xs text-[var(--app-muted)] mt-1">Uses tokens from Claude Code (must be installed and authenticated)</p>
-          </div>
-          <Button :loading="providerAuth.isLoading.value" label="Use Claude Code" @click="useClaudeCodeTokens" />
-        </div>
-      </div>
-    </div>
-
-    <!-- OpenAI OAuth -->
-    <div>
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Codex Authentication</h3>
-          <p class="text-xs text-[var(--app-muted)]">Authenticate with Codex CLI for OpenAI model access</p>
-        </div>
-        <span
-          class="px-2 py-0.5 text-xs rounded-full"
-          :class="openAIAuthenticated ? 'bg-green-500/10 text-green-500' : 'bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]'"
-        >
-          {{ openAIAuthenticated ? 'Connected' : 'Not Connected' }}
-        </span>
-      </div>
-
-      <!-- Connected -->
-      <div v-if="openAIAuthenticated" class="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-            <div>
-              <p class="text-sm font-medium text-[var(--app-foreground)]">Codex Connected</p>
-              <p class="text-xs text-[var(--app-muted)]">Using tokens from Codex CLI</p>
-            </div>
-          </div>
-          <Button variant="ghost" color="error" size="sm" label="Disconnect" :loading="openAIAuthLoading" @click="logoutOpenAI" />
-        </div>
-      </div>
-
-      <!-- Login button -->
-      <div v-else class="p-4 rounded-lg border border-[var(--app-border)]">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-[var(--app-foreground)]">Connect via Codex CLI</p>
-            <p class="text-xs text-[var(--app-muted)] mt-1">Uses tokens from Codex CLI (must be installed and authenticated)</p>
-          </div>
-          <Button :loading="openAIAuthLoading" label="Use Codex" @click="useCodexTokens" />
-        </div>
-      </div>
-    </div>
-    <!-- Additional OAuth Providers -->
-    <div class="border-t border-[var(--app-border)] pt-6 mt-2">
-      <h3 class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Direct OAuth Login</h3>
-      <p class="text-xs text-[var(--app-muted)] mb-4">Login directly with your subscription — no CLI required. Opens browser to authenticate.</p>
-
-      <!-- GitHub CLI detected prompt -->
-      <div v-if="ghCheck" class="mb-4 p-4 rounded-lg border border-green-500/30 bg-green-500/5">
-        <p class="text-sm font-medium text-[var(--app-foreground)] mb-2">
-          You are logged in to GitHub as <span class="font-bold text-green-400">{{ ghCheck.username }}</span>. Use this account?
-        </p>
-        <div class="flex gap-2 mt-3">
-          <button
-            class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-500 transition-colors"
-            @click="acceptGhAuth"
-          >
-            Yes, connect
-          </button>
-          <button
-            class="px-4 py-2 rounded-lg border border-[var(--app-border)] text-sm text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] transition-colors"
-            @click="declineGhAuth"
-          >
-            No, use device code
-          </button>
-        </div>
-      </div>
-
-      <!-- Device code prompt (GitHub Copilot) -->
-      <div v-if="deviceCode" class="mb-4 p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5">
-        <p class="text-sm font-medium text-[var(--app-foreground)] mb-2">Enter this code on GitHub:</p>
-        <div class="flex items-center justify-center gap-3 py-3">
-          <p class="text-2xl font-mono font-bold tracking-[0.3em] text-yellow-400">{{ deviceCode.code }}</p>
-          <button
-            class="p-2 rounded-lg border border-[var(--app-border)] hover:bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] transition-colors"
-            title="Copy code"
-            @click="copyDeviceCode"
-          >
-            <ClipboardCopy class="size-4 text-[var(--app-muted)]" />
-          </button>
-        </div>
-        <p class="text-xs text-[var(--app-muted)] text-center mb-3">Waiting for authorization...</p>
-        <div class="flex justify-center">
-          <button
-            class="text-xs text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
-            @click="cancelDeviceCode"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-
-      <div class="space-y-3">
-        <div
-          v-for="oauthProvider in oauthProviders"
-          :key="oauthProvider.id"
-          class="p-4 rounded-lg border transition-colors"
-          :class="oauthProvider.connected ? 'bg-green-500/5 border-green-500/20' : 'border-[var(--app-border)]'"
-        >
           <!-- Connected state -->
-          <div v-if="oauthProvider.connected && !oauthLoading[oauthProvider.id]" class="flex items-center justify-between">
-            <div class="flex items-center gap-3 min-w-0">
-              <svg class="w-5 h-5 text-green-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-              <div class="min-w-0">
-                <p class="text-sm font-medium text-[var(--app-foreground)]">{{ oauthProvider.name }}</p>
-                <p v-if="oauthProvider.email" class="text-xs text-[var(--app-muted)]">{{ oauthProvider.email }}</p>
-                <p v-else class="text-xs text-[var(--app-muted)]">Connected</p>
+          <div v-if="providerAuth.isAuthenticated.value"
+            class="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                <div>
+                  <p class="text-sm font-medium text-[var(--app-foreground)]">Claude Code Connected</p>
+                  <p class="text-xs text-[var(--app-muted)]">Using tokens from Claude Code CLI</p>
+                </div>
+              </div>
+              <Button variant="ghost" color="error" size="sm" label="Disconnect" @click="logoutAnthropic" />
+            </div>
+          </div>
+
+          <!-- Login button -->
+          <div v-else class="p-4 rounded-lg border border-[var(--app-border)]">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-[var(--app-foreground)]">Connect your Claude Pro or Max subscription</p>
+                <p class="text-xs text-[var(--app-muted)] mt-1">
+Uses tokens from Claude Code (must be installed and
+                  authenticated)
+</p>
+              </div>
+              <Button :loading="providerAuth.isLoading.value" label="Use Claude Code" @click="useClaudeCodeTokens" />
+            </div>
+          </div>
+        </div>
+
+        <!-- OpenAI OAuth -->
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Codex Authentication</h3>
+              <p class="text-xs text-[var(--app-muted)]">Authenticate with Codex CLI for OpenAI model access</p>
+            </div>
+            <span class="px-2 py-0.5 text-xs rounded-full"
+              :class="openAIAuthenticated ? 'bg-green-500/10 text-green-500' : 'bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]'">
+              {{ openAIAuthenticated ? 'Connected' : 'Not Connected' }}
+            </span>
+          </div>
+
+          <!-- Connected -->
+          <div v-if="openAIAuthenticated" class="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                <div>
+                  <p class="text-sm font-medium text-[var(--app-foreground)]">Codex Connected</p>
+                  <p class="text-xs text-[var(--app-muted)]">Using tokens from Codex CLI</p>
+                </div>
+              </div>
+              <Button variant="ghost" color="error" size="sm" label="Disconnect" :loading="openAIAuthLoading"
+                @click="logoutOpenAI" />
+            </div>
+          </div>
+
+          <!-- Login button -->
+          <div v-else class="p-4 rounded-lg border border-[var(--app-border)]">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-[var(--app-foreground)]">Connect via Codex CLI</p>
+                <p class="text-xs text-[var(--app-muted)] mt-1">
+Uses tokens from Codex CLI (must be installed and
+                  authenticated)
+</p>
+              </div>
+              <Button :loading="openAIAuthLoading" label="Use Codex" @click="useCodexTokens" />
+            </div>
+          </div>
+        </div>
+        <!-- Additional OAuth Providers -->
+        <div class="border-t border-[var(--app-border)] pt-6 mt-2">
+          <h3 class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Direct OAuth Login</h3>
+          <p class="text-xs text-[var(--app-muted)] mb-4">
+Login directly with your subscription — no CLI required. Opens
+            browser to authenticate.
+</p>
+
+          <!-- GitHub CLI detected prompt -->
+          <div v-if="ghCheck" class="mb-4 p-4 rounded-lg border border-green-500/30 bg-green-500/5">
+            <p class="text-sm font-medium text-[var(--app-foreground)] mb-2">
+              You are logged in to GitHub as <span class="font-bold text-green-400">{{ ghCheck.username }}</span>. Use
+              this account?
+            </p>
+            <div class="flex gap-2 mt-3">
+              <button
+                class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-500 transition-colors"
+                @click="acceptGhAuth">
+                Yes, connect
+              </button>
+              <button
+                class="px-4 py-2 rounded-lg border border-[var(--app-border)] text-sm text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] transition-colors"
+                @click="declineGhAuth">
+                No, use device code
+              </button>
+            </div>
+          </div>
+
+          <!-- Device code prompt (GitHub Copilot) -->
+          <div v-if="deviceCode" class="mb-4 p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5">
+            <p class="text-sm font-medium text-[var(--app-foreground)] mb-2">Enter this code on GitHub:</p>
+            <div class="flex items-center justify-center gap-3 py-3">
+              <p class="text-2xl font-mono font-bold tracking-[0.3em] text-yellow-400">{{ deviceCode.code }}</p>
+              <button
+                class="p-2 rounded-lg border border-[var(--app-border)] hover:bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] transition-colors"
+                title="Copy code" @click="copyDeviceCode">
+                <ClipboardCopy class="size-4 text-[var(--app-muted)]" />
+              </button>
+            </div>
+            <p class="text-xs text-[var(--app-muted)] text-center mb-3">Waiting for authorization...</p>
+            <div class="flex justify-center">
+              <button class="text-xs text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
+                @click="cancelDeviceCode">
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div v-for="oauthProvider in oauthProviders" :key="oauthProvider.id"
+              class="p-4 rounded-lg border transition-colors"
+              :class="oauthProvider.connected ? 'bg-green-500/5 border-green-500/20' : 'border-[var(--app-border)]'">
+              <!-- Connected state -->
+              <div v-if="oauthProvider.connected && !oauthLoading[oauthProvider.id]"
+                class="flex items-center justify-between">
+                <div class="flex items-center gap-3 min-w-0">
+                  <svg class="w-5 h-5 text-green-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-[var(--app-foreground)]">{{ oauthProvider.name }}</p>
+                    <p v-if="oauthProvider.email" class="text-xs text-[var(--app-muted)]">{{ oauthProvider.email }}</p>
+                    <p v-else class="text-xs text-[var(--app-muted)]">Connected</p>
+                  </div>
+                </div>
+                <Button variant="ghost" color="error" size="sm" label="Disconnect"
+                  @click="disconnectOAuthProvider(oauthProvider.id)" />
+              </div>
+
+              <!-- Disconnected / loading state -->
+              <div v-else class="flex items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-[var(--app-foreground)]">{{ oauthProvider.name }}</p>
+                  <p class="text-xs text-[var(--app-muted)] mt-0.5">{{ oauthProvider.description }}</p>
+                </div>
+                <Button class="shrink-0 self-start" size="sm" label="Login" :loading="oauthLoading[oauthProvider.id]"
+                  :disabled="oauthLoading[oauthProvider.id]" @click="startOAuthLogin(oauthProvider.id)" />
               </div>
             </div>
-            <Button variant="ghost" color="error" size="sm" label="Disconnect" @click="disconnectOAuthProvider(oauthProvider.id)" />
-          </div>
-
-          <!-- Disconnected / loading state -->
-          <div v-else class="flex items-start justify-between gap-3">
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-[var(--app-foreground)]">{{ oauthProvider.name }}</p>
-              <p class="text-xs text-[var(--app-muted)] mt-0.5">{{ oauthProvider.description }}</p>
-            </div>
-            <Button
-              class="shrink-0 self-start"
-              size="sm"
-              label="Login"
-              :loading="oauthLoading[oauthProvider.id]"
-              :disabled="oauthLoading[oauthProvider.id]"
-              @click="startOAuthLogin(oauthProvider.id)"
-            />
           </div>
         </div>
       </div>
-    </div>
-</div>
     </template>
   </div>
 </template>

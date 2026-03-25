@@ -38,11 +38,8 @@ function handleItemClick(item: { id: string; onClick?: () => void; to?: string; 
 <template>
   <div class="relative h-11 select-none ml-[22px] mr-[22px] mt-3 perspective-[1000px]" @contextmenu.prevent>
     <!-- Rotating Container -->
-    <div
-      class="w-full h-full relative transform-3d"
-      :class="isRotating ? 'transition-transform duration-500 ease-in' : ''"
-      :style="{ transform: rotationTransform }"
-    >
+    <div class="w-full h-full relative transform-3d"
+      :class="isRotating ? 'transition-transform duration-500 ease-in' : ''" :style="{ transform: rotationTransform }">
       <!-- Front Panel -->
       <div
         class="toolbar-panel absolute inset-0 w-full h-11 px-4 flex items-center gap-2 rounded-r-xl border border-[var(--app-border)] bg-[var(--app-surface)]"
@@ -56,15 +53,11 @@ function handleItemClick(item: { id: string; onClick?: () => void; to?: string; 
 
         <!-- Separator before toolbar items -->
         <template v-if="toolbarItems.length">
-          <div class="w-px h-5 bg-[var(--app-border)]" />
+          <!-- <div class="w-px h-5 bg-[var(--app-border)]" /> -->
 
           <div class="flex items-center gap-0.5">
-            <Tooltip
-              v-for="item in toolbarItems" :key="item.id" :text="item.label">
-              <button
-                class="toolbar-btn"
-                :class="item.active ? 'active' : ''"
-                @click="handleItemClick(item)">
+            <Tooltip v-for="item in toolbarItems" :key="item.id" :text="item.label">
+              <button class="toolbar-btn" :class="item.active ? 'active' : ''" @click="handleItemClick(item)">
                 <Icon :name="item.icon" class="size-4" />
               </button>
             </Tooltip>
@@ -92,12 +85,8 @@ function handleItemClick(item: { id: string; onClick?: () => void; to?: string; 
           <div class="w-px h-5 bg-[var(--app-border)]" />
 
           <div class="flex items-center gap-0.5">
-            <Tooltip
-              v-for="item in bottomToolbarItems" :key="item.id" :text="item.label">
-              <button
-                class="toolbar-btn"
-                :class="item.active ? 'active' : ''"
-                @click="handleItemClick(item)">
+            <Tooltip v-for="item in bottomToolbarItems" :key="item.id" :text="item.label">
+              <button class="toolbar-btn" :class="item.active ? 'active' : ''" @click="handleItemClick(item)">
                 <Icon :name="item.icon" class="size-4" />
               </button>
             </Tooltip>
@@ -115,9 +104,11 @@ function handleItemClick(item: { id: string; onClick?: () => void; to?: string; 
   backface-visibility: hidden;
   transform: translateZ(22px);
 }
+
 .toolbar-panel--bottom {
   transform: rotateX(-90deg) translateZ(22px);
 }
+
 .toolbar-btn {
   display: inline-flex;
   align-items: center;
@@ -131,10 +122,12 @@ function handleItemClick(item: { id: string; onClick?: () => void; to?: string; 
   background: transparent;
   color: var(--app-muted);
 }
+
 .toolbar-btn:hover {
   background: var(--app-input-bg);
   color: var(--app-foreground);
 }
+
 .toolbar-btn.active {
   background: color-mix(in srgb, var(--app-accent) 15%, transparent);
   color: var(--app-accent);

@@ -8,15 +8,27 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
-      "@construct/sdk": ["./lib/constructSdk.ts"],
-      "~/*": ["./*"],
-      "@/*": ["./*"]
+      "@construct/sdk": [
+        "./lib/constructSdk.ts"
+      ],
+      "~/*": [
+        "./*"
+      ],
+      "@/*": [
+        "./*"
+      ]
     },
-    "types": ["vite/client"]
+    "types": [
+      "vite/client"
+    ]
   },
   "include": [
     "**/*.ts",
@@ -24,5 +36,9 @@
     "**/*.tsx",
     "**/*.vue"
   ],
-  "exclude": ["node_modules", "dist", "**/__tests__/**"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/__tests__/**"
+  ]
 }

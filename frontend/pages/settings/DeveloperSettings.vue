@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import Button from '@/components/ui/Button.vue'
-import Switch from '@/components/ui/Switch.vue'
+import { Button, Switch, Tabs, Tab } from '@construct-space/ui'
 import { useDevMode } from '@/composables/useDevMode'
 import { useProjectStore } from '@/stores/project'
 import { useProjectDirectory } from '@/composables/useProjectDirectory'
@@ -13,7 +12,7 @@ interface RuntimeInfo {
   installAction?: () => void
 }
 
-const toast = useToast()
+const toast = useNotification()
 const { isDeveloperMode, isEnrollmentPending, isEnrolled, developerStatus, disableUpdates, requestEnrollment, refreshStatus, setDisableUpdates } = useDevMode()
 const activeTab = ref<'developer' | 'environment' | 'projects'>('developer')
 const enrolling = ref(false)
@@ -219,7 +218,8 @@ async function detectRuntimes() {
         <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-green-500/15 text-green-500">Enrolled</span>
       </div>
       <div v-else-if="isEnrollmentPending" class="flex items-center gap-2">
-        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500">Pending Review</span>
+        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500">Pending
+          Review</span>
         <Button variant="soft" size="xs" :loading="refreshing" label="Refresh" @click="handleRefresh" />
       </div>
       <Button v-else variant="soft" :loading="enrolling" label="Enroll as Developer" @click="handleEnroll" />
@@ -227,8 +227,13 @@ async function detectRuntimes() {
 
     <!-- Not enrolled -->
     <div v-if="!isDeveloperMode && !isEnrollmentPending" class="py-8 text-center">
-      <p class="text-sm text-[var(--app-muted)] mb-2">Enroll as a developer to access projects, CLI tools, and space development features.</p>
-      <p class="text-xs text-[var(--app-muted)]">Your account must be approved before developer tools become available.</p>
+      <p class="text-sm text-[var(--app-muted)] mb-2">
+        Enroll as a developer to access projects, CLI tools, and space
+        development features.
+      </p>
+      <p class="text-xs text-[var(--app-muted)]">
+        Your account must be approved before developer tools become available.
+      </p>
     </div>
 
     <!-- Pending -->
@@ -238,34 +243,9 @@ async function detectRuntimes() {
 
     <!-- Enabled: tabs + content -->
     <template v-if="isDeveloperMode">
-      <!-- Tabs -->
-      <div class="flex gap-1 p-1 bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] rounded-lg w-fit">
-        <button
-          class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
-          :class="activeTab === 'developer' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-          @click="activeTab = 'developer'"
-        >
-Developer
-</button>
-        <button
-          class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
-          :class="activeTab === 'environment' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-          @click="activeTab = 'environment'"
-        >
-Environment
-</button>
-        <button
-          class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
-          :class="activeTab === 'projects' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-          @click="activeTab = 'projects'"
-        >
-Projects
-</button>
-      </div>
-
-      <!-- ═══ Developer Tab ═══ -->
-      <template v-if="activeTab === 'developer'">
-        <div class="space-y-0">
+      <Tabs v-model="activeTab" variant="segmented">
+        <Tab label="Developer" value="developer">
+          <div class="space-y-0">
           <div class="flex items-center justify-between py-3 border-b border-app">
             <div>
               <p class="text-sm font-medium text-app">Construct DEV</p>
@@ -290,7 +270,10 @@ Projects
               <p class="text-sm font-medium text-app">Construct CLI</p>
               <p class="text-xs text-app-muted">
                 <template v-if="cliInstalled">Installed — <span class="font-mono">{{ cliVersion }}</span></template>
-                <template v-else-if="detectedPM">Install via <span class="font-mono">{{ detectedPM.name }}</span> — build, dev, and publish spaces</template>
+                <template v-else-if="detectedPM">
+                  Install via <span class="font-mono">{{ detectedPM.name }}</span> —
+                  build, dev, and publish spaces
+                </template>
                 <template v-else>No package manager found</template>
               </p>
             </div>
@@ -318,35 +301,32 @@ Projects
             </div>
             <span class="text-sm text-app-muted font-mono">v{{ appVersion }}</span>
           </div>
-        </div>
-      </template>
+          </div>
+        </Tab>
 
-      <!-- ═══ Environment Tab ═══ -->
-      <template v-else-if="activeTab === 'environment'">
-        <div v-if="detecting" class="text-sm text-app-muted py-4">Detecting runtimes...</div>
-        <div v-else class="space-y-0">
-          <div
-            v-for="rt in runtimes"
-            :key="rt.label"
-            class="flex items-center justify-between py-3 border-b border-app"
-          >
+        <Tab label="Environment" value="environment">
+          <div v-if="detecting" class="py-4 text-sm text-app-muted">Detecting runtimes...</div>
+          <div v-else class="space-y-0">
+          <div v-for="rt in runtimes" :key="rt.label"
+            class="flex items-center justify-between py-3 border-b border-app">
             <div class="flex items-center gap-2">
               <span class="size-2 rounded-full" :class="rt.status === 'ok' ? 'bg-green-500' : 'bg-red-400'" />
               <p class="text-sm font-medium text-app">{{ rt.label }}</p>
             </div>
             <div class="flex items-center gap-3">
               <span class="text-sm text-app-muted font-mono">{{ rt.value }}</span>
-              <Button v-if="rt.installAction" variant="soft" size="xs" :loading="installing === rt.label.toLowerCase()" label="Install" @click="rt.installAction" />
+              <Button v-if="rt.installAction" variant="soft" size="xs" :loading="installing === rt.label.toLowerCase()"
+                label="Install" @click="rt.installAction" />
             </div>
           </div>
-        </div>
-      </template>
+          </div>
+        </Tab>
 
-      <!-- ═══ Projects Tab ═══ -->
-      <template v-else-if="activeTab === 'projects'">
-        <div>
+        <Tab label="Projects" value="projects">
+          <div>
           <div class="flex items-center gap-3 mb-4">
-            <div class="flex-1 px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-background)] text-sm text-[var(--app-foreground)] font-mono truncate">
+            <div
+              class="flex-1 px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-background)] text-sm text-[var(--app-foreground)] font-mono truncate">
               {{ projectStore.projectsRoot || '~/ConstructProjects' }}
             </div>
             <Button variant="soft" size="sm" @click="changeProjectsRoot">
@@ -360,18 +340,20 @@ Projects
             <button class="text-xs text-app-accent hover:underline" @click="addExternalPath">+ Add</button>
           </div>
 
-          <div v-if="projectStore.projects.filter(p => p.is_external).length === 0" class="text-xs text-[var(--app-muted)]">
+          <div v-if="projectStore.projects.filter(p => p.is_external).length === 0"
+            class="text-xs text-[var(--app-muted)]">
             No external project directories added
           </div>
           <div v-else class="space-y-2">
-            <div v-for="project in projectStore.projects.filter(p => p.is_external)" :key="project.id" class="p-3 rounded-lg border border-[var(--app-border)] text-sm">
+            <div v-for="project in projectStore.projects.filter(p => p.is_external)" :key="project.id"
+              class="p-3 rounded-lg border border-[var(--app-border)] text-sm">
               <p class="font-medium text-[var(--app-foreground)]">{{ project.name }}</p>
               <p class="text-xs text-[var(--app-muted)] font-mono truncate">{{ project.path }}</p>
             </div>
           </div>
-        </div>
-      </template>
+          </div>
+        </Tab>
+      </Tabs>
     </template>
-
   </div>
 </template>

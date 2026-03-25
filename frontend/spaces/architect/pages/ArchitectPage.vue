@@ -109,24 +109,16 @@ function startVibe() {
   <div class="flex flex-col h-full bg-app">
     <!-- Header -->
     <div class="shrink-0 flex items-center justify-between px-4 py-2 border-b border-app">
-      <div class="flex items-center gap-2">
-        <Icon name="i-lucide-drafting-compass" class="size-4 text-app-accent" />
-        <span class="text-sm font-medium text-app">Architect</span>
-        <span v-if="currentProject" class="text-xs text-app-muted">· {{ currentProject.name }}</span>
-      </div>
-      <div v-if="docsWritten && !isLoading" class="flex items-center gap-2">
-        <button
-          v-if="detectedProjectPath"
+<div v-if="docsWritten && !isLoading" class="flex items-center gap-2">
+        <button v-if="detectedProjectPath"
           class="rounded-lg border border-app-border px-3 py-1.5 text-xs font-medium text-app transition hover:bg-white/5"
-          @click="router.push({ path: '/app/projects', query: { open: detectedProjectPath } })"
-        >
+          @click="router.push({ path: '/app/projects', query: { open: detectedProjectPath } })">
           <Icon name="i-lucide-folder-open" class="size-3 inline mr-1" />
           Open Project
         </button>
         <button
           class="rounded-lg bg-app-accent px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-app-accent/80"
-          @click="startVibe"
-        >
+          @click="startVibe">
           <Icon name="i-lucide-zap" class="size-3 inline mr-1" />
           Start Vibe
         </button>
@@ -135,12 +127,8 @@ function startVibe() {
 
     <!-- Agent view -->
     <div class="flex-1 min-h-0">
-      <AgentView
-        :turns="turns"
-        :is-loading="isLoading"
-        :status-message="statusMessage"
-        @question-answer="handleQuestionAnswer"
-      >
+      <AgentView :turns="turns" :is-loading="isLoading" :status-message="statusMessage"
+        @question-answer="handleQuestionAnswer">
         <template #empty>
           <Icon name="i-lucide-drafting-compass" class="size-12 text-blue-400/30 mb-4" />
           <h2 class="text-xl font-semibold text-app mb-1">Architect</h2>
@@ -153,12 +141,7 @@ function startVibe() {
 
     <!-- Input -->
     <div class="shrink-0 px-4 py-3 border-t border-app">
-      <AgentInput
-        :placeholder="inputPlaceholder"
-        :loading="isLoading"
-        @send="handleSend"
-        @stop="session.stop()"
-      />
+      <AgentInput :placeholder="inputPlaceholder" :loading="isLoading" @send="handleSend" @stop="session.stop()" />
     </div>
   </div>
 </template>

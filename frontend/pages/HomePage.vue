@@ -6,7 +6,7 @@ import { useWidgetRegistry } from '@/composables/useWidgetRegistry'
 const { loadSpaces } = useSpaces()
 const widgetRegistry = useWidgetRegistry()
 const showWidgetPicker = ref(false)
-const toast = useToast()
+const toast = useNotification()
 
 function handleAddWidget(spaceId: string, widgetId: string, sizeKey: string) {
   const added = widgetRegistry.addWidget(spaceId, widgetId, sizeKey)
@@ -53,28 +53,15 @@ onMounted(async () => {
 
       <!-- Space Widgets Grid (12×8) — user-customizable -->
       <div>
-        <HomeGrid
-          :items="widgetRegistry.layout.value.items"
-          :grid-cols="widgetRegistry.GRID_COLS"
-          :grid-rows="widgetRegistry.SPACE_ROWS"
-          :get-component="widgetRegistry.getWidgetComponent"
-          :available-sizes="widgetRegistry.getWidgetSizes"
-          @remove="handleRemoveWidget"
-          @resize="handleResizeWidget"
-          @swap="handleSwapWidgets"
-          @move="handleMoveWidget"
-          @move-resize="handleMoveResize"
-          @add-widget="showWidgetPicker = true"
-        />
+        <HomeGrid :items="widgetRegistry.layout.value.items" :grid-cols="widgetRegistry.GRID_COLS"
+          :grid-rows="widgetRegistry.SPACE_ROWS" :get-component="widgetRegistry.getWidgetComponent"
+          :available-sizes="widgetRegistry.getWidgetSizes" @remove="handleRemoveWidget" @resize="handleResizeWidget"
+          @swap="handleSwapWidgets" @move="handleMoveWidget" @move-resize="handleMoveResize"
+          @add-widget="showWidgetPicker = true" />
       </div>
     </div>
 
     <!-- Widget Picker Modal -->
-    <WidgetPicker
-      v-model:open="showWidgetPicker"
-      :widgets="widgetRegistry.catalog.value"
-      @add="handleAddWidget"
-    />
+    <WidgetPicker v-model:open="showWidgetPicker" :widgets="widgetRegistry.catalog.value" @add="handleAddWidget" />
   </div>
 </template>
-

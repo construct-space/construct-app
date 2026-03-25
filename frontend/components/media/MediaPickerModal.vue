@@ -7,29 +7,21 @@
           <p class="text-sm text-[var(--app-muted)]">Choose a file from your media library</p>
           <!-- Breadcrumb Navigation -->
           <nav class="flex items-center gap-1 text-sm mt-1" aria-label="Breadcrumb">
-            <button
-              class="text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
-              @click="navigateToFolder(null)"
-            >
+            <button class="text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
+              @click="navigateToFolder(null)">
               <Icon name="i-lucide-home" class="w-4 h-4" />
             </button>
             <template v-for="(crumb, index) in breadcrumbs" :key="crumb.id">
               <Icon name="i-lucide-chevron-right" class="w-4 h-4 text-[var(--app-muted)]" />
-              <button
-                class="text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
+              <button class="text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
                 :class="{ 'font-medium text-[var(--app-foreground)]': index === breadcrumbs.length - 1 }"
-                @click="navigateToFolder(crumb.id)"
-              >
+                @click="navigateToFolder(crumb.id)">
                 {{ crumb.name }}
               </button>
             </template>
           </nav>
         </div>
-        <Button
-          icon="i-lucide-upload"
-          size="sm"
-          @click="showUploadModal = true"
-        >
+        <Button icon="i-lucide-upload" size="sm" @click="showUploadModal = true">
           Upload New
         </Button>
       </div>
@@ -39,36 +31,20 @@
       <div class="space-y-4 h-full flex flex-col">
         <!-- Search and Filters -->
         <div class="flex items-center gap-2">
-          <Input
-            v-model="searchQuery"
-            icon="i-lucide-search"
-            placeholder="Search media..."
-            class="flex-1"
-            @update:model-value="handleSearch"
-          />
-          <Select
-            v-model="selectedType"
-            :items="typeOptions"
-            placeholder="All types"
-            class="min-w-32"
-            @update:model-value="handleFilter"
-          />
-          <Button
-            icon="i-lucide-folder-plus"
-            variant="outline"
-            @click="showCreateFolder = true"
-          />
+          <Input v-model="searchQuery" icon="i-lucide-search" placeholder="Search media..." class="flex-1"
+            @update:model-value="handleSearch" />
+          <Select v-model="selectedType" :items="typeOptions" placeholder="All types" class="min-w-32"
+            @update:model-value="handleFilter" />
+          <Button icon="i-lucide-folder-plus" variant="outline" @click="showCreateFolder = true" />
         </div>
 
         <!-- Media Grid -->
-        <div v-if="!loading && (folders.length > 0 || files.length > 0)" class="grid grid-cols-3 gap-3 overflow-y-auto max-h-[500px]">
+        <div v-if="!loading && (folders.length > 0 || files.length > 0)"
+          class="grid grid-cols-3 gap-3 overflow-y-auto max-h-[500px]">
           <!-- Folders First -->
-          <div
-            v-for="folder in folders"
-            :key="`folder-${folder.id}`"
+          <div v-for="folder in folders" :key="`folder-${folder.id}`"
             class="cursor-pointer border-2 border-[var(--app-border)] rounded-lg p-3 transition-all hover:shadow-md hover:border-[var(--app-border)]"
-            @click="navigateToFolder(folder.id)"
-          >
+            @click="navigateToFolder(folder.id)">
             <div class="aspect-square flex items-center justify-center bg-[var(--app-background)] rounded mb-2">
               <Icon name="i-lucide-folder" class="w-12 h-12 text-amber-500" />
             </div>
@@ -76,28 +52,16 @@
           </div>
 
           <!-- Files -->
-          <div
-            v-for="file in files"
-            :key="`file-${file.id}`"
-            class="cursor-pointer border-2 rounded-lg p-2 transition-all hover:shadow-md"
-            :class="{
+          <div v-for="file in files" :key="`file-${file.id}`"
+            class="cursor-pointer border-2 rounded-lg p-2 transition-all hover:shadow-md" :class="{
               'border-primary-500 bg-primary-50 dark:bg-primary-900/20': selectedMedia?.id === file.id,
               'border-[var(--app-border)]': selectedMedia?.id !== file.id
-            }"
-            @click="selectedMedia = file"
-          >
-            <div class="aspect-square flex items-center justify-center bg-[var(--app-background)] rounded overflow-hidden mb-2">
-              <img
-                v-if="file.file && isImage(file.type)"
-                :src="file.file.url"
-                :alt="file.name"
-                class="w-full h-full object-cover"
-              >
-              <Icon
-                v-else
-                :name="getFileIcon(file.type)"
-                class="w-8 h-8 text-[var(--app-muted)]"
-              />
+            }" @click="selectedMedia = file">
+            <div
+              class="aspect-square flex items-center justify-center bg-[var(--app-background)] rounded overflow-hidden mb-2">
+              <img v-if="file.file && isImage(file.type)" :src="file.file.url" :alt="file.name"
+                class="w-full h-full object-cover">
+              <Icon v-else :name="getFileIcon(file.type)" class="w-8 h-8 text-[var(--app-muted)]" />
             </div>
             <p class="text-xs font-medium truncate">{{ file.name }}</p>
             <p class="text-xs text-[var(--app-muted)] truncate">{{ file.type }}</p>
@@ -105,7 +69,8 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="!loading && folders.length === 0 && files.length === 0" class="flex-1 flex items-center justify-center">
+        <div v-else-if="!loading && folders.length === 0 && files.length === 0"
+          class="flex-1 flex items-center justify-center">
           <div class="text-center">
             <Icon name="i-lucide-folder-open" class="w-16 h-16 text-[var(--app-muted)] mx-auto mb-3" />
             <p class="text-sm text-[var(--app-muted)] mb-2">No files or folders in this directory</p>
@@ -129,12 +94,8 @@
 
         <!-- Pagination -->
         <div v-if="pagination.total > pagination.limit" class="flex justify-center pt-2">
-          <Pagination
-            v-model="pagination.page"
-            :total="pagination.total"
-            :items-per-page="pagination.limit"
-            @update:model-value="fetchMedia"
-          />
+          <Pagination v-model="pagination.page" :total="pagination.total" :items-per-page="pagination.limit"
+            @update:model-value="fetchMedia" />
         </div>
       </div>
     </template>
@@ -146,17 +107,10 @@
         </p>
         <div v-else />
         <div class="flex gap-2">
-          <Button
-            color="neutral"
-            variant="outline"
-            @click="handleClose"
-          >
+          <Button color="neutral" variant="outline" @click="handleClose">
             Cancel
           </Button>
-          <Button
-            :disabled="!selectedMedia"
-            @click="handleSelect"
-          >
+          <Button :disabled="!selectedMedia" @click="handleSelect">
             Select
           </Button>
         </div>
@@ -174,27 +128,15 @@
     </template>
     <template #body>
       <FormField label="Folder Name" required>
-        <Input
-          v-model="newFolderName"
-          placeholder="Enter folder name"
-          @keyup.enter="handleCreateFolder"
-        />
+        <Input v-model="newFolderName" placeholder="Enter folder name" @keyup.enter="handleCreateFolder" />
       </FormField>
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <Button
-          color="neutral"
-          variant="outline"
-          @click="showCreateFolder = false"
-        >
+        <Button color="neutral" variant="outline" @click="showCreateFolder = false">
           Cancel
         </Button>
-        <Button
-          :disabled="!newFolderName"
-          :loading="creatingFolder"
-          @click="handleCreateFolder"
-        >
+        <Button :disabled="!newFolderName" :loading="creatingFolder" @click="handleCreateFolder">
           Create
         </Button>
       </div>
@@ -202,14 +144,11 @@
   </Modal>
 
   <!-- Upload Modal -->
-  <MediaUploadModal
-    v-model="showUploadModal"
-    :parent-id="currentFolderId"
-    @uploaded="handleUploaded"
-  />
+  <MediaUploadModal v-model="showUploadModal" :parent-id="currentFolderId" @uploaded="handleUploaded" />
 </template>
 
 <script setup lang="ts">
+import { useNotification } from '@construct-space/ui'
 import { ref, reactive, computed, watch } from 'vue'
 
 interface MediaFile {
@@ -246,7 +185,7 @@ const emit = defineEmits<{
 }>()
 
 const api = useApi()
-const toast = useToast()
+const toast = useNotification()
 
 const loading = ref(false)
 const mediaItems = ref<Media[]>([])

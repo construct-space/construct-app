@@ -27,6 +27,7 @@ import * as Lucide from 'lucide-vue-next'
 import * as DateFns from 'date-fns'
 import DexieDefault, * as DexieNs from 'dexie'
 import * as Zod from 'zod'
+import * as ConstructUI from '@/lib/constructUiRuntime.js'
 import * as ConstructSdk from '@/lib/constructSdk'
 import { appConfig } from '@/utils/config'
 
@@ -42,12 +43,20 @@ declare global {
 }
 
 /** Runtime context exposed to SDK data/media composables as `window.construct` */
+interface AuthStoreLike {
+  user?: { id?: string | number | null } | null
+}
+
+interface ProjectStoreLike {
+  currentProject?: { id?: string | number | null } | null
+}
+
 interface ConstructRuntime {
   config: { paasUrl: string; apiBase: string }
   auth: { getAccessToken(): Promise<string | null>; getUserId(): string | null }
   space: { id: string }
   project: { id: string }
-  operator: { send(type: string, payload: any): Promise<any> }
+  operator: { send(type: string, payload?: Record<string, unknown>): Promise<unknown> }
   storage: { get(key: string): Promise<string | null>; set(key: string, value: string): Promise<void>; remove(key: string): Promise<void> }
 }
 
@@ -76,6 +85,7 @@ export function initSpaceHost(): void {
     'date-fns': DateFns,
     'dexie': Object.assign(DexieDefault, DexieNs),
     'zod': Zod,
+    '@construct-space/ui': ConstructUI,
     '@construct/sdk': ConstructSdk,
     // Backward compatibility for older space bundles that still externalize
     // the pre-rename SDK module id.
@@ -84,7 +94,7 @@ export function initSpaceHost(): void {
 
   // Inject window.construct runtime for SDK data/media composables
   // These access construct.config.paasUrl, construct.auth.getAccessToken(), etc.
-  ;(window as any).construct = {
+  window.construct = {
     config: {
       paasUrl: appConfig.paasUrl,
       apiBase: appConfig.apiBase,
@@ -98,8 +108,8 @@ export function initSpaceHost(): void {
       },
       getUserId() {
         try {
-          const store = ConstructSdk.useAuthStore()
-          return (store as any).user?.id?.toString() || null
+          const store = ConstructSdk.useAuthStore() as AuthStoreLike
+          return store.user?.id?.toString() || null
         } catch { return null }
       },
     },
@@ -107,13 +117,13 @@ export function initSpaceHost(): void {
     project: {
       get id() {
         try {
-          const store = (ConstructSdk as any).useProjectStore?.()
+          const store = ConstructSdk.useProjectStore?.() as ProjectStoreLike | undefined
           return store?.currentProject?.id?.toString() || 'default'
         } catch { return 'default' }
       },
     },
     operator: {
-      async send(type: string, payload: any) {
+      async send(type: string, payload?: Record<string, unknown>) {
         const { useOperator } = await import('@/operator')
         const op = useOperator()
         return op.send(type, payload)

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { useOperator } from '@/operator'
-import Button from '@/components/ui/Button.vue'
-import Input from '@/components/ui/Input.vue'
-import { Eye, EyeOff, Check, ExternalLink } from 'lucide-vue-next'
+import { Button, Input } from '@construct-space/ui'
+import { Eye, EyeOff, ExternalLink } from 'lucide-vue-next'
 
 const operator = useOperator()
-const toast = useToast()
+const toast = useNotification()
 
 const activeTab = ref<'services' | 'credits'>('services')
 
@@ -150,18 +149,14 @@ onMounted(() => {
   <div>
     <!-- Tabs -->
     <div class="flex gap-1 p-1 bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] rounded-lg w-fit mb-6">
-      <button
-        class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
+      <button class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
         :class="activeTab === 'services' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-        @click="activeTab = 'services'"
-      >
+        @click="activeTab = 'services'">
         Services
       </button>
-      <button
-        class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
+      <button class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"
         :class="activeTab === 'credits' ? 'bg-app-accent text-white' : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
-        @click="activeTab = 'credits'"
-      >
+        @click="activeTab = 'credits'">
         Credits
       </button>
     </div>
@@ -175,45 +170,35 @@ onMounted(() => {
           <p class="text-xs text-[var(--app-muted)] mb-3">Enter your API key to enable media generation services.</p>
           <div class="flex gap-2 items-center">
             <div class="relative flex-1">
-              <Input
-                v-model="apiKey"
-                :type="keyVisible ? 'text' : 'password'"
-                placeholder="Enter API key..."
-                size="sm"
-              />
+              <Input v-model="apiKey" :type="keyVisible ? 'text' : 'password'" placeholder="Enter API key..."
+                size="sm" />
             </div>
-            <button
-              class="p-2 text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
-              @click="keyVisible = !keyVisible"
-            >
+            <button class="p-2 text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
+              @click="keyVisible = !keyVisible">
               <component :is="keyVisible ? EyeOff : Eye" class="size-4" />
             </button>
-            <Button
-              size="sm"
-              :label="keySaved ? 'Saved' : 'Save'"
-              :loading="keySaving"
-              :disabled="!apiKey.trim()"
-              @click="saveApiKey"
-            />
+            <Button size="sm" :label="keySaved ? 'Saved' : 'Save'" :loading="keySaving" :disabled="!apiKey.trim()"
+              @click="saveApiKey" />
           </div>
         </div>
 
         <!-- Service Categories -->
-        <div v-for="cat in services" :key="cat.category" class="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] overflow-hidden">
+        <div v-for="cat in services" :key="cat.category"
+          class="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] overflow-hidden">
           <div class="px-4 py-3 bg-[var(--app-background)] border-b border-[var(--app-border)]">
-            <h3 class="text-xs font-semibold text-[var(--app-foreground)] uppercase tracking-wider">{{ cat.category }}</h3>
+            <h3 class="text-xs font-semibold text-[var(--app-foreground)] uppercase tracking-wider">
+{{ cat.category }}
+            </h3>
           </div>
           <div class="divide-y divide-[var(--app-border)]">
-            <div
-              v-for="item in cat.items"
-              :key="item.id"
-              class="flex items-center justify-between px-4 py-2.5"
-            >
+            <div v-for="item in cat.items" :key="item.id" class="flex items-center justify-between px-4 py-2.5">
               <div>
                 <p class="text-sm text-[var(--app-foreground)]">{{ item.name }}</p>
                 <p class="text-xs text-[var(--app-muted)]">{{ item.desc }}</p>
               </div>
-              <span class="text-[10px] text-[var(--app-muted)] font-mono bg-[var(--app-background)] px-2 py-1 rounded">{{ item.id }}</span>
+              <span
+                class="text-[10px] text-[var(--app-muted)] font-mono bg-[var(--app-background)] px-2 py-1 rounded">{{
+                  item.id }}</span>
             </div>
           </div>
         </div>
@@ -242,20 +227,21 @@ onMounted(() => {
             <h3 class="text-xs font-semibold text-[var(--app-foreground)] uppercase tracking-wider">Buy Credits</h3>
           </div>
           <div class="grid grid-cols-2 gap-3 p-4">
-            <button
-              v-for="tier in creditTiers"
-              :key="tier.id"
+            <button v-for="tier in creditTiers" :key="tier.id"
               class="relative flex flex-col items-center p-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-background)] hover:border-[var(--app-accent)] transition-all cursor-pointer group"
               :class="purchasingTier === tier.id ? 'opacity-70 pointer-events-none' : ''"
-              @click="purchaseCredits(tier)"
-            >
-              <span class="text-2xl font-bold text-[var(--app-foreground)] group-hover:text-[var(--app-accent)] transition-colors">
+              @click="purchaseCredits(tier)">
+              <span
+                class="text-2xl font-bold text-[var(--app-foreground)] group-hover:text-[var(--app-accent)] transition-colors">
                 {{ tier.label }}
               </span>
               <span class="text-[11px] text-[var(--app-muted)] mt-1">{{ tier.desc }}</span>
-              <ExternalLink v-if="purchasingTier !== tier.id" class="size-3.5 text-[var(--app-muted)] absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div v-else class="absolute inset-0 flex items-center justify-center bg-[var(--app-background)]/80 rounded-lg">
-                <div class="w-4 h-4 border-2 border-[var(--app-border)] border-t-[var(--app-accent)] rounded-full animate-spin" />
+              <ExternalLink v-if="purchasingTier !== tier.id"
+                class="size-3.5 text-[var(--app-muted)] absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div v-else
+                class="absolute inset-0 flex items-center justify-center bg-[var(--app-background)]/80 rounded-lg">
+                <div
+                  class="w-4 h-4 border-2 border-[var(--app-border)] border-t-[var(--app-accent)] rounded-full animate-spin" />
               </div>
             </button>
           </div>
@@ -268,7 +254,8 @@ onMounted(() => {
 
         <!-- Usage Stats -->
         <div class="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] overflow-hidden">
-          <div class="px-4 py-3 bg-[var(--app-background)] border-b border-[var(--app-border)] flex justify-between items-center">
+          <div
+            class="px-4 py-3 bg-[var(--app-background)] border-b border-[var(--app-border)] flex justify-between items-center">
             <h3 class="text-xs font-semibold text-[var(--app-foreground)] uppercase tracking-wider">Usage</h3>
             <span class="text-xs text-[var(--app-muted)]">This month</span>
           </div>

@@ -11,7 +11,9 @@
       "description": "Plan your project architecture",
       "icon": "lucide:drafting-compass",
       "defaultSize": "4x1",
-      "sizes": { "4x1": "widgets/QuickArchitect4x1.vue" }
+      "sizes": {
+        "4x1": "widgets/QuickArchitect4x1.vue"
+      }
     }
   ]
 }

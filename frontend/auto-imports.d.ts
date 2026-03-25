@@ -119,6 +119,7 @@ declare global {
   const migrateFromLocalStorage: typeof import('./composables/useStorage')['migrateFromLocalStorage']
   const migratePinnedItems: typeof import('./composables/useStorage')['migratePinnedItems']
   const nextTick: typeof import('vue')['nextTick']
+  const notify: typeof import('@construct-space/ui')['notify']
   const onActivated: typeof import('vue')['onActivated']
   const onBeforeMount: typeof import('vue')['onBeforeMount']
   const onBeforeRouteLeave: typeof import('vue-router')['onBeforeRouteLeave']
@@ -332,6 +333,7 @@ declare global {
   const useMutationObserver: typeof import('@vueuse/core')['useMutationObserver']
   const useNavigatorLanguage: typeof import('@vueuse/core')['useNavigatorLanguage']
   const useNetwork: typeof import('@vueuse/core')['useNetwork']
+  const useNotification: typeof import('@construct-space/ui')['useNotification']
   const useNow: typeof import('@vueuse/core')['useNow']
   const useObjectUrl: typeof import('@vueuse/core')['useObjectUrl']
   const useOffsetPagination: typeof import('@vueuse/core')['useOffsetPagination']
@@ -415,7 +417,6 @@ declare global {
   const useTitle: typeof import('@vueuse/core')['useTitle']
   const useToNumber: typeof import('@vueuse/core')['useToNumber']
   const useToString: typeof import('@vueuse/core')['useToString']
-  const useToast: typeof import('./composables/useToast')['useToast']
   const useToggle: typeof import('@vueuse/core')['useToggle']
   const useToolbar: typeof import('./composables/useToolbar')['useToolbar']
   const useTransition: typeof import('@vueuse/core')['useTransition']
@@ -528,9 +529,6 @@ declare global {
   // @ts-ignore
   export type { TelemetryFeatureKey } from './composables/useTelemetry'
   import('./composables/useTelemetry')
-  // @ts-ignore
-  export type { Toast } from './composables/useToast'
-  import('./composables/useToast')
   // @ts-ignore
   export type { ToolbarItem, ToolbarBreadcrumb } from './composables/useToolbar'
   import('./composables/useToolbar')
@@ -687,6 +685,7 @@ declare module 'vue' {
     readonly migrateFromLocalStorage: UnwrapRef<typeof import('./composables/useStorage')['migrateFromLocalStorage']>
     readonly migratePinnedItems: UnwrapRef<typeof import('./composables/useStorage')['migratePinnedItems']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly notify: UnwrapRef<typeof import('@construct-space/ui')['notify']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
     readonly onBeforeRouteLeave: UnwrapRef<typeof import('vue-router')['onBeforeRouteLeave']>
@@ -900,6 +899,7 @@ declare module 'vue' {
     readonly useMutationObserver: UnwrapRef<typeof import('@vueuse/core')['useMutationObserver']>
     readonly useNavigatorLanguage: UnwrapRef<typeof import('@vueuse/core')['useNavigatorLanguage']>
     readonly useNetwork: UnwrapRef<typeof import('@vueuse/core')['useNetwork']>
+    readonly useNotification: UnwrapRef<typeof import('@construct-space/ui')['useNotification']>
     readonly useNow: UnwrapRef<typeof import('@vueuse/core')['useNow']>
     readonly useObjectUrl: UnwrapRef<typeof import('@vueuse/core')['useObjectUrl']>
     readonly useOffsetPagination: UnwrapRef<typeof import('@vueuse/core')['useOffsetPagination']>
@@ -983,7 +983,6 @@ declare module 'vue' {
     readonly useTitle: UnwrapRef<typeof import('@vueuse/core')['useTitle']>
     readonly useToNumber: UnwrapRef<typeof import('@vueuse/core')['useToNumber']>
     readonly useToString: UnwrapRef<typeof import('@vueuse/core')['useToString']>
-    readonly useToast: UnwrapRef<typeof import('./composables/useToast')['useToast']>
     readonly useToggle: UnwrapRef<typeof import('@vueuse/core')['useToggle']>
     readonly useToolbar: UnwrapRef<typeof import('./composables/useToolbar')['useToolbar']>
     readonly useTransition: UnwrapRef<typeof import('@vueuse/core')['useTransition']>
