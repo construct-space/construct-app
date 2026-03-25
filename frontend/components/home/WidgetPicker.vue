@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * WidgetPicker — modal for browsing and adding widgets to Home.
- * Groups widgets by space, shows size variants.
+ * WidgetPicker — left slideover for browsing and adding widgets to Home.
  */
 import { ref, computed } from 'vue'
+import { Slideover } from '@construct-space/ui'
 import type { WidgetDefinition } from '@/composables/useWidgetRegistry'
 
 const props = defineProps<{
@@ -23,7 +23,6 @@ const isOpen = computed({
   set: (v) => emit('update:open', v),
 })
 
-// Group widgets by space
 const spaceGroups = computed(() => {
   const groups: Record<string, { spaceId: string; widgets: WidgetDefinition[] }> = {}
   for (const w of props.widgets) {
@@ -48,67 +47,60 @@ function selectSpace(spaceId: string) {
 
 function addWidget(widget: WidgetDefinition, sizeKey: string) {
   emit('add', widget.spaceId, widget.id, sizeKey)
-  isOpen.value = false
+}
+
+function sizePreview(sizeKey: string) {
+  const [w, h] = sizeKey.split('x').map(Number)
+  return { width: `${w * 24}px`, height: `${h * 18}px` }
 }
 </script>
 
 <template>
-  <Modal v-model:open="isOpen">
-    <template #header>
-      Add Widget
-    </template>
+  <Slideover v-model:open="isOpen" title="Add Widget" side="right">
+    <div class="flex flex-col h-full">
+      <!-- Space tabs -->
+      <div class="flex flex-wrap gap-1 px-3 pt-3 pb-2 border-b border-[var(--app-border)]">
+        <button
+          v-for="group in spaceGroups"
+          :key="group.spaceId"
+          class="px-2.5 py-1 rounded-lg text-[11px] transition-colors"
+          :class="(activeGroup?.spaceId === group.spaceId)
+            ? 'bg-[var(--app-accent)]/10 text-[var(--app-accent)] font-medium'
+            : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)]'"
+          @click="selectSpace(group.spaceId)"
+        >
+          {{ group.spaceId }}
+          <span class="opacity-50">({{ group.widgets.length }})</span>
+        </button>
+      </div>
 
-    <template #body>
-      <div class="flex gap-0 min-h-[320px] max-h-[60vh]">
-        <!-- Space sidebar -->
-        <div class="w-40 shrink-0 border-r border-[var(--app-border)] pr-3 space-y-0.5 overflow-y-auto">
-          <button
-            v-for="group in spaceGroups"
-            :key="group.spaceId"
-            class="w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors"
-            :class="(activeGroup?.spaceId === group.spaceId)
-              ? 'bg-[var(--app-accent)]/10 text-[var(--app-accent)] font-medium'
-              : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_6%,transparent)]'"
-            @click="selectSpace(group.spaceId)"
+      <!-- Widget list -->
+      <div class="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+        <template v-if="activeGroup">
+          <div
+            v-for="widget in activeGroup.widgets"
+            :key="widget.id"
+            class="px-1 py-2"
           >
-            {{ group.spaceId }}
-            <span class="opacity-50 ml-0.5">({{ group.widgets.length }})</span>
-          </button>
-        </div>
-
-        <!-- Widget list (scrollable) -->
-        <div class="flex-1 pl-4 overflow-y-auto space-y-1">
-          <template v-if="activeGroup">
-            <div
-              v-for="widget in activeGroup.widgets"
-              :key="widget.id"
-              class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors"
-            >
-              <!-- Info -->
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-[var(--app-foreground)]">{{ widget.name }}</p>
-                <p v-if="widget.description" class="text-[11px] text-[var(--app-muted)] truncate">{{ widget.description }}</p>
-              </div>
-
-              <!-- Size pills -->
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button
-                  v-for="size in widget.sizes"
-                  :key="size"
-                  class="px-2.5 py-1 rounded-lg text-[11px] font-mono border transition-all cursor-pointer border-[var(--app-border)] text-[var(--app-muted)] hover:border-[var(--app-accent)]/50 hover:text-[var(--app-accent)] hover:bg-[var(--app-accent)]/5"
-                  @click="addWidget(widget, size)"
-                >
-                  {{ size }}
-                </button>
-              </div>
+            <p class="text-xs font-medium text-[var(--app-foreground)] mb-2">{{ widget.name }}</p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="size in widget.sizes"
+                :key="size"
+                class="group/sz flex items-center justify-center rounded-lg border transition-all cursor-pointer border-[var(--app-accent)]/20 bg-[var(--app-accent)]/10 hover:bg-[var(--app-accent)]/20 hover:border-[var(--app-accent)]/40 active:scale-95"
+                :style="sizePreview(size)"
+                @click="addWidget(widget, size)"
+              >
+                <span class="text-[10px] font-mono text-[var(--app-muted)] group-hover/sz:text-[var(--app-accent)] transition-colors">{{ size }}</span>
+              </button>
             </div>
-          </template>
-
-          <div v-else class="flex items-center justify-center h-full">
-            <p class="text-sm text-[var(--app-muted)]">No widgets available</p>
           </div>
+        </template>
+
+        <div v-else class="flex items-center justify-center h-32">
+          <p class="text-xs text-[var(--app-muted)]">No widgets available</p>
         </div>
       </div>
-    </template>
-  </Modal>
+    </div>
+  </Slideover>
 </template>

@@ -19,7 +19,7 @@
       "description": "Quick access to your pinned projects",
       "icon": "lucide:pin",
       "defaultSize": "4x4",
-      "sizes": { "4x4": "widgets/PinnedProjects4x4.vue" }
+      "sizes": { "4x2": "widgets/PinnedProjects4x2.vue", "4x4": "widgets/PinnedProjects4x4.vue" }
     },
     {
       "id": "deploy-status",

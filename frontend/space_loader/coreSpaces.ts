@@ -33,6 +33,7 @@ import QuickArchitect4x1 from '@/spaces/architect/widgets/QuickArchitect4x1.vue'
 
 // Widget components — project
 import RecentProjects4x2 from '@/spaces/project/widgets/RecentProjects4x2.vue'
+import PinnedProjects4x2 from '@/spaces/project/widgets/PinnedProjects4x2.vue'
 import PinnedProjects4x4 from '@/spaces/project/widgets/PinnedProjects4x4.vue'
 import DeployStatus2x2 from '@/spaces/project/widgets/DeployStatus2x2.vue'
 import QuickOpen2x1 from '@/spaces/project/widgets/QuickOpen2x1.vue'
@@ -89,6 +90,7 @@ const CORE_SPACES: Record<string, LoadedSpace> = {
         '4x2': RecentProjects4x2,
       },
       'pinned-projects': {
+        '4x2': PinnedProjects4x2,
         '4x4': PinnedProjects4x4,
       },
       'deploy-status': {
