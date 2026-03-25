@@ -208,9 +208,13 @@ export function extractQuestion(text: string): { before: string; question: Quest
   for (let i = optionStart; i < optionEnd; i++) {
     const m = lines[i].trim().match(OPTION_LINE)
     if (!m) continue
-    const label = (m[2] || '').replace(/\*{1,2}/g, '').trim()
+    const rawLabel = (m[2] || '').replace(/\*{1,2}/g, '').trim()
     const description = (m[3] || '').replace(/\*{1,2}/g, '').trim() || undefined
-    if (label) options.push({ value: label, label, description })
+    // If label is generic (Option A, Option 1, etc.) and we have a description, use description as label
+    const isGenericLabel = /^option\s+[a-z0-9]$/i.test(rawLabel)
+    const label = (isGenericLabel && description) ? description : rawLabel
+    const desc = (isGenericLabel && description) ? undefined : description
+    if (label) options.push({ value: label, label, description: desc })
   }
 
   if (options.length < 2) return null

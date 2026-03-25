@@ -108,7 +108,7 @@ function startVibe() {
 <template>
   <div class="flex flex-col h-full bg-app">
     <!-- Header -->
-    <div class="shrink-0 flex items-center justify-between px-4 py-2 border-b border-app">
+    <div class="shrink-0 flex items-center justify-between px-4 py-2">
 <div v-if="docsWritten && !isLoading" class="flex items-center gap-2">
         <button v-if="detectedProjectPath"
           class="rounded-lg border border-app-border px-3 py-1.5 text-xs font-medium text-app transition hover:bg-white/5"
@@ -126,7 +126,8 @@ function startVibe() {
     </div>
 
     <!-- Agent view -->
-    <div class="flex-1 min-h-0">
+    <div class="flex-1 min-h-0 flex justify-center overflow-hidden">
+      <div class="w-full max-w-2xl">
       <AgentView :turns="turns" :is-loading="isLoading" :status-message="statusMessage"
         @question-answer="handleQuestionAnswer">
         <template #empty>
@@ -137,11 +138,14 @@ function startVibe() {
           </p>
         </template>
       </AgentView>
+      </div>
     </div>
 
     <!-- Input -->
-    <div class="shrink-0 px-4 py-3 border-t border-app">
-      <AgentInput :placeholder="inputPlaceholder" :loading="isLoading" @send="handleSend" @stop="session.stop()" />
+    <div class="shrink-0 flex justify-center">
+      <div class="w-full max-w-2xl">
+        <AgentInput :placeholder="inputPlaceholder" :loading="isLoading" @send="handleSend" @stop="session.stop()" />
+      </div>
     </div>
   </div>
 </template>

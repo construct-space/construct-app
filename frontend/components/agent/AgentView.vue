@@ -74,7 +74,7 @@ watch(
 
       <!-- Response -->
       <div v-if="turn.response.length" class="max-w-[90%]">
-        <ResponseBlocks :blocks="turn.response" @question-answer="(qId, answer) => emit('question-answer', qId, answer as string)" />
+        <ResponseBlocks :blocks="turn.response" :streaming="turn.status === 'streaming'" @question-answer="(qId, answer) => emit('question-answer', qId, answer as string)" />
       </div>
     </div>
 

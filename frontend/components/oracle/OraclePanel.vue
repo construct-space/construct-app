@@ -86,7 +86,7 @@ const emit = defineEmits<{
     </div>
 
     <!-- Input -->
-    <div class="shrink-0 px-4 py-3 border-t border-app">
+    <div class="shrink-0">
       <AgentInput
         :placeholder="inputPlaceholder"
         @send="handleSend"

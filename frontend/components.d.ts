@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActionButtons: typeof import('./components/agent/ActionButtons.vue')['default']
     AgentInput: typeof import('./components/agent/AgentInput.vue')['default']
     AgentView: typeof import('./components/agent/AgentView.vue')['default']
     AssistantPanel: typeof import('./components/ai/AssistantPanel.vue')['default']
@@ -15,6 +16,7 @@ declare module 'vue' {
     Breadcrumb: typeof import('./components/toolbar/Breadcrumb.vue')['default']
     BuiltinWidgets: typeof import('./components/home/BuiltinWidgets.vue')['default']
     Button: typeof import('@construct-space/ui')['Button']
+    CodeBlockCard: typeof import('./components/agent/CodeBlockCard.vue')['default']
     ConfirmationModal: typeof import('./components/common/ConfirmationModal.vue')['default']
     CurrentUser4x2: typeof import('./components/home/widgets/CurrentUser4x2.vue')['default']
     DashboardPanel: typeof import('@construct-space/ui')['DashboardPanel']
@@ -27,6 +29,9 @@ declare module 'vue' {
     Modal: typeof import('@construct-space/ui')['Modal']
     Notification: typeof import('@construct-space/ui')['Notification']
     OraclePanel: typeof import('./components/oracle/OraclePanel.vue')['default']
+    PlanBlock: typeof import('./components/agent/PlanBlock.vue')['default']
+    ProgressCard: typeof import('./components/agent/ProgressCard.vue')['default']
+    QuestionBlock: typeof import('./components/agent/QuestionBlock.vue')['default']
     RequestBubble: typeof import('./components/agent/RequestBubble.vue')['default']
     ResponseBlocks: typeof import('./components/agent/ResponseBlocks.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
@@ -35,6 +40,8 @@ declare module 'vue' {
     Sidebar3D: typeof import('./components/common/Sidebar3D.vue')['default']
     SplitPane: typeof import('./components/panels/SplitPane.vue')['default']
     SvgPreview: typeof import('./components/content/SvgPreview.vue')['default']
+    TableBlock: typeof import('./components/agent/TableBlock.vue')['default']
+    TaskListBlock: typeof import('./components/agent/TaskListBlock.vue')['default']
     Toolbar3D: typeof import('./components/common/Toolbar3D.vue')['default']
     ToolCard: typeof import('./components/agent/ToolCard.vue')['default']
     Tooltip: typeof import('@construct-space/ui')['Tooltip']
