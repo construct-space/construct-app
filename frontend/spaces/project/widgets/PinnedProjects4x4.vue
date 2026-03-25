@@ -15,7 +15,7 @@ function hashColor(name: string): string {
 }
 
 const pinnedProjects = computed(() => {
-  const pinned = pinnedStore.pinnedByType('project')
+  const pinned = pinnedStore.pinnedByType('project').slice(0, 6)
   return pinned.map(pin => {
     const project = projectStore.projects.find(p =>
       `project-${p.id}` === pin.id || p.path === pin.metadata?.localPath
@@ -69,35 +69,35 @@ function shortPath(fullPath: string): string {
     </div>
 
     <!-- Grid -->
-    <div v-if="pinnedProjects.length > 0" class="flex-1 grid grid-cols-2 gap-2 overflow-hidden">
+    <div v-if="pinnedProjects.length > 0" class="flex-1 grid grid-cols-2 grid-rows-3 gap-2 overflow-hidden">
       <button
         v-for="entry in pinnedProjects"
         :key="entry.pin.id"
-        class="group relative text-left p-3 rounded-xl border border-[var(--app-border)] hover:border-[color-mix(in_srgb,var(--app-accent)_40%,transparent)] transition-all overflow-hidden"
+        class="group relative flex items-center gap-3 text-left px-3 py-2 rounded-xl border border-[var(--app-border)] hover:border-[color-mix(in_srgb,var(--app-accent)_40%,transparent)] transition-all overflow-hidden min-w-0"
         style="background: var(--app-background);"
         @click="openProject(entry)"
       >
-        <!-- Unpin button -->
+        <!-- Icon -->
+        <div class="flex size-9 shrink-0 items-center justify-center rounded-lg" :style="{ background: entry.color + '18' }">
+          <Icon name="i-lucide-folder" class="size-4.5" :style="{ color: entry.color }" />
+        </div>
+
+        <!-- Text -->
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-semibold text-[var(--app-foreground)] truncate leading-tight">{{ entry.name }}</p>
+          <p class="mt-0.5 text-[10px] text-[var(--app-muted)] truncate leading-tight">
+            {{ entry.description || shortPath(entry.path) }}
+          </p>
+        </div>
+
+        <!-- Unpin -->
         <button
-          class="absolute top-2 right-2 p-1 rounded-md text-[var(--app-muted)] opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+          class="shrink-0 p-1 rounded-md text-[var(--app-muted)] opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
           title="Unpin"
           @click.stop="unpin(entry)"
         >
           <Icon name="i-lucide-pin-off" class="size-3" />
         </button>
-
-        <!-- Icon -->
-        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg mb-2" :style="{ background: entry.color + '18' }">
-          <Icon name="i-lucide-folder" class="size-4" :style="{ color: entry.color }" />
-        </div>
-
-        <!-- Name -->
-        <p class="text-xs font-semibold text-[var(--app-foreground)] truncate leading-tight">{{ entry.name }}</p>
-
-        <!-- Description or path -->
-        <p class="mt-0.5 text-[10px] text-[var(--app-muted)] truncate leading-tight">
-          {{ entry.description || shortPath(entry.path) }}
-        </p>
       </button>
     </div>
 
