@@ -27,6 +27,7 @@ export interface LocalProject {
   path: string        // Absolute filesystem path
   local_path?: string // Alias for path — backward compat with old code
   description?: string
+  color?: string      // Hex color for project icon
   spaces: SpaceType[]
   last_opened_at: string
   is_external: boolean // Not under projectsRoot
@@ -37,6 +38,7 @@ export interface LocalProject {
 export interface CreateProjectInput {
   name: string
   description?: string
+  color?: string
   spaces?: SpaceType[]
 }
 

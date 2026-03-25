@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { LocalProject } from '@/types/project'
 
-defineProps<{
+const props = defineProps<{
   project: LocalProject
   pinned: boolean
   deployed?: boolean
@@ -39,6 +39,16 @@ function timeAgo(dateStr: string): string {
   if (days < 7) return `${days}d ago`
   return new Date(dateStr).toLocaleDateString()
 }
+
+const PALETTE = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#eab308', '#ef4444', '#06b6d4', '#84cc16', '#6366f1']
+
+const iconColor = computed(() => {
+  if (props.project.color) return props.project.color
+  // Deterministic color from project name
+  let hash = 0
+  for (const ch of props.project.name) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0
+  return PALETTE[Math.abs(hash) % PALETTE.length]
+})
 </script>
 
 <template>
@@ -110,8 +120,8 @@ function timeAgo(dateStr: string): string {
     </div>
 
     <div class="mb-3 flex items-start gap-3">
-      <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--app-accent)]/10">
-        <Icon name="i-lucide-folder" class="size-5 text-[var(--app-accent)]" />
+      <div class="flex size-10 shrink-0 items-center justify-center rounded-lg" :style="{ background: iconColor + '18' }">
+        <Icon name="i-lucide-folder" class="size-5" :style="{ color: iconColor }" />
       </div>
       <div class="min-w-0 flex-1 pr-8">
         <h3 class="truncate text-sm font-semibold leading-tight text-[var(--app-foreground)]">{{ project.name }}</h3>

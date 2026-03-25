@@ -168,6 +168,7 @@ export const useProjectStore = defineStore('project', {
               name: config?.name || entry.name,
               path: entry.path,
               description: config?.description,
+              color: config?.color,
               spaces: (config?.spaces as SpaceType[]) || DEFAULT_SPACES,
               last_opened_at: this.getRecentTimestamp(entry.path),
               is_external: false,
@@ -207,6 +208,7 @@ export const useProjectStore = defineStore('project', {
               name: config?.name || name,
               path: extPath,
               description: config?.description,
+              color: config?.color,
               spaces: (config?.spaces as SpaceType[]) || DEFAULT_SPACES,
               last_opened_at: this.getRecentTimestamp(extPath),
               is_external: true,
@@ -243,7 +245,7 @@ export const useProjectStore = defineStore('project', {
       }
     },
 
-    async createProject(data: { name: string; description?: string; spaces?: SpaceType[]; localPath?: string }) {
+    async createProject(data: { name: string; description?: string; color?: string; spaces?: SpaceType[]; localPath?: string }) {
       this.loading = true
       this.error = null
 
@@ -283,6 +285,7 @@ export const useProjectStore = defineStore('project', {
           path: normalizePath(createdPath),
           local_path: normalizePath(createdPath),
           description: data.description,
+          color: data.color,
           spaces,
           last_opened_at: new Date().toISOString(),
           is_external: false,
@@ -455,7 +458,7 @@ export const useProjectStore = defineStore('project', {
       }
     },
 
-    async updateProjectConfig(path: string, data: { name?: string; description?: string; spaces?: string[] }) {
+    async updateProjectConfig(path: string, data: { name?: string; description?: string; color?: string; spaces?: string[] }) {
       const { useProjectDirectory } = await import('@/composables/useProjectDirectory')
       const projectDir = useProjectDirectory()
       const config = await projectDir.loadProjectConfig(path)
@@ -463,6 +466,7 @@ export const useProjectStore = defineStore('project', {
 
       if (data.name !== undefined) config.name = data.name
       if (data.description !== undefined) config.description = data.description
+      if (data.color !== undefined) config.color = data.color
       if (data.spaces !== undefined) config.spaces = data.spaces
       config.updated = new Date().toISOString()
 
@@ -473,6 +477,7 @@ export const useProjectStore = defineStore('project', {
       if (p) {
         if (data.name !== undefined) p.name = data.name
         if (data.description !== undefined) p.description = data.description
+        if (data.color !== undefined) p.color = data.color
         if (data.spaces !== undefined) p.spaces = data.spaces as SpaceType[]
         p.updated_at = config.updated
       }

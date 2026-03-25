@@ -126,9 +126,9 @@ async function handleCreate(name: string, description?: string) {
   }
 }
 
-async function handleEdit(name: string, description?: string) {
+async function handleEdit(name: string, description?: string, color?: string) {
   if (!editingProject.value) return
-  await projectStore.updateProjectConfig(editingProject.value.path, { name, description })
+  await projectStore.updateProjectConfig(editingProject.value.path, { name, description, color })
   editingProject.value = null
 }
 

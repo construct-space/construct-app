@@ -1,28 +1,32 @@
 <script setup lang="ts">
 import type { LocalProject } from '@/types/project'
 
+const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#eab308', '#ef4444', '#06b6d4', '#84cc16', '#6366f1']
+
 const props = defineProps<{
   project: LocalProject | null
 }>()
 
 const emit = defineEmits<{
   close: []
-  save: [name: string, description?: string]
+  save: [name: string, description?: string, color?: string]
 }>()
 
 const name = ref('')
 const description = ref('')
+const color = ref('')
 
 watch(() => props.project, (p) => {
   if (p) {
     name.value = p.name
     description.value = p.description || ''
+    color.value = p.color || ''
   }
 }, { immediate: true })
 
 function handleSave() {
   if (!name.value.trim()) return
-  emit('save', name.value.trim(), description.value.trim() || undefined)
+  emit('save', name.value.trim(), description.value.trim() || undefined, color.value || undefined)
 }
 </script>
 
@@ -54,6 +58,19 @@ function handleSave() {
                 placeholder="What's this project about?"
                 class="w-full px-3 py-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] text-sm text-[var(--app-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]/30 focus:border-[var(--app-accent)] resize-none"
               />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-[var(--app-muted)] mb-1.5">Color</label>
+              <div class="flex items-center gap-1.5">
+                <button
+                  v-for="c in COLORS"
+                  :key="c"
+                  class="size-6 rounded-full border-2 transition-all cursor-pointer hover:scale-110"
+                  :class="color === c ? 'border-[var(--app-foreground)] scale-110' : 'border-transparent'"
+                  :style="{ background: c }"
+                  @click="color = color === c ? '' : c"
+                />
+              </div>
             </div>
             <div>
               <label class="block text-xs font-medium text-[var(--app-muted)] mb-1.5">Location</label>

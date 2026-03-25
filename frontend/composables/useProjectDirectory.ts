@@ -9,6 +9,7 @@ export interface ProjectConfig {
   version: 1
   name: string
   description?: string
+  color?: string           // Hex color for project icon (e.g. '#3b82f6')
   local_path: string       // Absolute path to project directory
   created: string
   updated: string
