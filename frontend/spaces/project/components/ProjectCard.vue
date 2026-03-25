@@ -43,8 +43,11 @@ function timeAgo(dateStr: string): string {
 
 <template>
   <div
-    class="group card relative text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer bg-[var(--app-surface)] hover:bg-[var(--app-muted)]/5"
-    :class="deployed ? 'border-emerald-500/40 hover:border-emerald-400/60' : 'border-[var(--app-border)] hover:border-[var(--app-accent)]/40'"
+    class="group card relative z-0 flex h-full min-w-0 flex-col overflow-visible rounded-xl border p-4 text-left transition-all duration-200 cursor-pointer hover:z-20"
+    :class="[
+      deployed ? 'border-emerald-500/40 hover:border-emerald-400/60' : 'border-[var(--app-border)] hover:border-[var(--app-accent)]/40',
+      openMenu ? 'z-30' : '',
+    ]"
     @click="emit('open', project)"
     @mouseleave="openMenu = false"
   >
@@ -106,18 +109,18 @@ function timeAgo(dateStr: string): string {
       </div>
     </div>
 
-    <div class="flex items-start gap-3 mb-3">
-      <div class="size-10 rounded-lg bg-[var(--app-accent)]/10 flex items-center justify-center shrink-0">
+    <div class="mb-3 flex items-start gap-3">
+      <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--app-accent)]/10">
         <Icon name="i-lucide-folder" class="size-5 text-[var(--app-accent)]" />
       </div>
-      <div class="min-w-0 flex-1 pr-6">
-        <h3 class="text-sm font-semibold text-[var(--app-foreground)] truncate">{{ project.name }}</h3>
-        <p class="text-[10px] font-mono text-[var(--app-muted)]/50 mt-0.5 break-all">{{ shortPath(project.path) }}</p>
+      <div class="min-w-0 flex-1 pr-8">
+        <h3 class="truncate text-sm font-semibold leading-tight text-[var(--app-foreground)]">{{ project.name }}</h3>
+        <p class="project-path mt-1 text-[10px] leading-4 font-mono text-[var(--app-muted)]/60">{{ shortPath(project.path) }}</p>
       </div>
     </div>
-    <div class="flex items-center justify-between text-xs text-[var(--app-muted)]">
-      <span v-if="project.last_opened_at">{{ timeAgo(project.last_opened_at) }}</span>
-      <div class="flex items-center gap-2">
+    <div class="mt-auto flex items-center justify-between gap-3 text-xs text-[var(--app-muted)]">
+      <span class="min-w-0 truncate" v-if="project.last_opened_at">{{ timeAgo(project.last_opened_at) }}</span>
+      <div class="flex shrink-0 items-center gap-2">
         <span
           v-if="deployed"
           class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-medium"
@@ -130,3 +133,13 @@ function timeAgo(dateStr: string): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+.project-path {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+</style>
