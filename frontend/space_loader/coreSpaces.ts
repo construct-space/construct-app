@@ -34,6 +34,9 @@ import QuickArchitect4x1 from '@/spaces/architect/widgets/QuickArchitect4x1.vue'
 // Widget components — project
 import RecentProjects4x2 from '@/spaces/project/widgets/RecentProjects4x2.vue'
 import PinnedProjects4x4 from '@/spaces/project/widgets/PinnedProjects4x4.vue'
+import DeployStatus2x2 from '@/spaces/project/widgets/DeployStatus2x2.vue'
+import QuickOpen2x1 from '@/spaces/project/widgets/QuickOpen2x1.vue'
+import ProjectStats4x2 from '@/spaces/project/widgets/ProjectStats4x2.vue'
 
 // Manifests
 import brainstormManifest from '@/spaces/brainstorm/manifest.json'
@@ -87,6 +90,15 @@ const CORE_SPACES: Record<string, LoadedSpace> = {
       },
       'pinned-projects': {
         '4x4': PinnedProjects4x4,
+      },
+      'deploy-status': {
+        '2x2': DeployStatus2x2,
+      },
+      'quick-open': {
+        '2x1': QuickOpen2x1,
+      },
+      'project-stats': {
+        '4x2': ProjectStats4x2,
       },
     },
     cssInjected: false,

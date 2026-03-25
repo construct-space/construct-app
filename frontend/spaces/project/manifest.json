@@ -20,6 +20,30 @@
       "icon": "lucide:pin",
       "defaultSize": "4x4",
       "sizes": { "4x4": "widgets/PinnedProjects4x4.vue" }
+    },
+    {
+      "id": "deploy-status",
+      "name": "Deploy Status",
+      "description": "Live deployment status for your projects",
+      "icon": "lucide:rocket",
+      "defaultSize": "2x2",
+      "sizes": { "2x2": "widgets/DeployStatus2x2.vue" }
+    },
+    {
+      "id": "quick-open",
+      "name": "Quick Open",
+      "description": "Search and open any project instantly",
+      "icon": "lucide:search",
+      "defaultSize": "2x1",
+      "sizes": { "2x1": "widgets/QuickOpen2x1.vue" }
+    },
+    {
+      "id": "project-stats",
+      "name": "Project Stats",
+      "description": "Overview of your projects, pins, and deployments",
+      "icon": "lucide:bar-chart-3",
+      "defaultSize": "4x2",
+      "sizes": { "4x2": "widgets/ProjectStats4x2.vue" }
     }
   ]
 }
