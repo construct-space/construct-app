@@ -10,7 +10,7 @@ const props = defineProps<{
 
 const route = useRoute()
 const router = useRouter()
-const { breadcrumbs } = useToolbar()
+const { breadcrumbs, spaceConfig } = useToolbar()
 const projectStore = useProjectStore()
 
 const routeLabels: Record<string, string> = {
@@ -95,13 +95,18 @@ const displayBreadcrumbs = computed(() => {
 </script>
 
 <template>
-  <div class="flex items-center text-sm tracking-wide ml-4">
+  <nav class="flex items-center gap-1.5 text-sm ml-4">
+    <!-- Space icon -->
+    <div v-if="spaceConfig?.icon" class="size-5 rounded flex items-center justify-center shrink-0" style="background: color-mix(in srgb, var(--app-accent) 15%, transparent)">
+      <Icon :name="spaceConfig.icon" class="size-3.5" style="color: var(--app-accent)" />
+    </div>
     <template v-for="(crumb, idx) in displayBreadcrumbs" :key="idx">
-      <span v-if="idx > 0" class="text-gray-500 mx-0.5">:</span>
+      <svg v-if="idx > 0" class="size-3 shrink-0" style="color: var(--app-muted)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
 
       <button
         v-if="crumb.to"
-        class="text-[var(--app-muted)] font-light hover:text-[var(--app-foreground)] transition-colors"
+        class="hover:underline transition-colors"
+        style="color: var(--app-muted)"
         @click="router.push(crumb.to)"
       >
         {{ crumb.label }}
@@ -109,10 +114,11 @@ const displayBreadcrumbs = computed(() => {
 
       <span
         v-else
-        class="text-[var(--app-foreground)] font-bold"
+        class="font-medium"
+        style="color: var(--app-foreground)"
       >
         {{ crumb.label }}
       </span>
     </template>
-  </div>
+  </nav>
 </template>

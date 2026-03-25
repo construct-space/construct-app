@@ -14,8 +14,24 @@ interface RuntimeInfo {
 }
 
 const toast = useToast()
-const { developerMode, isDeveloperMode, disableUpdates, setDeveloperMode, setDisableUpdates } = useDevMode()
+const { isDeveloperMode, isEnrollmentPending, isEnrolled, developerStatus, disableUpdates, requestEnrollment, refreshStatus, setDisableUpdates } = useDevMode()
 const activeTab = ref<'developer' | 'environment' | 'projects'>('developer')
+const refreshing = ref(false)
+
+async function openDeveloperPortal() {
+  try {
+    const { open } = await import('@tauri-apps/plugin-shell')
+    await open('https://developer.construct.space')
+  } catch {
+    window.open('https://developer.construct.space', '_blank')
+  }
+}
+
+async function handleRefresh() {
+  refreshing.value = true
+  await refreshStatus()
+  refreshing.value = false
+}
 const projectStore = useProjectStore()
 const projectDir = useProjectDirectory()
 
@@ -183,17 +199,35 @@ async function detectRuntimes() {
 
 <template>
   <div class="space-y-6">
-    <!-- Header with toggle -->
+    <!-- Header with enrollment status -->
     <div class="flex items-center justify-between">
       <div>
         <h2 class="text-lg font-semibold text-app mb-1">Developer</h2>
         <p class="text-sm text-app-muted">Tools for space development and testing</p>
       </div>
-      <Switch :modelValue="developerMode" @update:modelValue="setDeveloperMode" />
+      <div v-if="isDeveloperMode" class="flex items-center gap-2">
+        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-green-500/15 text-green-500">Enrolled</span>
+      </div>
+      <div v-else-if="isEnrollmentPending" class="flex items-center gap-2">
+        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500">Pending Review</span>
+        <Button variant="soft" size="xs" :loading="refreshing" label="Refresh" @click="handleRefresh" />
+      </div>
+      <Button v-else variant="soft" label="Enroll as Developer" @click="openDeveloperPortal" />
+    </div>
+
+    <!-- Not enrolled -->
+    <div v-if="!isDeveloperMode && !isEnrollmentPending" class="py-8 text-center">
+      <p class="text-sm text-[var(--app-muted)] mb-2">Enroll as a developer to access projects, CLI tools, and space development features.</p>
+      <p class="text-xs text-[var(--app-muted)]">Your account must be approved before developer tools become available.</p>
+    </div>
+
+    <!-- Pending -->
+    <div v-else-if="!isDeveloperMode && isEnrollmentPending" class="py-8 text-center">
+      <p class="text-sm text-[var(--app-muted)]">Your developer enrollment is being reviewed. Check back soon.</p>
     </div>
 
     <!-- Enabled: tabs + content -->
-    <template v-if="developerMode">
+    <template v-if="isDeveloperMode">
       <!-- Tabs -->
       <div class="flex gap-1 p-1 bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] rounded-lg w-fit">
         <button
@@ -329,9 +363,5 @@ Projects
       </template>
     </template>
 
-    <!-- Disabled state -->
-    <div v-else class="py-4 text-center">
-      <p class="text-sm text-[var(--app-muted)]">Enable Developer Mode to access projects, CLI tools, and space development features.</p>
-    </div>
   </div>
 </template>

@@ -7,9 +7,11 @@ import { useAssistant } from '@/operator'
 import { useDraggableWindow } from '@/composables/useDraggableWindow'
 import { useWindowChromeState } from '@/composables/useWindowChromeState'
 
+const route = useRoute()
 const assistant = useAssistant()
 const { isWindowChromeHidden } = useWindowChromeState()
 const showWindowChrome = computed(() => !isWindowChromeHidden.value)
+const isHomePage = computed(() => route.path === '/app' || route.path === '/app/')
 
 // Double-Shift to toggle assistant (like IntelliJ's Search Everywhere)
 let lastShiftTime = 0
@@ -69,7 +71,7 @@ onUnmounted(() => {
     <Sidebar3D v-if="showWindowChrome" />
 
     <div class="flex-1 flex flex-col overflow-hidden min-w-0">
-      <Toolbar3D v-if="showWindowChrome" />
+      <Toolbar3D v-if="showWindowChrome && !isHomePage" />
 
       <div class="flex-1 flex overflow-hidden min-h-0">
         <main class="flex-1 overflow-auto min-w-0">

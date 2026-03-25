@@ -1013,14 +1013,23 @@ func main() {
 	mcpClient := mcp.NewClient()
 	for _, cfg := range mcpConfigs {
 		mcpClient.Add(cfg)
-		if cfg.Enabled {
-			if err := mcpClient.Connect(ctx, cfg.ID); err != nil {
-				fmt.Fprintf(os.Stderr, "[operator] warning: mcp %s: %v\n", cfg.ID, err)
+	}
+	// Connect enabled MCP servers in background — don't block startup.
+	// Servers that fail to connect will show as "stopped" in settings.
+	go func() {
+		for _, cfg := range mcpConfigs {
+			if cfg.Enabled {
+				connectCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				if err := mcpClient.Connect(connectCtx, cfg.ID); err != nil {
+					fmt.Fprintf(os.Stderr, "[operator] warning: mcp %s: %v\n", cfg.ID, err)
+				} else {
+					mcpClient.RegisterServerTools(tools, cfg.ID)
+				}
+				cancel()
 			}
 		}
-	}
-	mcpClient.RegisterTools(tools)
-	fmt.Fprintf(os.Stderr, "[operator] mcp configs: %d servers found\n", len(mcpConfigs))
+	}()
+	fmt.Fprintf(os.Stderr, "[operator] mcp configs: %d servers found (connecting in background)\n", len(mcpConfigs))
 
 	userMCPConfigPath := filepath.Join(appdir.Dir, "mcp.json")
 	listMCPServers := func() []map[string]any {
@@ -2788,11 +2797,18 @@ When the user asks to create, build, or manage a Construct space, use these tool
 					return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
 				}
 			}
-			if err := mcpClient.Connect(reqCtx, payload.ID); err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-			registerMCPServerTools(payload.ID)
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
+			serverID := payload.ID
+			go func() {
+				connectCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				defer cancel()
+				if err := mcpClient.Connect(connectCtx, serverID); err != nil {
+					fmt.Fprintf(os.Stderr, "[mcp] background connect %s failed: %v\n", serverID, err)
+					return
+				}
+				registerMCPServerTools(serverID)
+				fmt.Fprintf(os.Stderr, "[mcp] %s connected and tools registered\n", serverID)
+			}()
+			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true, "status": "connecting"}}
 
 		case req.Type == "mcp.disable":
 			var payload struct {
@@ -2895,11 +2911,20 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			if err := persistUserMCPConfigs(); err != nil {
 				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
 			}
-			if err := mcpClient.Connect(reqCtx, cfg.ID); err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-			registerMCPServerTools(cfg.ID)
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"id": cfg.ID}}
+			// Connect in background — don't block the request handler.
+			// NPM servers can take a long time to install/start.
+			serverID := cfg.ID
+			go func() {
+				connectCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				defer cancel()
+				if err := mcpClient.Connect(connectCtx, serverID); err != nil {
+					fmt.Fprintf(os.Stderr, "[mcp] background connect %s failed: %v\n", serverID, err)
+					return
+				}
+				registerMCPServerTools(serverID)
+				fmt.Fprintf(os.Stderr, "[mcp] %s connected and tools registered\n", serverID)
+			}()
+			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"id": cfg.ID, "status": "connecting"}}
 
 		case req.Type == "mcp.remove":
 			var payload struct {

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.5] — 2026-03-25
+
+### Fixed
+- **Operator startup blocked by MCP** — MCP servers now connect in background instead of blocking port binding. Unreachable servers no longer prevent the operator from starting
+- **MCP add/enable hangs UI** — `mcp.add` and `mcp.enable` return immediately, connect in background goroutine with 60s timeout
+- **UIcon not resolved** — Replaced `UIcon` with auto-imported `Icon` component in toolbar and breadcrumb
+
+### Changed
+- **Native traffic lights** — Replaced custom HTML traffic light buttons with native macOS window controls via `tauri-plugin-decorum`. Proper fullscreen, hover icons, and position persistence through fullscreen transitions
+- **Toolbar redesign** — DS-aligned toolbar with rounded-right corners, inset margins, surface background, proper `toolbar-btn` styling from design system. Breadcrumb uses chevron separators and space icon
+- **No toolbar on home** — Hidden on dashboard since it has no actions
+- **Settings cleanup** — Merged System + Updates into "General" with tabs. Removed Shortcuts (built-in spaces only), Browser Automation (fully automatic). Reordered: General above Appearance
+- **Profile settings** — Replaced inline form with link to accounts.construct.space. Delete Account opens account portal
+- **Developer enrollment** — Replaced toggle with server-side enrollment via developer.construct.space. Shows enrolled/pending/not-enrolled states
+- **System info** — Added Operator and Desktop Bridge connection status, hostname, locale, architecture, session uptime. Removed operator version (now bundled)
+
 ## [0.6.4] — 2026-03-24
 
 ### Fixed

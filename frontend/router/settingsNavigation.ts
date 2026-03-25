@@ -5,10 +5,7 @@ import {
   CircleUser,
   Code,
   Cpu,
-  Download,
-  Globe,
   Image,
-  Keyboard,
   Monitor,
   Puzzle,
   Server,
@@ -31,17 +28,14 @@ const settingsDefinitions: SettingsDefinition[] = [
   { label: 'Profile', path: 'profile', group: 'Account', icon: CircleUser, component: () => import('@/pages/settings/ProfileSettings.vue') },
   { label: 'Privacy', path: 'privacy', group: 'Account', icon: Shield, component: () => import('@/pages/settings/PrivacySettings.vue') },
 
+  { label: 'General', path: 'system', group: 'General', icon: Monitor, component: () => import('@/pages/settings/SystemSettings.vue') },
   { label: 'Appearance', path: 'appearance', group: 'General', icon: Brush, component: () => import('@/pages/settings/AppearanceSettings.vue') },
-  { label: 'Shortcuts', path: 'shortcuts', group: 'General', icon: Keyboard, component: () => import('@/pages/settings/ShortcutsSettings.vue') },
-  { label: 'Updates', path: 'updates', group: 'General', icon: Download, component: () => import('@/pages/settings/UpdatesSettings.vue') },
-  { label: 'System', path: 'system', group: 'General', icon: Monitor, component: () => import('@/pages/settings/SystemSettings.vue') },
   { label: 'Developer', path: 'developer', group: 'General', icon: Code, component: () => import('@/pages/settings/DeveloperSettings.vue') },
 
   { label: 'LLMs & Models', path: 'llms', group: 'AI', icon: Cpu, component: () => import('@/pages/settings/LLMSettings.vue') },
   { label: 'Media & AI', path: 'media', group: 'AI', icon: Image, component: () => import('@/pages/settings/MediaSettings.vue') },
   { label: 'MCP Servers', path: 'mcp', group: 'AI', icon: Server, component: () => import('@/pages/settings/MCPSettings.vue') },
   { label: 'Skills & Hooks', path: 'skills', group: 'AI', icon: Puzzle, component: () => import('@/pages/settings/SkillsSettings.vue') },
-  { label: 'Browser Automation', path: 'browser', group: 'AI', icon: Globe, component: () => import('@/pages/settings/BrowserSettings.vue') },
 ]
 
 export interface SettingsNavItem {

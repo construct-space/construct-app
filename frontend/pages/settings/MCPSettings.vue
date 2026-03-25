@@ -112,10 +112,13 @@ async function addServer() {
       payload.path = newServer.value.path
     }
     await operator.send('mcp.add', payload)
-    toast.add({ title: `${payload.name || 'MCP server'} added`, color: 'success' })
+    toast.add({ title: `${payload.name || 'MCP server'} added — connecting in background`, color: 'success' })
     showAddForm.value = false
     newServer.value = { type: 'url', url: '', transport: 'http', package: '', path: '', name: '' }
     await loadServers()
+    // Poll for connection status
+    setTimeout(() => loadServers(), 5000)
+    setTimeout(() => loadServers(), 15000)
   } catch (e) {
     toast.add({ title: String(e), color: 'error' })
   } finally {

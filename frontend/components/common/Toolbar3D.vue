@@ -36,20 +36,16 @@ function handleItemClick(item: { id: string; onClick?: () => void; to?: string; 
 </script>
 
 <template>
-  <div class="relative h-10 select-none" style="perspective: 1000px" @contextmenu.prevent>
+  <div class="relative h-11 select-none ml-[22px] mr-[22px] mt-3 perspective-[1000px]" @contextmenu.prevent>
     <!-- Rotating Container -->
     <div
-      class="w-full h-full relative"
+      class="w-full h-full relative transform-3d"
       :class="isRotating ? 'transition-transform duration-500 ease-in' : ''"
-      :style="{
-        transformStyle: 'preserve-3d',
-        transform: rotationTransform
-      }"
+      :style="{ transform: rotationTransform }"
     >
       <!-- Front Panel -->
       <div
-        class="absolute inset-0 w-full h-10 pl-4 pr-6 flex items-center gap-2 bg-app border-b border-gray-200/50 dark:border-gray-700/50"
-        style="backface-visibility: hidden; transform: translateZ(20px)"
+        class="toolbar-panel absolute inset-0 w-full h-11 px-4 flex items-center gap-2 rounded-r-xl border border-[var(--app-border)] bg-[var(--app-surface)]"
         data-tauri-drag-region>
         <ToolbarBreadcrumb :path="frontPanel.path" />
 
@@ -60,15 +56,17 @@ function handleItemClick(item: { id: string; onClick?: () => void; to?: string; 
 
         <!-- Separator before toolbar items -->
         <template v-if="toolbarItems.length">
-          <div class="w-px h-4 bg-app-muted/30 ml-1" />
+          <div class="w-px h-5 bg-[var(--app-border)]" />
 
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-0.5">
             <Tooltip
               v-for="item in toolbarItems" :key="item.id" :text="item.label">
-              <Button
-                :icon="item.icon" variant="ghost" color="neutral" size="xs"
-                :class="item.active ? 'text-app-accent' : 'text-app-muted hover:text-app'"
-                @click="handleItemClick(item)" />
+              <button
+                class="toolbar-btn"
+                :class="item.active ? 'active' : ''"
+                @click="handleItemClick(item)">
+                <Icon :name="item.icon" class="size-4" />
+              </button>
             </Tooltip>
           </div>
         </template>
@@ -79,28 +77,29 @@ function handleItemClick(item: { id: string; onClick?: () => void; to?: string; 
         <div class="flex-1" />
 
         <!-- Right slot (via Teleport from pages) -->
-        <div id="toolbar-right" class="flex items-center gap-2 mr-2" />
+        <div id="toolbar-right" class="flex items-center gap-0.5 mr-1" />
       </div>
 
       <!-- Bottom Panel (for rotation animation) -->
       <div
-        class="absolute inset-0 w-full h-10 pl-4 pr-6 flex items-center gap-2 bg-app border-b border-gray-200/50 dark:border-gray-700/50"
-        style="backface-visibility: hidden; transform: rotateX(-90deg) translateZ(20px)"
+        class="toolbar-panel toolbar-panel--bottom absolute inset-0 w-full h-11 px-4 flex items-center gap-2 rounded-r-xl border border-[var(--app-border)] bg-[var(--app-surface)]"
         data-tauri-drag-region>
         <ToolbarBreadcrumb :path="bottomPanel.path" />
 
         <div class="flex-1" />
 
         <template v-if="bottomToolbarItems.length">
-          <div class="w-px h-4 bg-app-muted/30 ml-1" />
+          <div class="w-px h-5 bg-[var(--app-border)]" />
 
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-0.5">
             <Tooltip
               v-for="item in bottomToolbarItems" :key="item.id" :text="item.label">
-              <Button
-                :icon="item.icon" variant="ghost" color="neutral" size="xs"
-                :class="item.active ? 'text-app-accent' : 'text-app-muted hover:text-app'"
-                @click="handleItemClick(item)" />
+              <button
+                class="toolbar-btn"
+                :class="item.active ? 'active' : ''"
+                @click="handleItemClick(item)">
+                <Icon :name="item.icon" class="size-4" />
+              </button>
             </Tooltip>
           </div>
         </template>
@@ -110,3 +109,34 @@ function handleItemClick(item: { id: string; onClick?: () => void; to?: string; 
     </div>
   </div>
 </template>
+
+<style scoped>
+.toolbar-panel {
+  backface-visibility: hidden;
+  transform: translateZ(22px);
+}
+.toolbar-panel--bottom {
+  transform: rotateX(-90deg) translateZ(22px);
+}
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  background: transparent;
+  color: var(--app-muted);
+}
+.toolbar-btn:hover {
+  background: var(--app-input-bg);
+  color: var(--app-foreground);
+}
+.toolbar-btn.active {
+  background: color-mix(in srgb, var(--app-accent) 15%, transparent);
+  color: var(--app-accent);
+}
+</style>

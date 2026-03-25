@@ -662,8 +662,7 @@ export function useProjectDirectory() {
 
         // Ensure the new directory structure exists
         const success = await ensureProjectStructure(normalizedNewPath, spaces)
-        if (success) {
-        } else {
+        if (!success) {
           console.error('[LocalPathWatcher] Failed to ensure directory structure')
         }
       },
