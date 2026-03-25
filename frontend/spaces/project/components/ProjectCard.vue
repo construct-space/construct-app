@@ -16,8 +16,6 @@ const emit = defineEmits<{
   togglePin: [project: LocalProject]
 }>()
 
-const openMenu = ref(false)
-
 function shortPath(fullPath: string): string {
   if (!fullPath) return ''
   const home = '/Users/' + fullPath.split('/')[2]
@@ -44,7 +42,6 @@ const PALETTE = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#eab308
 
 const iconColor = computed(() => {
   if (props.project.color) return props.project.color
-  // Deterministic color from project name
   let hash = 0
   for (const ch of props.project.name) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0
   return PALETTE[Math.abs(hash) % PALETTE.length]
@@ -53,84 +50,25 @@ const iconColor = computed(() => {
 
 <template>
   <div
-    class="group project-card relative z-0 flex h-full min-w-0 flex-col overflow-visible rounded-xl border p-4 text-left transition-all duration-200 cursor-pointer hover:z-20"
-    :class="[
-      deployed ? 'border-emerald-500/40 hover:border-emerald-400/60' : 'border-[var(--app-border)] hover:border-[var(--app-accent)]/40',
-      openMenu ? 'z-30' : '',
-    ]"
+    class="group project-card relative flex h-full min-w-0 flex-col rounded-xl border p-4 text-left transition-all duration-200 cursor-pointer"
+    :class="deployed ? 'border-emerald-500/40 hover:border-emerald-400/60' : 'border-[var(--app-border)] hover:border-[var(--app-accent)]/40'"
     @click="emit('open', project)"
-    @mouseleave="openMenu = false"
   >
-    <!-- Hover actions -->
-    <div
-      class="absolute top-3 right-3 z-10 hidden items-center gap-0.5 group-hover:flex"
-      :class="{ '!flex': openMenu }"
-    >
-      <button
-        class="p-1.5 rounded-md text-[var(--app-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-        title="Remove project"
-        @click.stop="emit('remove', project)"
-      >
-        <Icon name="i-lucide-x" class="size-4" />
-      </button>
-      <button
-        class="p-1.5 rounded-md text-[var(--app-muted)] hover:text-[var(--app-foreground)] hover:bg-[var(--app-muted)]/10 transition-colors cursor-pointer"
-        :class="{ 'bg-[var(--app-muted)]/10': openMenu }"
-        @click.stop="openMenu = !openMenu"
-      >
-        <Icon name="i-lucide-ellipsis-vertical" class="size-4" />
-      </button>
-
-      <!-- Context menu -->
-      <div
-        v-if="openMenu"
-        class="absolute top-8 right-0 w-48 py-1 rounded-lg border border-[var(--app-border)] bg-[var(--app-background)] shadow-xl z-20"
-        @click.stop
-      >
-        <button
-          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] transition-colors"
-          @click.stop="emit('togglePin', project); openMenu = false"
-        >
-          <Icon :name="pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" class="size-3.5" />
-          {{ pinned ? 'Unpin from sidebar' : 'Pin to sidebar' }}
-        </button>
-        <button
-          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] transition-colors"
-          @click.stop="emit('edit', project); openMenu = false"
-        >
-          <Icon name="i-lucide-pencil" class="size-3.5" />
-          Edit project
-        </button>
-        <button
-          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-          @click.stop="emit('deploy', project); openMenu = false"
-        >
-          <Icon name="i-lucide-rocket" class="size-3.5" />
-          {{ deployed ? 'Re-Deploy' : 'Deploy' }}
-        </button>
-        <div class="my-1 h-px bg-[var(--app-border)]" />
-        <button
-          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
-          @click.stop="emit('remove', project); openMenu = false"
-        >
-          <Icon name="i-lucide-folder-minus" class="size-3.5" />
-          Remove from Construct
-        </button>
-      </div>
-    </div>
-
+    <!-- Header: icon + name -->
     <div class="mb-3 flex items-start gap-3">
       <div class="flex size-10 shrink-0 items-center justify-center rounded-lg" :style="{ background: iconColor + '18' }">
         <Icon name="i-lucide-folder" class="size-5" :style="{ color: iconColor }" />
       </div>
-      <div class="min-w-0 flex-1 pr-8">
+      <div class="min-w-0 flex-1">
         <h3 class="truncate text-sm font-semibold leading-tight text-[var(--app-foreground)]">{{ project.name }}</h3>
         <p class="project-path mt-1 text-[10px] leading-4 font-mono text-[var(--app-muted)]/60">{{ shortPath(project.path) }}</p>
       </div>
     </div>
-    <div class="mt-auto flex items-center justify-between gap-3 text-xs text-[var(--app-muted)]">
-      <span class="min-w-0 truncate" v-if="project.last_opened_at">{{ timeAgo(project.last_opened_at) }}</span>
-      <div class="flex shrink-0 items-center gap-2">
+
+    <!-- Footer: time + actions -->
+    <div class="mt-auto flex items-center justify-between gap-2 text-xs text-[var(--app-muted)]">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="truncate" v-if="project.last_opened_at">{{ timeAgo(project.last_opened_at) }}</span>
         <span
           v-if="deployed"
           class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-medium"
@@ -138,7 +76,38 @@ const iconColor = computed(() => {
           <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Live
         </span>
-        <Icon v-if="project.is_external" name="i-lucide-external-link" class="size-3 opacity-60" />
+      </div>
+
+      <!-- Action icons — visible on hover -->
+      <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          class="card-action"
+          :title="pinned ? 'Unpin' : 'Pin'"
+          @click.stop="emit('togglePin', project)"
+        >
+          <Icon :name="pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" class="size-3.5" />
+        </button>
+        <button
+          class="card-action"
+          title="Edit"
+          @click.stop="emit('edit', project)"
+        >
+          <Icon name="i-lucide-pencil" class="size-3.5" />
+        </button>
+        <button
+          class="card-action text-emerald-500 hover:!bg-emerald-500/10"
+          title="Deploy"
+          @click.stop="emit('deploy', project)"
+        >
+          <Icon name="i-lucide-rocket" class="size-3.5" />
+        </button>
+        <button
+          class="card-action text-red-400 hover:!bg-red-500/10"
+          title="Remove"
+          @click.stop="emit('remove', project)"
+        >
+          <Icon name="i-lucide-x" class="size-3.5" />
+        </button>
       </div>
     </div>
   </div>
@@ -158,5 +127,17 @@ const iconColor = computed(() => {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow-wrap: anywhere;
+}
+
+.card-action {
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  color: var(--app-muted);
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+}
+.card-action:hover {
+  color: var(--app-foreground);
+  background: color-mix(in srgb, var(--app-muted) 10%, transparent);
 }
 </style>
