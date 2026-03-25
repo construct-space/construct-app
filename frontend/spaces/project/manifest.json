@@ -12,6 +12,14 @@
       "icon": "lucide:folder-open",
       "defaultSize": "4x2",
       "sizes": { "4x2": "widgets/RecentProjects4x2.vue" }
+    },
+    {
+      "id": "pinned-projects",
+      "name": "Pinned Projects",
+      "description": "Quick access to your pinned projects",
+      "icon": "lucide:pin",
+      "defaultSize": "4x4",
+      "sizes": { "4x4": "widgets/PinnedProjects4x4.vue" }
     }
   ]
 }
