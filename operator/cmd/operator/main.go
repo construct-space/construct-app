@@ -1017,12 +1017,18 @@ func main() {
 	// Connect enabled MCP servers in background — don't block startup.
 	// Servers that fail to connect will show as "stopped" in settings.
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Fprintf(os.Stderr, "[mcp] background connect panic: %v\n", r)
+			}
+		}()
 		for _, cfg := range mcpConfigs {
 			if cfg.Enabled {
 				connectCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				if err := mcpClient.Connect(connectCtx, cfg.ID); err != nil {
-					fmt.Fprintf(os.Stderr, "[operator] warning: mcp %s: %v\n", cfg.ID, err)
+					fmt.Fprintf(os.Stderr, "[mcp] %s: %v\n", cfg.ID, err)
 				} else {
+					fmt.Fprintf(os.Stderr, "[mcp] %s connected, registering tools\n", cfg.ID)
 					mcpClient.RegisterServerTools(tools, cfg.ID)
 				}
 				cancel()
