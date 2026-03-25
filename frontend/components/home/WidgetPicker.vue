@@ -50,15 +50,6 @@ function addWidget(widget: WidgetDefinition, sizeKey: string) {
   emit('add', widget.spaceId, widget.id, sizeKey)
   isOpen.value = false
 }
-
-// Size preview dimensions (proportional)
-function sizePreview(sizeKey: string) {
-  const [w, h] = sizeKey.split('x').map(Number)
-  return {
-    width: `${w * 60}px`,
-    height: `${h * 48}px`,
-  }
-}
 </script>
 
 <template>
@@ -68,51 +59,46 @@ function sizePreview(sizeKey: string) {
     </template>
 
     <template #body>
-      <div class="flex gap-4 min-h-[300px]">
+      <div class="flex gap-0 min-h-[320px] max-h-[60vh]">
         <!-- Space sidebar -->
-        <div class="w-40 shrink-0 border-r border-[var(--app-border)] pr-4 space-y-1">
+        <div class="w-40 shrink-0 border-r border-[var(--app-border)] pr-3 space-y-0.5 overflow-y-auto">
           <button
             v-for="group in spaceGroups"
             :key="group.spaceId"
-            class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
+            class="w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors"
             :class="(activeGroup?.spaceId === group.spaceId)
-              ? 'bg-[var(--app-accent)]/10 text-[var(--app-accent)]'
-              : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)] hover:bg-[var(--app-surface)]'"
+              ? 'bg-[var(--app-accent)]/10 text-[var(--app-accent)] font-medium'
+              : 'text-[var(--app-muted)] hover:text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_6%,transparent)]'"
             @click="selectSpace(group.spaceId)"
           >
             {{ group.spaceId }}
-            <span class="text-xs opacity-60 ml-1">({{ group.widgets.length }})</span>
+            <span class="opacity-50 ml-0.5">({{ group.widgets.length }})</span>
           </button>
         </div>
 
-        <!-- Widget list -->
-        <div class="flex-1 space-y-4">
+        <!-- Widget list (scrollable) -->
+        <div class="flex-1 pl-4 overflow-y-auto space-y-1">
           <template v-if="activeGroup">
             <div
               v-for="widget in activeGroup.widgets"
               :key="widget.id"
-              class="p-4 rounded-xl border border-[var(--app-border)] space-y-3"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors"
             >
-              <div class="flex items-center gap-2">
-                <div>
-                  <p class="text-sm font-medium text-[var(--app-foreground)]">{{ widget.name }}</p>
-                  <p v-if="widget.description" class="text-xs text-[var(--app-muted)]">{{ widget.description }}</p>
-                </div>
+              <!-- Info -->
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-[var(--app-foreground)]">{{ widget.name }}</p>
+                <p v-if="widget.description" class="text-[11px] text-[var(--app-muted)] truncate">{{ widget.description }}</p>
               </div>
 
-              <!-- Size variants -->
-              <div class="flex flex-wrap gap-3">
+              <!-- Size pills -->
+              <div class="flex items-center gap-1.5 shrink-0">
                 <button
                   v-for="size in widget.sizes"
                   :key="size"
-                  class="flex flex-col items-center gap-1.5 p-2 rounded-lg border border-[var(--app-border)] hover:border-[var(--app-accent)]/40 hover:bg-[var(--app-accent)]/5 transition-all cursor-pointer"
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-mono border transition-all cursor-pointer border-[var(--app-border)] text-[var(--app-muted)] hover:border-[var(--app-accent)]/50 hover:text-[var(--app-accent)] hover:bg-[var(--app-accent)]/5"
                   @click="addWidget(widget, size)"
                 >
-                  <div
-                    class="rounded bg-[var(--app-accent)]/10 border border-[var(--app-accent)]/20"
-                    :style="sizePreview(size)"
-                  />
-                  <span class="text-[10px] text-[var(--app-muted)] font-mono">{{ size }}</span>
+                  {{ size }}
                 </button>
               </div>
             </div>
