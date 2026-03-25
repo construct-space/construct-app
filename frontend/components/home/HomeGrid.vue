@@ -290,7 +290,8 @@ const dropPreviewStyle = computed(() => {
     <!-- Grid -->
     <div
       ref="gridEl"
-      class="grid gap-2"
+      class="grid gap-2 transition-all duration-200 rounded-2xl"
+      :class="editing ? 'edit-grid p-2 border-2 border-dashed border-[var(--app-accent)]/30' : ''"
       :style="{
         gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
         gridTemplateRows: `repeat(${gridRows}, 80px)`,
@@ -372,11 +373,20 @@ const dropPreviewStyle = computed(() => {
           class="group rounded-xl cursor-pointer"
           @click="emit('addWidget')"
         >
-          <div class="h-full flex items-center justify-center rounded-xl border border-transparent group-hover:border-dashed group-hover:border-[var(--app-border)] group-hover:bg-[var(--app-accent)]/5 transition-all">
-            <Plus class="size-4 text-[var(--app-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div class="h-full flex items-center justify-center rounded-xl border border-dashed border-[var(--app-border)]/40 group-hover:border-[var(--app-accent)]/40 group-hover:bg-[var(--app-accent)]/5 transition-all">
+            <Plus class="size-4 text-[var(--app-muted)]/30 group-hover:text-[var(--app-accent)] group-hover:opacity-100 transition-all" />
           </div>
         </div>
       </template>
     </div>
   </div>
 </template>
+
+<style scoped>
+.edit-grid {
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--app-muted) 15%, transparent) 1px, transparent 1px);
+  background-size: calc(100% / v-bind(gridCols)) 82px;
+  background-position: center center;
+}
+</style>
