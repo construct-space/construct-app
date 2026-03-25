@@ -61,6 +61,8 @@ Keep questions short. When offering choices, use this exact bullet format (the U
 
 NEVER use "Option A/B/C" as labels. Use the actual choice name. NEVER list options inline like "X, Y, or Z?". Always use the bullet format above.
 
+When the user should be able to pick MORE THAN ONE option, add "Select multiple:" or "(select all that apply)" before the options. This tells the UI to render multi-select checkboxes with a confirm button instead of single-click buttons. Use this for features, pages, or any additive selection.
+
 Don't ask unnecessary questions. If the user said "a Flutter game" — platform and stack are already decided.
 
 ## Phase 2: Write Docs (after questions are answered)

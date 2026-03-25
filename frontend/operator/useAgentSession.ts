@@ -236,13 +236,17 @@ export function extractQuestion(text: string): { before: string; question: Quest
   }
   const before = lines.slice(0, beforeEnd).join('\n').trimEnd()
 
+  // Detect multi-select intent from surrounding text
+  const fullBlock = trimmed.toLowerCase()
+  const isMulti = /select\s*(multiple|all|any)|choose\s*(multiple|all|any)|pick\s*(multiple|all|any)|multi.?select|more\s+than\s+one|allow\s+multiple/i.test(fullBlock)
+
   return {
     before,
     question: {
       type: 'question',
       id: `q-${Date.now()}`,
       question: questionLine,
-      questionType: 'single',
+      questionType: isMulti ? 'multi' : 'single',
       options,
     },
   }

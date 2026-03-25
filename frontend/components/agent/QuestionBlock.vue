@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import type { QuestionBlock } from '@/operator/useAgentSession'
 
 const props = defineProps<{
@@ -6,52 +7,104 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  answer: [questionId: string, answer: string]
+  answer: [questionId: string, answer: string | string[]]
 }>()
 
+const isMulti = computed(() => props.block.questionType === 'multi')
+const pendingSelections = ref<Set<string>>(new Set())
+const isSubmitted = computed(() => !!props.block.answer)
+
 function isSelected(optValue: string): boolean {
-  return Array.isArray(props.block.answer)
-    ? props.block.answer.includes(optValue)
-    : props.block.answer === optValue
+  if (isSubmitted.value) {
+    return Array.isArray(props.block.answer)
+      ? props.block.answer.includes(optValue)
+      : props.block.answer === optValue
+  }
+  return pendingSelections.value.has(optValue)
 }
 
-function selectedDescription(): string | undefined {
-  return props.block.options.find(o => o.value === props.block.answer)?.description
+function toggle(opt: { value: string }) {
+  if (isSubmitted.value) return
+
+  if (isMulti.value) {
+    const s = new Set(pendingSelections.value)
+    if (s.has(opt.value)) s.delete(opt.value)
+    else s.add(opt.value)
+    pendingSelections.value = s
+  } else {
+    // Single select — submit immediately
+    props.block.answer = opt.value
+    emit('answer', props.block.id, opt.value)
+  }
 }
 
-function select(opt: { value: string }) {
-  props.block.answer = opt.value
-  emit('answer', props.block.id, opt.value)
+function submitMulti() {
+  if (pendingSelections.value.size === 0) return
+  const selected = Array.from(pendingSelections.value)
+  props.block.answer = selected
+  emit('answer', props.block.id, selected.join(', '))
+}
+
+function selectedDescriptions(): string[] {
+  const answer = props.block.answer
+  if (!answer) return []
+  const values = Array.isArray(answer) ? answer : [answer]
+  return props.block.options
+    .filter(o => values.includes(o.value) && o.description)
+    .map(o => o.description!)
 }
 </script>
 
 <template>
   <div class="question-block my-2 rounded-xl border border-app-border p-4">
-    <p class="text-sm font-medium text-app mb-3">{{ block.question }}</p>
+    <div class="flex items-start justify-between gap-2 mb-3">
+      <p class="text-sm font-medium text-app">{{ block.question }}</p>
+      <span v-if="isMulti && !isSubmitted" class="shrink-0 text-[10px] text-app-muted bg-app-accent/10 px-1.5 py-0.5 rounded-full">
+        select multiple
+      </span>
+    </div>
 
     <div class="flex flex-wrap gap-2">
       <button
         v-for="opt in block.options"
         :key="opt.value"
-        :disabled="!!block.answer"
+        :disabled="isSubmitted"
         class="question-opt"
         :class="[
           isSelected(opt.value)
             ? 'question-opt--selected'
-            : block.answer
+            : isSubmitted
               ? 'question-opt--dimmed'
               : 'question-opt--idle'
         ]"
-        @click="select(opt)"
+        @click="toggle(opt)"
       >
-        <span class="question-opt__label">{{ opt.label }}</span>
-        <span v-if="opt.description && !isSelected(opt.value)" class="question-opt__desc">{{ opt.description }}</span>
+        <!-- Multi-select checkbox indicator -->
+        <div class="flex items-start gap-2">
+          <span v-if="isMulti" class="question-check shrink-0 mt-0.5" :class="{ 'question-check--on': isSelected(opt.value) }">
+            <svg v-if="isSelected(opt.value)" class="size-2.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 6 5 9 10 3" /></svg>
+          </span>
+          <div>
+            <span class="question-opt__label">{{ opt.label }}</span>
+            <span v-if="opt.description" class="question-opt__desc">{{ opt.description }}</span>
+          </div>
+        </div>
       </button>
     </div>
 
-    <p v-if="selectedDescription()" class="mt-2.5 text-xs text-app-muted">
-      {{ selectedDescription() }}
-    </p>
+    <!-- Multi-select confirm button -->
+    <button
+      v-if="isMulti && !isSubmitted && pendingSelections.size > 0"
+      class="mt-3 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors"
+      style="background: var(--app-accent); color: white;"
+      @click="submitMulti"
+    >
+      Confirm ({{ pendingSelections.size }})
+    </button>
+
+    <div v-if="isSubmitted && selectedDescriptions().length" class="mt-2.5 space-y-0.5">
+      <p v-for="desc in selectedDescriptions()" :key="desc" class="text-xs text-app-muted">{{ desc }}</p>
+    </div>
   </div>
 </template>
 
@@ -82,6 +135,7 @@ function select(opt: { value: string }) {
   line-height: 1.25rem;
 }
 .question-opt__desc {
+  display: block;
   font-size: 0.625rem;
   opacity: 0.6;
   line-height: 1rem;
@@ -106,5 +160,21 @@ function select(opt: { value: string }) {
 .question-opt--idle:hover {
   border-color: color-mix(in srgb, var(--app-accent) 50%, transparent);
   background: color-mix(in srgb, var(--app-accent) 5%, transparent);
+}
+
+.question-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 0.25rem;
+  border: 1.5px solid var(--app-border);
+  transition: all 0.15s;
+}
+.question-check--on {
+  border-color: var(--app-accent);
+  background: var(--app-accent);
+  color: white;
 }
 </style>

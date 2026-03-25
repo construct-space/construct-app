@@ -43,7 +43,7 @@ function timeAgo(dateStr: string): string {
 
 <template>
   <div
-    class="group card relative z-0 flex h-full min-w-0 flex-col overflow-visible rounded-xl border p-4 text-left transition-all duration-200 cursor-pointer hover:z-20"
+    class="group project-card relative z-0 flex h-full min-w-0 flex-col overflow-visible rounded-xl border p-4 text-left transition-all duration-200 cursor-pointer hover:z-20"
     :class="[
       deployed ? 'border-emerald-500/40 hover:border-emerald-400/60' : 'border-[var(--app-border)] hover:border-[var(--app-accent)]/40',
       openMenu ? 'z-30' : '',
@@ -135,6 +135,13 @@ function timeAgo(dateStr: string): string {
 </template>
 
 <style scoped>
+.project-card {
+  background-color: var(--app-background);
+}
+.project-card:hover {
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--app-foreground) 6%, transparent);
+}
+
 .project-path {
   display: -webkit-box;
   overflow: hidden;
