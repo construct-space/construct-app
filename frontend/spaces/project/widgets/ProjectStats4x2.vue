@@ -4,17 +4,19 @@ import { FolderOpen, Pin, Rocket, Layers } from 'lucide-vue-next'
 const projectStore = useProjectStore()
 const pinnedStore = usePinnedStore()
 
-const { loadDeployInfo } = (await import('@/composables/useBasepodDeploy')).useBasepodDeploy()
-
 const deployedCount = ref(0)
 
 onMounted(async () => {
-  let count = 0
-  for (const project of projectStore.projects) {
-    const info = await loadDeployInfo(project.path).catch(() => null)
-    if (info) count++
-  }
-  deployedCount.value = count
+  try {
+    const { useBasepodDeploy } = await import('@/composables/useBasepodDeploy')
+    const { loadDeployInfo } = useBasepodDeploy()
+    let count = 0
+    for (const project of projectStore.projects) {
+      const info = await loadDeployInfo(project.path).catch(() => null)
+      if (info) count++
+    }
+    deployedCount.value = count
+  } catch { /* not in Tauri */ }
 })
 
 const totalProjects = computed(() => projectStore.projects.length)

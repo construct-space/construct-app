@@ -5,8 +5,6 @@ import { buildProjectRoutePath } from '@/utils/projectRoutes'
 const router = useRouter()
 const projectStore = useProjectStore()
 
-const { listApps, loadDeployInfo, generateAppName } = (await import('@/composables/useBasepodDeploy')).useBasepodDeploy()
-
 interface DeployEntry {
   name: string
   domain: string
@@ -20,6 +18,8 @@ const loading = ref(true)
 
 onMounted(async () => {
   try {
+    const { useBasepodDeploy } = await import('@/composables/useBasepodDeploy')
+    const { loadDeployInfo, generateAppName } = useBasepodDeploy()
     const entries: DeployEntry[] = []
     for (const project of projectStore.projects) {
       const info = await loadDeployInfo(project.path)
