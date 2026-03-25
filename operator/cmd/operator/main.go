@@ -755,6 +755,15 @@ func main() {
 	var pendingDeviceFlowsMu sync.Mutex
 	pendingDeviceFlows := map[string]*oauth.DeviceFlowState{}
 
+	// Background OAuth flows (callback-server-based providers like Anthropic, OpenAI, Gemini)
+	type pendingOAuthResult struct {
+		Creds *oauth.Credentials
+		Err   error
+		URL   string
+	}
+	var pendingOAuthMu sync.Mutex
+	pendingOAuthFlows := map[string]chan pendingOAuthResult{}
+
 	// Anthropic OAuth — try OpenCode tokens first, then env vars
 	if oauthProvider, err := provider.NewAnthropicOAuthFromOpenCode(); err == nil {
 		opts = append(opts, runner.WithProvider(oauthProvider))
@@ -1799,53 +1808,51 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				}
 			}
 
-			// Standard OAuth flow — opens browser, waits for callback
+			// Standard OAuth flow — launch in background, return immediately
+			resultCh := make(chan pendingOAuthResult, 1)
+			pendingOAuthMu.Lock()
+			pendingOAuthFlows[payload.Provider] = resultCh
+			pendingOAuthMu.Unlock()
+
+			providerID := payload.Provider
 			var authURL string
-			creds, err := provider.Login(oauth.LoginCallbacks{
-				OnAuth: func(info oauth.AuthInfo) {
-					authURL = info.URL
-					switch runtime.GOOS {
-					case "darwin":
-						exec.Command("open", info.URL).Start()
-					case "linux":
-						exec.Command("xdg-open", info.URL).Start()
-					case "windows":
-						exec.Command("rundll32", "url.dll,FileProtocolHandler", info.URL).Start()
-					}
-					fmt.Fprintf(os.Stderr, "[oauth] %s: browser opened for login\n", payload.Provider)
-					if info.Instructions != "" {
-						fmt.Fprintf(os.Stderr, "[oauth] %s: %s\n", payload.Provider, info.Instructions)
-					}
-				},
-				OnPrompt: func(prompt oauth.Prompt) (string, error) {
-					if prompt.AllowEmpty {
-						return "", nil
-					}
-					return "", fmt.Errorf("interactive prompt %q is not supported in desktop mode yet", prompt.Message)
-				},
-				OnProgress: func(message string) {
-					fmt.Fprintf(os.Stderr, "[oauth] %s: %s\n", payload.Provider, message)
-				},
-			})
-			if err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("OAuth login failed: %v", err)}
-			}
 
-			// Save credentials
-			if err := oauthStorage.SetOAuth(payload.Provider, creds); err != nil {
-				fmt.Fprintf(os.Stderr, "[oauth] warning: failed to save credentials: %v\n", err)
-			}
-			if runtimeProv := providerFromOAuthCredentials(payload.Provider, creds); runtimeProv != nil {
-				run.AddProvider(runtimeProv)
-			}
+			go func() {
+				creds, err := provider.Login(oauth.LoginCallbacks{
+					OnAuth: func(info oauth.AuthInfo) {
+						authURL = info.URL
+						switch runtime.GOOS {
+						case "darwin":
+							exec.Command("open", info.URL).Start()
+						case "linux":
+							exec.Command("xdg-open", info.URL).Start()
+						case "windows":
+							exec.Command("rundll32", "url.dll,FileProtocolHandler", info.URL).Start()
+						}
+						fmt.Fprintf(os.Stderr, "[oauth] %s: browser opened for login\n", providerID)
+						if info.Instructions != "" {
+							fmt.Fprintf(os.Stderr, "[oauth] %s: %s\n", providerID, info.Instructions)
+						}
+					},
+					OnPrompt: func(prompt oauth.Prompt) (string, error) {
+						if prompt.AllowEmpty {
+							return "", nil
+						}
+						return "", fmt.Errorf("interactive prompt %q is not supported in desktop mode yet", prompt.Message)
+					},
+					OnProgress: func(message string) {
+						fmt.Fprintf(os.Stderr, "[oauth] %s: %s\n", providerID, message)
+					},
+				})
+				resultCh <- pendingOAuthResult{Creds: creds, Err: err, URL: authURL}
+			}()
 
-			fmt.Fprintf(os.Stderr, "[oauth] %s: login successful (expires: %d)\n", payload.Provider, creds.Expires)
+			fmt.Fprintf(os.Stderr, "[oauth] %s: login flow started (non-blocking)\n", providerID)
 			return transport.Response{
 				ID: req.ID, Success: true,
 				Data: map[string]any{
-					"provider": payload.Provider,
-					"success":  true,
-					"url":      authURL,
+					"provider": providerID,
+					"pending":  true,
 				},
 			}
 
@@ -1899,6 +1906,60 @@ When the user asks to create, build, or manage a Construct space, use these tool
 					"status":   "success",
 					"success":  true,
 				},
+			}
+
+		case req.Type == "oauth.poll":
+			// Non-blocking poll for callback-based OAuth flows (Anthropic, OpenAI, Gemini)
+			var payload struct {
+				Provider string `json:"provider"`
+			}
+			if req.Payload != nil {
+				json.Unmarshal(req.Payload, &payload)
+			}
+
+			pendingOAuthMu.Lock()
+			ch, ok := pendingOAuthFlows[payload.Provider]
+			pendingOAuthMu.Unlock()
+
+			if !ok || ch == nil {
+				return transport.Response{ID: req.ID, Success: false, Error: "no pending OAuth flow for " + payload.Provider}
+			}
+
+			// Non-blocking check
+			select {
+			case result := <-ch:
+				// Flow finished — clean up
+				pendingOAuthMu.Lock()
+				delete(pendingOAuthFlows, payload.Provider)
+				pendingOAuthMu.Unlock()
+
+				if result.Err != nil {
+					return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("OAuth login failed: %v", result.Err)}
+				}
+
+				// Save credentials
+				if err := oauthStorage.SetOAuth(payload.Provider, result.Creds); err != nil {
+					fmt.Fprintf(os.Stderr, "[oauth] warning: failed to save credentials: %v\n", err)
+				}
+				if runtimeProv := providerFromOAuthCredentials(payload.Provider, result.Creds); runtimeProv != nil {
+					run.AddProvider(runtimeProv)
+				}
+
+				fmt.Fprintf(os.Stderr, "[oauth] %s: login successful (expires: %d)\n", payload.Provider, result.Creds.Expires)
+				return transport.Response{
+					ID: req.ID, Success: true,
+					Data: map[string]any{
+						"provider": payload.Provider,
+						"status":   "success",
+						"success":  true,
+					},
+				}
+			default:
+				// Still waiting
+				return transport.Response{
+					ID: req.ID, Success: true,
+					Data: map[string]any{"status": "pending"},
+				}
 			}
 
 		case req.Type == "oauth.gh-check":

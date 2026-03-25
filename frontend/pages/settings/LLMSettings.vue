@@ -344,6 +344,7 @@ async function refreshOAuthProviders() {
 
 async function startOAuthLogin(providerId: string) {
   oauthLoading.value[providerId] = true
+  let keepLoading = false
   try {
     // GitHub Copilot: check for existing gh CLI auth first
     if (providerId === 'github-copilot') {
@@ -360,9 +361,16 @@ async function startOAuthLogin(providerId: string) {
       return
     }
 
-    // Standard OAuth flow (Anthropic, OpenAI, Gemini)
+    // Standard OAuth flow (Anthropic, OpenAI, Gemini) — non-blocking
     toast.add({ title: 'Opening browser for login...', color: 'info' })
     const result = await operator.send('oauth.login', { provider: providerId })
+
+    if (result?.pending) {
+      // Flow started in background — poll for completion
+      keepLoading = true
+      pollOAuthFlow(providerId)
+      return
+    }
 
     if (result?.success) {
       const provider = oauthProviders.find(entry => entry.id === providerId)
@@ -376,7 +384,7 @@ async function startOAuthLogin(providerId: string) {
     const msg = e instanceof Error ? e.message : String(e)
     toast.add({ title: `Login failed: ${msg}`, color: 'error' })
   } finally {
-    oauthLoading.value[providerId] = false
+    if (!keepLoading) oauthLoading.value[providerId] = false
   }
 }
 
@@ -447,6 +455,32 @@ async function pollDeviceCode(providerId: string) {
       clearTimeout(devicePollTimer)
       devicePollTimer = null
     }
+  }
+}
+
+let oauthPollTimer: ReturnType<typeof setTimeout> | null = null
+
+async function pollOAuthFlow(providerId: string) {
+  try {
+    const result = await operator.send('oauth.poll', { provider: providerId })
+    if (result?.status === 'pending') {
+      oauthPollTimer = setTimeout(() => pollOAuthFlow(providerId), 2000)
+      return
+    }
+    // Flow completed (success or error from operator)
+    oauthPollTimer = null
+    oauthLoading.value[providerId] = false
+    if (result?.success) {
+      const provider = oauthProviders.find(entry => entry.id === providerId)
+      await refreshOAuthProviders()
+      await loadProviders()
+      toast.add({ title: `${provider?.name || providerId} connected`, color: 'success' })
+    }
+  } catch (e) {
+    oauthPollTimer = null
+    oauthLoading.value[providerId] = false
+    const msg = e instanceof Error ? e.message : String(e)
+    toast.add({ title: `Login failed: ${msg}`, color: 'error' })
   }
 }
 
