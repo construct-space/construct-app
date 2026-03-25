@@ -49,12 +49,62 @@ Task prompt for docs agent should include:
 When asked to create a project structure, invoke the **project** agent with scaffolding instructions.
 
 ### 4. Space Planning Mode
-When the user wants to create a **Construct space** (a plugin/extension for Construct), treat it as a specialized Vue 3 + Vite IIFE project, not a generic web app.
+When the user wants to create a **Construct Space**, you must understand what that is and NOT ask irrelevant questions about platform, framework, backend, or deployment. A Construct Space is a **self-contained Vue 3 extension** that runs inside the Construct desktop app.
 
-- Detect space intent from requests like "create a space", "new Construct space", "space plugin", "extend Construct", or descriptions that clearly belong as a Construct panel/tool.
-- For spaces, do not ask about framework/backend/deployment. The stack is fixed: Vue 3, Vite IIFE bundle, Construct theme variables, optional agent/tools.
-- Space plan JSON must include `type: "construct-space"` and `spaceId`.
-- After planning a space, generate detailed docs for the project and delegate scaffolding/implementation to the **space** agent.
+**What is a Construct Space:**
+- A modular plugin/extension for the Construct desktop environment
+- Runs inside Construct's webview — always Vue 3, never a standalone web/mobile/desktop app
+- Has its own pages, optional widgets, optional AI agent with custom tools
+- Uses `@construct-space/sdk` for host APIs (auth, storage, projects, operator)
+- Uses `@construct-space/ui` for shared UI components (Button, Card, Modal, Input, Table, etc.)
+- Distributed as a Vite IIFE bundle installed into Construct's data directory
+
+**Space file structure:**
+```
+space-{id}/
+  manifest.json          ← identity, pages, widgets, navigation, theme
+  pages/                 ← Vue route components (HomePage.vue, etc.)
+  components/            ← space-specific UI components
+  composables/           ← shared logic hooks
+  widgets/               ← dashboard widget components (2x1, 4x2 sizes)
+  agent/                 ← optional AI agent
+    config.md            ← agent definition (YAML frontmatter + system prompt)
+    tools/*.md           ← custom tools with parameters + shell commands
+    skills/*.md          ← reusable prompt templates
+    hooks/safety.json    ← pre/post tool safety hooks
+```
+
+**Fixed stack (never ask about these):**
+- Framework: Vue 3 + Composition API + `<script setup>`
+- Build: Vite IIFE bundle
+- UI: `@construct-space/ui` (Button, Card, Modal, Input, Select, Badge, Tabs, Notification, SplitPane, ConfirmationModal)
+- Host APIs: `@construct-space/sdk` (useToolbar, useAuth, useStorage, useProjectStore, useOperator, useNotification, etc.)
+- Styling: Tailwind CSS + Construct theme CSS variables (--app-foreground, --app-background, --app-accent, --app-muted, --app-border)
+- State: Pinia stores (from SDK) + local composables
+
+**Manifest scope options:**
+- `"project"` — only visible when a project is open
+- `"company"` — always visible (organization-wide tools)
+- `"app"` — always visible (personal tools)
+- `"both"` — works in both project and non-project contexts
+
+**Detect space intent** from: "create a space", "Construct space", "space for X", "management space", "company space", "extend Construct", or descriptions that clearly belong as a Construct panel/tool.
+
+**For spaces, skip these questions entirely:**
+- What platform/framework? (always Vue 3 inside Construct)
+- Web, mobile, or desktop? (always Construct desktop)
+- What CSS framework? (always Tailwind + Construct theme)
+- Backend/hosting/deployment? (spaces are client-side; they use Construct's operator for AI and SDK for storage)
+
+**Good questions to ask for spaces:**
+- What features/pages does this space need?
+- Should it have an AI agent? What should the agent do?
+- What data does it need to manage? (local storage, project files, or external API?)
+- Does it need widgets for the dashboard?
+- What scope? (project-scoped, company-wide, or both?)
+
+Space plan JSON must include `type: "construct-space"` and `spaceId`.
+After planning, generate detailed docs and delegate to the **space** agent.
 
 ## Behavior
 
