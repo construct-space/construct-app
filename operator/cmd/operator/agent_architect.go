@@ -46,12 +46,62 @@ After each answer, ask the next question.
 4. Does it need dashboard widgets?
 5. What scope? (project-scoped, company-wide, or both?)
 
-**Construct Space fixed stack** (never ask about these):
-- Framework: Vue 3 + Composition API + <script setup>
-- Build: Vite IIFE bundle
-- UI: @construct-space/ui (Button, Card, Modal, Input, Select, Badge, Tabs, Table, Notification, SplitPane)
-- Host APIs: @construct-space/sdk (useToolbar, useAuth, useStorage, useProjectStore, useOperator, useNotification)
-- Styling: Tailwind CSS + Construct theme CSS vars (--app-foreground, --app-background, --app-accent, --app-muted, --app-border)
+**Construct Space packages** (never ask about framework/data/UI — always use these):
+
+**construct** (CLI/build tool) — Vite preset for building spaces
+` + "`" + `ts
+// vite.config.ts
+import { constructPreset } from 'construct/vite'
+export default constructPreset({ spaceId: 'my-space' })
+` + "`" + `
+
+**@construct-space/sdk** v0.4.0 — Host APIs, stores, composables, types
+` + "`" + `ts
+import { useToolbar, useAuth, useStorage, useOperator, useConstructConfig, useNotification, useSpaces } from '@construct-space/sdk'
+import { useProjectStore, useAuthStore, usePinnedStore, usePreferencesStore } from '@construct-space/sdk'
+import type { SpaceInfo, ToolbarItem, Turn, RequestBlock } from '@construct-space/sdk'
+// Sub-exports: '@construct-space/sdk/types', '/schemas', '/data', '/media', '/testing'
+` + "`" + `
+
+**@construct-space/ui** v0.3.2 — Vue 3 component library (60+ components)
+` + "`" + `ts
+// Layout: Card, Modal, Slideover, Drawer, SplitPane, Tabs, Accordion, Sidebar3D, DashboardPanel
+// Form: Input, Select, MultiSelect, Checkbox, Switch, RadioGroup, Textarea, DatePicker, ColorPicker, FileInput, Slider, FormField
+// Data: Table, Tree, Timeline, Pagination, Badge, Chip, Avatar, Progress, Skeleton, Empty
+// Feedback: Notification, Alert, ConfirmationModal, Tooltip, Popover
+// Nav: Breadcrumbs, ContextMenu, Dropdown, DropdownMenu, Button, ToggleGroup, Kbd
+// All auto-imported — just use <Button>, <Card>, <Table> etc. in templates
+` + "`" + `
+
+**@construct-space/graph** v0.1.0 — GraphQL database SDK (persistent data for spaces)
+` + "`" + `ts
+import { defineModel, field, relation, useData } from '@construct-space/graph'
+
+// Define models — Construct provisions GraphQL API automatically on publish
+const Department = defineModel('department', {
+  name: field.string().required(),
+  code: field.string().unique(),
+})
+const Employee = defineModel('employee', {
+  name: field.string().required(),
+  email: field.string().email().unique(),
+  role: field.enum(['admin', 'manager', 'member']),
+  salary: field.number(),
+  active: field.boolean().default(true),
+  department: relation.belongsTo(Department),
+})
+
+// Reactive CRUD in components
+const { items, loading, create, find, update, remove, init } = useData(Employee)
+await init() // loads all records
+await create({ name: 'Jane', email: 'jane@co.com', role: 'admin' })
+await find({ where: { active: true }, orderBy: { name: 'asc' }, limit: 50 })
+` + "`" + `
+Field types: string, int, number, boolean, date, enum(values), json
+Relations: relation.belongsTo(Model), relation.hasMany(Model)
+Styling: Tailwind CSS + Construct theme CSS vars (--app-foreground, --app-background, --app-accent, --app-muted, --app-border)
+
+Do NOT ask about data source, UI library, or build tooling for spaces — always use these packages.
 
 Keep questions short. When offering choices, use this exact bullet format (the UI renders them as clickable buttons):
 
