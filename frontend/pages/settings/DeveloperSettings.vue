@@ -16,14 +16,24 @@ interface RuntimeInfo {
 const toast = useToast()
 const { isDeveloperMode, isEnrollmentPending, isEnrolled, developerStatus, disableUpdates, requestEnrollment, refreshStatus, setDisableUpdates } = useDevMode()
 const activeTab = ref<'developer' | 'environment' | 'projects'>('developer')
+const enrolling = ref(false)
 const refreshing = ref(false)
 
-async function openDeveloperPortal() {
+async function handleEnroll() {
+  enrolling.value = true
   try {
-    const { open } = await import('@tauri-apps/plugin-shell')
-    await open('https://developer.construct.space')
+    const result = await requestEnrollment()
+    if (result.status === 'enrolled') {
+      toast.add({ title: 'Developer access granted', color: 'success' })
+    } else if (result.status === 'pending') {
+      toast.add({ title: 'Enrollment submitted', description: 'Your request is being reviewed', color: 'info' })
+    } else {
+      toast.add({ title: result.message || 'Enrollment failed', color: 'error' })
+    }
   } catch {
-    window.open('https://developer.construct.space', '_blank')
+    toast.add({ title: 'Failed to enroll', color: 'error' })
+  } finally {
+    enrolling.value = false
   }
 }
 
@@ -212,7 +222,7 @@ async function detectRuntimes() {
         <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500">Pending Review</span>
         <Button variant="soft" size="xs" :loading="refreshing" label="Refresh" @click="handleRefresh" />
       </div>
-      <Button v-else variant="soft" label="Enroll as Developer" @click="openDeveloperPortal" />
+      <Button v-else variant="soft" :loading="enrolling" label="Enroll as Developer" @click="handleEnroll" />
     </div>
 
     <!-- Not enrolled -->
