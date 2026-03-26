@@ -90,13 +90,13 @@ function shortPath(fullPath: string): string {
           </p>
         </div>
 
-        <!-- Unpin -->
+        <!-- Unpin (top-right circle, like close button) -->
         <button
-          class="shrink-0 p-1 rounded-md text-[var(--app-muted)] opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+          class="absolute top-1 right-1 size-5 rounded-full bg-[var(--app-background)] border border-[var(--app-border)] flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:border-red-500/40 transition-all cursor-pointer"
           title="Unpin"
           @click.stop="unpin(entry)"
         >
-          <Icon name="i-lucide-pin-off" class="size-3" />
+          <Icon name="i-lucide-pin-off" class="size-2.5 text-[var(--app-muted)]" />
         </button>
       </div>
     </div>
