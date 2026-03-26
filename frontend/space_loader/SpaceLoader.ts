@@ -18,6 +18,8 @@ import type { Component } from 'vue'
 import { getSpaceDirPath, IS_DEV_INSTANCE } from '@/lib/appPaths'
 import type { SpaceContextMenuConfig } from '@/lib/contextMenuTypes'
 import { getCoreSpace, isCoreSpace } from './coreSpaces'
+import { registerAutomationProvider } from '@/lib/spaceContextBus'
+import type { AutomationProvider, AutomationAction, ActionResult } from '@/types/automation'
 
 export interface LoadedSpace {
   id: string
@@ -222,6 +224,18 @@ async function loadSpaceFromDir(spaceId: string, baseDir: string): Promise<Loade
       return null
     }
 
+    // Call space init hook if provided
+    if (typeof spaceExport.init === 'function') {
+      try { spaceExport.init() } catch (e) {
+        console.warn(`[SpaceLoader] Space "${spaceId}" init error:`, e)
+      }
+    }
+
+    // Auto-register actions as automation provider
+    if (spaceExport.actions && typeof spaceExport.actions === 'object') {
+      registerSpaceActions(spaceId, spaceExport.actions)
+    }
+
     // Inject CSS if present
     let cssInjected = false
     const cssPath = `${spaceDir}/space-${spaceId}.css`
@@ -371,4 +385,122 @@ export async function watchSpace(
     console.warn('[SpaceLoader] Could not set up file watcher:', err)
     return null
   }
+}
+
+/**
+ * Preload all installed spaces to register their actions.
+ * Called at app startup so agent tools are available immediately.
+ */
+export async function preloadSpaceActions(): Promise<void> {
+  console.log('[SpaceLoader] preloadSpaceActions: starting')
+  try {
+    const { readDir, exists } = await import('@tauri-apps/plugin-fs')
+    const { getSpacesDirPath } = await import('@/lib/appPaths')
+    const { homeDir } = await import('@tauri-apps/api/path')
+    const home = await homeDir()
+    const spacesDir = getSpacesDirPath(home)
+    console.log('[SpaceLoader] preloadSpaceActions: spacesDir =', spacesDir)
+    if (!spacesDir || !(await exists(spacesDir))) {
+      console.log('[SpaceLoader] preloadSpaceActions: spacesDir not found')
+      return
+    }
+
+    const entries = await readDir(spacesDir)
+    console.log('[SpaceLoader] preloadSpaceActions: found', entries.length, 'entries')
+    // Save current space context
+    const savedSpaceId = (window as any).construct?.space?.id || ''
+
+    for (const entry of entries) {
+      if (!entry.isDirectory) continue
+      const spaceId = entry.name
+      if (loadedSpaces.has(spaceId)) continue
+      try {
+        console.log(`[SpaceLoader] preloadSpaceActions: loading "${spaceId}"`)
+        await loadSpace(spaceId)
+        console.log(`[SpaceLoader] preloadSpaceActions: loaded "${spaceId}"`)
+      } catch (e) {
+        console.warn(`[SpaceLoader] preloadSpaceActions: failed "${spaceId}":`, e)
+      }
+    }
+
+    // Restore space context to whatever was active before preload
+    if ((window as any).construct) {
+      (window as any).construct.space = { id: savedSpaceId }
+    }
+    console.log('[SpaceLoader] preloadSpaceActions: done')
+  } catch (e) {
+    console.warn('[SpaceLoader] preloadSpaceActions error:', e)
+  }
+}
+
+/**
+ * Auto-register a space's actions as an automation provider.
+ * Developers just export `actions` from entry.ts — no boilerplate needed.
+ *
+ * Action format:
+ *   {
+ *     action_id: {
+ *       description: string,
+ *       params?: { paramName: { type, description, required? } },
+ *       run: (payload) => Promise<result>,
+ *     }
+ *   }
+ */
+interface SpaceAction {
+  description: string
+  params?: Record<string, { type: string; description?: string; required?: boolean }>
+  run: (payload: Record<string, unknown>) => Promise<unknown> | unknown
+}
+
+function registerSpaceActions(spaceId: string, actions: Record<string, SpaceAction>): void {
+  const provider: AutomationProvider = {
+    snapshot() {
+      return {
+        space_id: spaceId,
+        title: spaceId,
+        state: {},
+        actions: Object.keys(actions),
+      }
+    },
+
+    listActions(): AutomationAction[] {
+      return Object.entries(actions).map(([id, action]) => {
+        const properties: Record<string, unknown> = {}
+        const required: string[] = []
+
+        if (action.params) {
+          for (const [name, param] of Object.entries(action.params)) {
+            properties[name] = { type: param.type, description: param.description || '' }
+            if (param.required) required.push(name)
+          }
+        }
+
+        return {
+          id,
+          description: action.description,
+          params: {
+            type: 'object',
+            properties,
+            ...(required.length ? { required } : {}),
+          },
+        }
+      })
+    },
+
+    async runAction(actionId: string, payload?: Record<string, unknown>): Promise<ActionResult> {
+      const action = actions[actionId]
+      if (!action) {
+        return { success: false, error: `Unknown action: ${actionId}` }
+      }
+      try {
+        const result = await action.run(payload || {})
+        return { success: true, data: result as Record<string, unknown> }
+      } catch (e: any) {
+        return { success: false, error: e.message || String(e) }
+      }
+    },
+  }
+
+  registerAutomationProvider(spaceId, provider)
+  console.log(`[SpaceLoader] Registered ${Object.keys(actions).length} actions for "${spaceId}"`)
 }

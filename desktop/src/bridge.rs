@@ -169,7 +169,7 @@ async fn dispatch_bridge_method(
     match method {
         "ping" => Ok(serde_json::json!({"status": "ok"})),
 
-        "space.snapshot" | "space.list_actions" | "space.run_action" => {
+        "space.snapshot" | "space.list_actions" | "space.run_action" | "space.context_request" => {
             dispatch_to_frontend(app, method, params).await
         }
 

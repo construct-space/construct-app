@@ -148,6 +148,11 @@ onMounted(async () => {
   // Initialize theme (sets dark/light class + CSS variables)
   initTheme()
 
+  // Preload space actions so agent tools are available immediately
+  import('@/space_loader/SpaceLoader').then(({ preloadSpaceActions }) => {
+    preloadSpaceActions()
+  })
+
   // Telemetry: track session start + background sync
   telemetry.trackSessionStart()
   window.addEventListener('beforeunload', handleBeforeUnload)

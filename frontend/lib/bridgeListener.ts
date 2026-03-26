@@ -11,7 +11,7 @@
 
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { invoke } from '@tauri-apps/api/core'
-import { getAutomationProvider, getActiveSpace } from '@/lib/spaceContextBus'
+import { getAutomationProvider, getActiveSpace, requestSpaceData } from '@/lib/spaceContextBus'
 
 interface BridgeRequest {
   id: string
@@ -67,6 +67,8 @@ async function handleBridgeRequest(
       return handleSpaceListActions(params)
     case 'space.run_action':
       return handleSpaceRunAction(params)
+    case 'space.context_request':
+      return handleSpaceContextRequest(params)
     default:
       throw new Error(`Unknown bridge method: ${method}`)
   }
@@ -127,4 +129,14 @@ function resolveSpaceId(params: Record<string, unknown>): string {
 
   // 3. No active space — error, don't guess
   throw new Error('No active space. Navigate to a space or pass space_id explicitly.')
+}
+
+async function handleSpaceContextRequest(params: Record<string, unknown>) {
+  const spaceId = resolveSpaceId(params)
+  const request = params.request as { type: string; [key: string]: unknown } | undefined
+  if (!request?.type) {
+    throw new Error('space.context_request requires a request.type')
+  }
+  const result = await requestSpaceData(spaceId, request)
+  return result ?? { error: `No handler for space "${spaceId}"` }
 }
