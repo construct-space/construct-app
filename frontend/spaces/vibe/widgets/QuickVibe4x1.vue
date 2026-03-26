@@ -46,7 +46,7 @@ function clearLink() {
 </script>
 
 <template>
-  <div class="h-full w-full flex items-center justify-between px-4 relative">
+  <div class="group/vibe h-full w-full flex items-center justify-between px-4 relative">
     <button class="flex items-center gap-3 flex-1 min-w-0 h-full" @click="startVibe">
       <div class="size-8 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0">
         <Icon name="i-lucide-zap" class="size-4 text-yellow-500" />
@@ -57,19 +57,18 @@ function clearLink() {
       </div>
     </button>
 
-    <div class="flex items-center gap-1 shrink-0">
-      <!-- Change project link -->
-      <button
-        class="p-1.5 rounded-md text-[var(--app-muted)] hover:text-[var(--app-foreground)] hover:bg-[var(--app-muted)]/10 transition-colors"
-        title="Link to project"
-        @click.stop="showPicker = !showPicker"
-      >
-        <Icon :name="isConfigured ? 'i-lucide-link' : 'i-lucide-link'" class="size-3.5" />
-      </button>
-      <button class="p-1.5 rounded-md text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors" @click="startVibe">
-        <Icon name="i-lucide-arrow-right" class="size-4" />
-      </button>
-    </div>
+    <button class="p-1.5 rounded-md text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors shrink-0" @click="startVibe">
+      <Icon name="i-lucide-arrow-right" class="size-4" />
+    </button>
+
+    <!-- Link project (top-right circle, like close button) -->
+    <button
+      class="absolute top-1.5 right-1.5 size-5 rounded-full bg-[var(--app-background)] border border-[var(--app-border)] flex items-center justify-center opacity-0 group-hover/vibe:opacity-100 hover:!border-yellow-500/40 hover:!bg-yellow-500/10 transition-all cursor-pointer z-10"
+      title="Link to project"
+      @click.stop="showPicker = !showPicker"
+    >
+      <Icon name="i-lucide-link" class="size-2.5 text-[var(--app-muted)]" />
+    </button>
 
     <!-- Project picker dropdown -->
     <div
