@@ -70,10 +70,10 @@ function shortPath(fullPath: string): string {
 
     <!-- Grid -->
     <div v-if="pinnedProjects.length > 0" class="flex-1 grid grid-cols-2 grid-rows-3 gap-2 overflow-hidden">
-      <button
+      <div
         v-for="entry in pinnedProjects"
         :key="entry.pin.id"
-        class="group relative flex items-center gap-3 text-left px-3 py-2 rounded-xl border border-[var(--app-border)] hover:border-[color-mix(in_srgb,var(--app-accent)_40%,transparent)] transition-all overflow-hidden min-w-0"
+        class="group relative flex items-center gap-3 text-left px-3 py-2 rounded-xl border border-[var(--app-border)] hover:border-[color-mix(in_srgb,var(--app-accent)_40%,transparent)] transition-all overflow-hidden min-w-0 cursor-pointer"
         style="background: var(--app-background);"
         @click="openProject(entry)"
       >
@@ -98,7 +98,7 @@ function shortPath(fullPath: string): string {
         >
           <Icon name="i-lucide-pin-off" class="size-3" />
         </button>
-      </button>
+      </div>
     </div>
 
     <!-- Empty state -->
