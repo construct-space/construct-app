@@ -68,6 +68,9 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      external: ['@tauri-apps/api/window'],
+    },
   },
   plugins: [
     vue(),
