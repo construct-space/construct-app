@@ -11,6 +11,7 @@ package space
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -58,6 +59,7 @@ type ToolMarkdown struct {
 	Description string          `yaml:"description"`
 	Parameters  []ToolParameter `yaml:"parameters"`
 	Command     string          `yaml:"command"`
+	Bridge      string          `yaml:"bridge"` // context bus method (e.g. "notes.create")
 	Workdir     string          `yaml:"workdir"`
 	Timeout     int             `yaml:"timeout"`
 	Confirm     bool            `yaml:"confirm"`
@@ -86,6 +88,14 @@ type LoadResult struct {
 
 // WorkDirFunc returns the current working directory dynamically.
 type WorkDirFunc func(context.Context) string
+
+// BridgeClient calls the desktop bridge (Operator → Tauri → Frontend).
+type BridgeClient interface {
+	Call(ctx context.Context, method string, params map[string]any) (json.RawMessage, error)
+}
+
+// Global bridge client — set by main.go after initialization.
+var Bridge BridgeClient
 
 // LoadAll scans a spaces directory and loads all agents + tools.
 func LoadAll(spacesDir string, getWorkDir WorkDirFunc) ([]LoadResult, error) {
@@ -134,10 +144,22 @@ func loadSpace(spaceDir string, getWorkDir WorkDirFunc) (*LoadResult, error) {
 		return nil, fmt.Errorf("invalid manifest: %w", err)
 	}
 
-	// Look for agent/ directory
+	// Look for agent/ directory (dev) or config.agent (installed)
 	agentDir := filepath.Join(spaceDir, "agent")
 	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
-		return nil, nil // No agent directory, skip
+		// Try decoding bundled config.agent
+		bundlePath := filepath.Join(spaceDir, "config.agent")
+		if _, err := os.Stat(bundlePath); os.IsNotExist(err) {
+			return nil, nil // No agent, skip
+		}
+		// Decode config.agent into a temp agent/ dir
+		decoded, err := decodeBundledAgent(bundlePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[space] warning: %s config.agent decode: %v\n", manifest.ID, err)
+			return nil, nil
+		}
+		agentDir = decoded
+		defer os.RemoveAll(decoded)
 	}
 
 	result := &LoadResult{SpaceID: manifest.ID}
@@ -214,7 +236,7 @@ func parseAgentMarkdown(content string, manifest Manifest) (*agent.Config, error
 		Description:  am.Description,
 		Category:     "space",
 		System:       body,
-		Model:        "claude-sonnet-4-6",
+		Model:        "", // inherit from user's selected model
 		Tools:        am.AllowedTools,
 		BlockTools:   am.BlockedTools,
 		MaxTurns:     am.MaxIterations,
@@ -233,8 +255,8 @@ func parseToolMarkdown(content, spaceID string, getWorkDir WorkDirFunc) (*tool.T
 	if err := yaml.Unmarshal([]byte(frontmatter), &tm); err != nil {
 		return nil, err
 	}
-	if tm.ID == "" || tm.Command == "" {
-		return nil, fmt.Errorf("tool requires id and command")
+	if tm.ID == "" || (tm.Command == "" && tm.Bridge == "") {
+		return nil, fmt.Errorf("tool requires id and either command or bridge")
 	}
 	tm.Body = body
 	tm.SpaceID = spaceID
@@ -281,18 +303,62 @@ func parseToolMarkdown(content, spaceID string, getWorkDir WorkDirFunc) (*tool.T
 		inputSchema["required"] = required
 	}
 
+	var executor tool.Executor
+	if tm.Bridge != "" {
+		executor = &bridgeToolExecutor{tm: &tm}
+	} else {
+		executor = &spaceToolExecutor{tm: &tm, getWorkDir: getWorkDir}
+	}
+
 	return &tool.Tool{
 		Def: provider.ToolDef{
 			Name:        namespacedName,
 			Description: description,
 			InputSchema: inputSchema,
 		},
-		Executor: &spaceToolExecutor{
-			tm:         &tm,
-			getWorkDir: getWorkDir,
-		},
-		Source: "space:" + spaceID,
+		Executor: executor,
+		Source:   "space:" + spaceID,
 	}, nil
+}
+
+// bridgeToolExecutor calls the desktop bridge to invoke a space context handler.
+type bridgeToolExecutor struct {
+	tm *ToolMarkdown
+}
+
+func (e *bridgeToolExecutor) Execute(ctx context.Context, input string) (*tool.Result, error) {
+	if Bridge == nil {
+		return &tool.Result{Content: "Bridge not available — space tools require the desktop app", IsError: true}, nil
+	}
+
+	// Parse input args
+	var args map[string]any
+	if input != "" {
+		json.Unmarshal([]byte(input), &args)
+	}
+
+	// Call bridge with context bus method
+	// The bridge calls: requestFromSpace(spaceId, { type: bridgeMethod, ...args })
+	params := map[string]any{
+		"spaceId": e.tm.SpaceID,
+		"request": map[string]any{
+			"type": e.tm.Bridge,
+		},
+	}
+	// Merge tool args into the request
+	if args != nil {
+		req := params["request"].(map[string]any)
+		for k, v := range args {
+			req[k] = v
+		}
+	}
+
+	result, err := Bridge.Call(ctx, "space.context_request", params)
+	if err != nil {
+		return &tool.Result{Content: fmt.Sprintf("Bridge error: %s", err.Error()), IsError: true}, nil
+	}
+
+	return &tool.Result{Content: string(result)}, nil
 }
 
 // spaceToolExecutor runs a space tool's shell command.
@@ -397,4 +463,72 @@ func splitFrontmatter(content string) (string, string, error) {
 		return "", "", fmt.Errorf("unclosed frontmatter")
 	}
 	return strings.TrimSpace(before), strings.TrimSpace(after), nil
+}
+
+// decodeBundledAgent decodes a config.agent file (XOR+base64 JSON) into a temp directory
+// with config.md, tools/*.md, skills/*.md, hooks/*.json structure.
+func decodeBundledAgent(path string) (string, error) {
+	encoded, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	// Base64 decode
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(encoded)))
+	if err != nil {
+		return "", fmt.Errorf("base64 decode: %w", err)
+	}
+
+	// XOR decode
+	key := []byte("construct-agent-obfuscate-v1")
+	for i := range decoded {
+		decoded[i] ^= key[i%len(key)]
+	}
+
+	// Parse JSON
+	var bundle struct {
+		Config string            `json:"config"`
+		Tools  map[string]string `json:"tools"`
+		Skills map[string]string `json:"skills"`
+		Hooks  map[string]string `json:"hooks"`
+	}
+	if err := json.Unmarshal(decoded, &bundle); err != nil {
+		return "", fmt.Errorf("json decode: %w", err)
+	}
+
+	// Write to temp dir
+	tmpDir, err := os.MkdirTemp("", "space-agent-*")
+	if err != nil {
+		return "", err
+	}
+
+	if bundle.Config != "" {
+		os.WriteFile(filepath.Join(tmpDir, "config.md"), []byte(bundle.Config), 0644)
+	}
+
+	if len(bundle.Tools) > 0 {
+		toolsDir := filepath.Join(tmpDir, "tools")
+		os.MkdirAll(toolsDir, 0755)
+		for name, content := range bundle.Tools {
+			os.WriteFile(filepath.Join(toolsDir, name+".md"), []byte(content), 0644)
+		}
+	}
+
+	if len(bundle.Skills) > 0 {
+		skillsDir := filepath.Join(tmpDir, "skills")
+		os.MkdirAll(skillsDir, 0755)
+		for name, content := range bundle.Skills {
+			os.WriteFile(filepath.Join(skillsDir, name+".md"), []byte(content), 0644)
+		}
+	}
+
+	if len(bundle.Hooks) > 0 {
+		hooksDir := filepath.Join(tmpDir, "hooks")
+		os.MkdirAll(hooksDir, 0755)
+		for name, content := range bundle.Hooks {
+			os.WriteFile(filepath.Join(hooksDir, name+".json"), []byte(content), 0644)
+		}
+	}
+
+	return tmpDir, nil
 }

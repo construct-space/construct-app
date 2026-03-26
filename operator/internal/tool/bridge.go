@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 )
 
 // RegisterBridgeTools adds all bridge-backed automation tools to the registry.
@@ -299,6 +300,99 @@ func (b *bridgeExec) Execute(ctx context.Context, input string) (*Result, error)
 	result, err := b.bridge.Call(ctx, b.method, params)
 	if err != nil {
 		return &Result{Content: fmt.Sprintf("bridge error: %v", err), IsError: true}, nil
+	}
+
+	return &Result{Content: string(result)}, nil
+}
+
+// RegisterSpaceActionTools queries each space for its actions via the bridge
+// and registers each action as a dedicated tool: {spaceId}_{actionId}.
+// This runs async after the bridge is connected.
+func RegisterSpaceActionTools(r *Registry, bridge *desktop.Client, spaceIDs []string) {
+	if bridge == nil {
+		return
+	}
+
+	for _, spaceID := range spaceIDs {
+		sid := spaceID
+		// Query space for its actions
+		result, err := bridge.Call(context.Background(), "space.list_actions", map[string]any{
+			"space_id": sid,
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[tools] space %q list_actions failed: %v\n", sid, err)
+			continue
+		}
+
+		var resp struct {
+			SpaceID string `json:"space_id"`
+			Actions []struct {
+				ID          string         `json:"id"`
+				Description string         `json:"description"`
+				Params      map[string]any `json:"params"`
+			} `json:"actions"`
+		}
+		if err := json.Unmarshal(result, &resp); err != nil {
+			continue
+		}
+
+		for _, action := range resp.Actions {
+			act := action
+			toolName := fmt.Sprintf("%s_%s", sid, act.ID)
+			// Skip if already registered
+			if _, exists := r.Get(toolName); exists {
+				continue
+			}
+			schema := act.Params
+			if schema == nil {
+				schema = map[string]any{"type": "object", "properties": map[string]any{}}
+			}
+
+			r.Register(&Tool{
+				Def: provider.ToolDef{
+					Name:        toolName,
+					Description: fmt.Sprintf("[%s] %s", sid, act.Description),
+					InputSchema: schema,
+				},
+				Executor: &spaceActionExec{
+					bridge:  bridge,
+					spaceID: sid,
+					action:  act.ID,
+				},
+				Source: "space:" + sid,
+			})
+		}
+
+		if len(resp.Actions) > 0 {
+			fmt.Fprintf(os.Stderr, "[tools] registered %d actions for space %q\n", len(resp.Actions), sid)
+		}
+	}
+}
+
+// spaceActionExec calls space.run_action for a specific space + action.
+type spaceActionExec struct {
+	bridge  *desktop.Client
+	spaceID string
+	action  string
+}
+
+func (e *spaceActionExec) Execute(ctx context.Context, input string) (*Result, error) {
+	var payload map[string]any
+	if input != "" && input != "{}" {
+		json.Unmarshal([]byte(input), &payload)
+	}
+
+	params := map[string]any{
+		"space_id": e.spaceID,
+		"action":   e.action,
+	}
+	if payload != nil {
+		params["payload"] = payload
+	}
+
+	result, err := e.bridge.Call(ctx, "space.run_action", params)
+	if err != nil {
+		return &Result{Content: fmt.Sprintf("action error: %v", err), IsError: true}, nil
 	}
 
 	return &Result{Content: string(result)}, nil
