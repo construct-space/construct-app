@@ -34,6 +34,10 @@ async function loadWidget() {
   loading.value = true
   error.value = null
   try {
+    // Set space context so SDK composables (useGraph, etc.) resolve the correct spaceId
+    if ((window as any).construct) {
+      (window as any).construct.space = { id: props.placement.spaceId }
+    }
     widgetComponent.value = await props.getComponent(
       props.placement.spaceId,
       props.placement.widgetId,
