@@ -665,6 +665,7 @@ func main() {
 	var bridge *desktop.Client
 	if token := os.Getenv("CONSTRUCT_BRIDGE_TOKEN"); token != "" {
 		bridge = desktop.NewClient(token)
+		space.Bridge = bridge // Make bridge available to space tools
 		fmt.Fprintf(os.Stderr, "[operator] desktop bridge: enabled (token len=%d)\n", len(token))
 	} else {
 		fmt.Fprintf(os.Stderr, "[operator] desktop bridge: disabled (no CONSTRUCT_BRIDGE_TOKEN)\n")
@@ -932,6 +933,7 @@ func main() {
 
 	// Load spaces from all known directories
 	spaceDirs := appdir.AllSpacesDirs()
+	var spaceIDs []string
 	for _, dir := range spaceDirs {
 		fmt.Fprintf(os.Stderr, "[operator] loading spaces from: %s\n", dir)
 		spaceResults, err := space.LoadAll(dir, getProjectDir)
@@ -958,12 +960,23 @@ func main() {
 					fmt.Fprintf(os.Stderr, "[operator] warning: %s plugin %s: %v\n", sr.SpaceID, p.ID, err)
 				}
 			}
+			spaceIDs = append(spaceIDs, sr.SpaceID)
 			if sr.Agent != nil {
 				allAgents = append(allAgents, sr.Agent)
 				fmt.Fprintf(os.Stderr, "[operator] space: %s (agent: %s, tools: %d, hooks: %d, skills: %d, plugins: %d)\n",
 					sr.SpaceID, sr.Agent.ID, len(sr.Tools), len(sr.Hooks), len(sr.Skills), len(sr.Plugins))
 			}
 		}
+	}
+
+	// Register space action tools from frontend (async — waits for frontend to be ready)
+	// Register space action tools when frontend loads spaces
+	// The bridge listener notifies us, but we also poll as fallback
+	if bridge != nil && len(spaceIDs) > 0 {
+		go func() {
+			time.Sleep(3 * time.Second) // initial wait for frontend boot
+			tool.RegisterSpaceActionTools(tools, bridge, spaceIDs)
+		}()
 	}
 
 	// Load user hook configs from data dir
