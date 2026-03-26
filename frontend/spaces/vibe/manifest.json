@@ -11,7 +11,7 @@
       "description": "Quick access to AI coding",
       "icon": "lucide:zap",
       "defaultSize": "4x1",
-      "sizes": { "2x1": "widgets/QuickVibe2x1.vue", "4x1": "widgets/QuickVibe4x1.vue" }
+      "sizes": { "1x1": "widgets/QuickVibe1x1.vue", "2x1": "widgets/QuickVibe2x1.vue", "4x1": "widgets/QuickVibe4x1.vue" }
     }
   ]
 }

@@ -25,10 +25,12 @@ import QuickChat4x2 from '@/spaces/brainstorm/widgets/QuickChat4x2.vue'
 import QuickChat2x1 from '@/spaces/brainstorm/widgets/QuickChat2x1.vue'
 
 // Widget components — vibe
+import QuickVibe1x1 from '@/spaces/vibe/widgets/QuickVibe1x1.vue'
 import QuickVibe4x1 from '@/spaces/vibe/widgets/QuickVibe4x1.vue'
 import QuickVibe2x1 from '@/spaces/vibe/widgets/QuickVibe2x1.vue'
 
 // Widget components — architect
+import QuickArchitect1x1 from '@/spaces/architect/widgets/QuickArchitect1x1.vue'
 import QuickArchitect4x1 from '@/spaces/architect/widgets/QuickArchitect4x1.vue'
 
 // Widget components — project
@@ -64,6 +66,7 @@ const CORE_SPACES: Record<string, LoadedSpace> = {
     pages: { '': VibePage },
     widgets: {
       'quick-vibe': {
+        '1x1': QuickVibe1x1,
         '2x1': QuickVibe2x1,
         '4x1': QuickVibe4x1,
       },
@@ -76,6 +79,7 @@ const CORE_SPACES: Record<string, LoadedSpace> = {
     pages: { '': ArchitectPage },
     widgets: {
       'quick-architect': {
+        '1x1': QuickArchitect1x1,
         '4x1': QuickArchitect4x1,
       },
     },
