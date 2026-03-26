@@ -29,6 +29,7 @@ export interface WidgetPlacement {
   y: number // row (0-based)
   w: number // width in columns
   h: number // height in rows
+  config?: Record<string, any> // widget-specific settings (persisted with layout)
 }
 
 export interface HomeLayout {
@@ -364,6 +365,18 @@ export function useWidgetRegistry() {
     }
   }
 
+  function updateWidgetConfig(instanceId: string, config: Record<string, any>) {
+    const item = layout.value.items.find(i => i.instanceId === instanceId)
+    if (item) {
+      item.config = { ...item.config, ...config }
+      saveLayout()
+    }
+  }
+
+  function getWidgetConfig(instanceId: string): Record<string, any> {
+    return layout.value.items.find(i => i.instanceId === instanceId)?.config || {}
+  }
+
   return {
     catalog,
     layout,
@@ -382,6 +395,8 @@ export function useWidgetRegistry() {
     swapWidgets,
     getWidgetSizes,
     getWidgetComponent,
+    updateWidgetConfig,
+    getWidgetConfig,
     GRID_COLS,
     SPACE_ROWS,
   }

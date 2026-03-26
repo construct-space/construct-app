@@ -91,6 +91,7 @@ watch(
       :widget-id="placement.widgetId"
       :size-key="placement.sizeKey"
       :instance-id="placement.instanceId"
+      :config="placement.config || {}"
     />
   </div>
 </template>
