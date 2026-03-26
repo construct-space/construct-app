@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { IS_DEV_INSTANCE, initAppPaths } from '@/lib/appPaths'
 import { isTauriEnv } from '@/utils/tauri'
 import { setDockIcon } from '@/composables/useDockIcon'
-import { useAppTheme } from '@/composables/useAppTheme'
+import { useTheme } from '@construct-space/ui'
 import { useWindowChromeState } from '@/composables/useWindowChromeState'
 import { useAppMenu } from '@/composables/useAppMenu'
 import { useDeepLink } from '@/composables/useDeepLink'
@@ -17,7 +17,7 @@ const router = useRouter()
 
 // Splash screen — shown while app initializes
 const appReady = ref(false)
-const { initTheme } = useAppTheme()
+const { init: initTheme } = useTheme()
 useAppMenu()
 useDeepLink()
 const telemetry = useTelemetry()

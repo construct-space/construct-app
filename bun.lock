@@ -6,7 +6,7 @@
       "name": "construct-personal",
       "dependencies": {
         "@construct-space/sdk": "^0.4.0",
-        "@construct-space/ui": "0.3.2",
+        "@construct-space/ui": "0.3.5",
         "@nicepkg/gpt-runner": "^1.2.9",
         "@tauri-apps/api": "^2.10.1",
         "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
@@ -101,7 +101,7 @@
 
     "@construct-space/sdk": ["@construct-space/sdk@0.4.0", "", { "dependencies": { "zod": "^4.3.6" }, "peerDependencies": { "vue": "^3.5.0" } }, "sha512-6ugaOaN6zJy1OnNxzvdlyo/gkX3aLPaVjj3ITT9mUSna7zThcd7V13p0pCg1FYqCv1E8sWsWc2eORxwzlX3yog=="],
 
-    "@construct-space/ui": ["@construct-space/ui@0.3.2", "", { "peerDependencies": { "@iconify/vue": "^4.0.0", "reka-ui": "^2.0.0", "vue": "^3.5.0" } }, "sha512-js1ErWd/Wil4pHAMoZZxu2V9e5cbQaxSpDhrNYApMiWOqwlerQfzGEMGxC0nMgupGRnQEUdIrC+HV7YxvtxU8A=="],
+    "@construct-space/ui": ["@construct-space/ui@0.3.5", "", { "peerDependencies": { "@iconify/vue": "^4.0.0", "reka-ui": "^2.0.0", "vue": "^3.5.0" } }, "sha512-p/k7MZxFcV5bCRwTvOcJcer29/5HYxWZYPyX8rgZievcbgVr30hIP/G4TCN7/bR60wP1xPTH8Tj2clMgyYWWSA=="],
 
     "@drauu/core": ["@drauu/core@1.0.0", "", {}, "sha512-r1fPyuKaGuNHc8vxRFUT8LxqWjJ3nx+U+zsHcEOurmJoB7uN+zpFw5kTLInfdfvQZ+qF/ebQjw1AwbGcc1XKsQ=="],
 

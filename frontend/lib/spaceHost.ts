@@ -52,7 +52,7 @@ interface ProjectStoreLike {
 }
 
 interface ConstructRuntime {
-  config: { paasUrl: string; apiBase: string }
+  config: { graphUrl: string; apiBase: string }
   auth: { getAccessToken(): Promise<string | null>; getUserId(): string | null }
   space: { id: string }
   project: { id: string }
@@ -92,18 +92,18 @@ export function initSpaceHost(): void {
     '@construct-space/sdk': ConstructSdk,
   }
 
-  // Inject window.construct runtime for SDK data/media composables
-  // These access construct.config.paasUrl, construct.auth.getAccessToken(), etc.
+  // Inject window.construct runtime for space composables
   window.construct = {
     config: {
-      paasUrl: appConfig.paasUrl,
+      graphUrl: appConfig.graphUrl,
       apiBase: appConfig.apiBase,
     },
     auth: {
       async getAccessToken() {
         try {
           const { useAuthStore } = await import('@/stores/auth')
-          return useAuthStore().token
+          const store = useAuthStore()
+          return store.oauthToken || store.token
         } catch { return null }
       },
       getUserId() {
