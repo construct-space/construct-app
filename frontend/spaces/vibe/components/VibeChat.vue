@@ -82,31 +82,34 @@ interface StreamItem {
 
 const streamedItems = computed<StreamItem[]>(() => {
   const items: StreamItem[] = []
+  const seen = new Set<string>()
 
-  for (const msg of displayMessages.value) {
-    items.push({
-      id: msg.id,
-      type: msg.role === 'user' ? 'user' : 'assistant',
-      content: msg.content,
-    })
-  }
-
-  // Append accumulated narration as status items
+  // Narration log (accumulated status updates)
   for (let i = 0; i < narrationLog.value.length; i++) {
-    items.push({
-      id: `narration-${i}`,
-      type: 'status',
-      content: narrationLog.value[i],
-    })
+    const content = narrationLog.value[i]
+    if (!seen.has(content)) {
+      seen.add(content)
+      items.push({ id: `narration-${i}`, type: 'status', content })
+    }
   }
 
-  // Append progress updates
+  // Progress updates
   for (const update of props.progressUpdates) {
-    items.push({
-      id: `progress-${update.id}`,
-      type: 'status',
-      content: update.headline + (update.detail ? ` — ${update.detail}` : ''),
-    })
+    const content = update.headline + (update.detail ? ` — ${update.detail}` : '')
+    if (!seen.has(content)) {
+      seen.add(content)
+      items.push({ id: `progress-${update.id}`, type: 'status', content })
+    }
+  }
+
+  // Assistant text messages (longer prose, not status one-liners)
+  for (const msg of displayMessages.value) {
+    if (msg.role === 'user') {
+      items.push({ id: msg.id, type: 'user', content: msg.content })
+    } else if (msg.content.length > 80 && !seen.has(msg.content.slice(0, 60))) {
+      // Only show assistant messages that are substantial (not just status echoes)
+      items.push({ id: msg.id, type: 'assistant', content: msg.content })
+    }
   }
 
   return items
