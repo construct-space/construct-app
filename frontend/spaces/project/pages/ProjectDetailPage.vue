@@ -9,11 +9,36 @@ import { getSpace } from '@/config/spaces'
 import { routeParamString } from '@/utils/projectRoutes'
 import { useProjectSummary } from '../composables/useProjectSummary'
 import { useBasepodDeploy } from '@/composables/useBasepodDeploy'
-import { Rocket, Zap, ExternalLink, FolderTree, FileText, GitBranch, Globe, Calendar, Layers, Loader2, Folder, File } from 'lucide-vue-next'
+import { useOperator } from '@/operator'
+import { Rocket, Zap, ExternalLink, FolderTree, FileText, GitBranch, Globe, Calendar, Layers, Loader2, Folder, File, X } from 'lucide-vue-next'
 import { useMarkdown } from '@/composables/useMarkdown'
 import ProjectDeployModal from '../components/ProjectDeployModal.vue'
 
 const { renderMarkdown } = useMarkdown()
+const operator = useOperator()
+
+// Doc preview modal
+const previewDoc = ref<{ title: string; content: string } | null>(null)
+
+async function openDoc(docTitle: string) {
+  const path = projectPath.value
+  if (!path) return
+  // Find the actual filename from the docs folder
+  const fileName = summary.value.docs.items.find((d: { title: string }) => d.title === docTitle)
+  if (!fileName) return
+  const filePath = `${path}/docs/${docTitle.replace(/ /g, '-')}.md`
+  try {
+    const result = await operator.callTool({
+      id: `doc-${Date.now()}`,
+      type: 'function',
+      function: { name: 'read_file', arguments: JSON.stringify({ path: filePath }) },
+    })
+    if (result?.content) {
+      const content = String(result.content).replace(/^\s*\d+[│|]\s?/gm, '')
+      previewDoc.value = { title: docTitle, content }
+    }
+  } catch { /* ignore */ }
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -144,23 +169,26 @@ function getExtLabel(ext: string): string {
               v-html="renderMarkdown(summary.readme)" />
           </template>
 
-          <template v-if="summary.docs.count > 0">
-            <p class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-3">Documentation</p>
-            <div class="space-y-1 mb-6">
-              <div
-                v-for="doc in summary.docs.items"
-                :key="doc.title"
-                class="flex items-center gap-2.5 px-3 py-1.5 rounded-md hover:bg-[color-mix(in_srgb,var(--app-foreground)_3%,transparent)] transition-colors"
-              >
-                <FileText class="size-3.5 text-violet-400 shrink-0" />
-                <span class="text-sm text-[var(--app-foreground)]">{{ doc.title }}</span>
-              </div>
-            </div>
-          </template>
         </div>
 
-        <!-- Right: file tree + stats -->
+        <!-- Right: docs + file tree + stats -->
         <div class="space-y-6">
+          <!-- Docs -->
+          <div v-if="summary.docs.count > 0">
+            <p class="text-xs text-[var(--app-muted)] uppercase tracking-wider font-medium mb-2">Docs</p>
+            <div class="space-y-0.5">
+              <button
+                v-for="doc in summary.docs.items"
+                :key="doc.title"
+                class="flex items-center gap-2 w-full py-1 text-xs text-left rounded hover:bg-[color-mix(in_srgb,var(--app-foreground)_3%,transparent)] transition-colors cursor-pointer px-1"
+                @click="openDoc(doc.title)"
+              >
+                <FileText class="size-3.5 text-violet-400 shrink-0" />
+                <span class="text-[var(--app-foreground)] truncate">{{ doc.title }}</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Git -->
           <div v-if="summary.git.hasRepo" class="flex items-center gap-2 text-sm">
             <GitBranch class="size-3.5 text-orange-400" />
@@ -209,10 +237,34 @@ function getExtLabel(ext: string): string {
       :project="showDeployModal ? project : null"
       @close="onDeployClose"
     />
+
+    <!-- Doc preview modal -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="previewDoc" class="fixed inset-0 z-50 flex items-center justify-center p-8" @click.self="previewDoc = null">
+          <div class="absolute inset-0 bg-black/60" />
+          <div class="relative w-full max-w-3xl max-h-[80vh] rounded-xl border border-[var(--app-border)] bg-[var(--app-background)] shadow-2xl flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-[var(--app-border)] shrink-0">
+              <h3 class="text-sm font-semibold text-[var(--app-foreground)]">{{ previewDoc.title }}</h3>
+              <button class="text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors" @click="previewDoc = null">
+                <X class="size-4" />
+              </button>
+            </div>
+            <div class="flex-1 overflow-auto px-6 py-5">
+              <div class="project-prose text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none"
+                v-html="renderMarkdown(previewDoc.content)" />
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
 .project-prose {
   --tw-prose-body: var(--app-foreground);
   --tw-prose-headings: var(--app-foreground);
