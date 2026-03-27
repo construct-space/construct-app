@@ -7,19 +7,22 @@ import { useToolbar } from '@/composables/useToolbar'
 import { buildProjectRoutePath } from '@/utils/projectRoutes'
 import { useVibe } from '../composables/useVibe'
 
-const vibePrompts = [
+const standalonePrompts = [
   'What should Vibe build?',
   'What are we building today?',
   'Drop an idea, Vibe does the rest.',
   'Describe it. Vibe ships it.',
   'One goal. Full execution.',
   'From idea to running code.',
-  'What\'s the next thing?',
   'Build something real.',
-  'Ship it before lunch.',
   'Turn words into software.',
 ]
-const vibeTitle = ref(vibePrompts[Math.floor(Math.random() * vibePrompts.length)])
+const projectPrompts = [
+  'What\'s next for this project?',
+  'What should we add?',
+  'Ready to ship the next feature.',
+  'What needs to change?',
+]
 import VibeHeader from '../components/VibeHeader.vue'
 import VibeChat from '../components/VibeChat.vue'
 import VibeActivity from '../components/VibeActivity.vue'
@@ -36,6 +39,18 @@ const { setBreadcrumbs } = useToolbar()
 const toast = useNotification()
 const vibe = useVibe()
 const preview = useVibePreview()
+const hasProjectContext = computed(() => !!projectStore.currentProject)
+const currentProjectPath = computed(() => projectStore.currentProject?.local_path || projectStore.currentProject?.path || '')
+const vibeTitle = computed(() => {
+  const prompts = hasProjectContext.value ? projectPrompts : standalonePrompts
+  return prompts[Math.floor(Math.random() * prompts.length)]
+})
+const vibeSubtitle = computed(() =>
+  hasProjectContext.value
+    ? 'Vibe will read your project docs, plan the work, and implement it.'
+    : 'Describe a goal and Vibe will plan, implement, and verify in one flow.',
+)
+
 const spaceActionStarting = ref(false)
 const completionActionError = ref('')
 
@@ -229,18 +244,21 @@ async function openGoalDoc() {
             <CodeRain />
             <div class="relative z-10 w-full max-w-2xl space-y-6">
               <div class="space-y-4">
-                <div class="inline-flex h-14 w-14 items-center justify-center rounded-3xl bg-[#00ff41]/10">
-                  <Icon name="i-lucide-zap" class="size-7 text-[#00ff41]" />
+                <div class="inline-flex h-14 w-14 items-center justify-center rounded-3xl bg-[var(--app-accent)]/10">
+                  <svg class="size-7 text-[var(--app-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                 </div>
                 <div class="space-y-2">
-                  <h1 class="text-3xl font-bold tracking-tight text-app-foreground">
+                  <h1 class="text-3xl font-bold tracking-tight text-[var(--app-foreground)]">
                     {{ vibeTitle }}
                   </h1>
-                  <p class="max-w-xl text-sm leading-7 text-app-muted">
-                    Describe a goal and Vibe will plan, implement, and verify in one flow.
+                  <p class="max-w-xl text-sm leading-7 text-[var(--app-muted)]">
+                    {{ vibeSubtitle }}
                   </p>
-                  <p v-if="projectStore.projectsRoot" class="text-xs text-app-muted/40">
-                    <Icon name="i-lucide-folder" class="size-3 inline mr-1" />{{ projectStore.projectsRoot }}
+                  <p v-if="currentProjectPath" class="text-xs text-[var(--app-muted)]/40 font-mono">
+                    {{ currentProjectPath }}
+                  </p>
+                  <p v-else-if="projectStore.projectsRoot" class="text-xs text-[var(--app-muted)]/40 font-mono">
+                    {{ projectStore.projectsRoot }}
                   </p>
                 </div>
               </div>
@@ -249,22 +267,22 @@ async function openGoalDoc() {
                 <p class="text-[11px] uppercase tracking-[0.18em] text-app-muted/70">Goal</p>
                 <div class="mt-3">
                   <textarea v-model="vibe.draft.value"
-                    class="w-full rounded-2xl border border-app bg-[var(--app-background)] px-4 py-3 text-sm text-app-foreground placeholder-app-muted/40 outline-none focus:border-[#00ff41]/30 focus:ring-1 focus:ring-[#00ff41]/30 resize-none transition-colors"
-                    placeholder="e.g. Build an HTML landing page for a SaaS product with hero, pricing, testimonials, and a contact form..."
+                    class="w-full rounded-2xl border border-app bg-[var(--app-background)] px-4 py-3 text-sm text-app-foreground placeholder-app-muted/40 outline-none focus:border-[var(--app-accent)]/30 focus:ring-1 focus:ring-[var(--app-accent)]/30 resize-none transition-colors"
+                    :placeholder="hasProjectContext ? 'e.g. Add a settings page with theme picker and notification preferences...' : 'e.g. Build an HTML landing page for a SaaS product with hero, pricing, testimonials, and a contact form...'"
                     rows="5" @keydown.enter.exact.prevent="submitDraft()" @keydown.enter.meta.prevent="submitDraft()"
                     @keydown.enter.ctrl.prevent="submitDraft()" />
                 </div>
 
                 <div v-if="vibe.error.value" class="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
                   <div class="flex items-start gap-2">
-                    <Icon name="i-lucide-alert-circle" class="size-4 text-red-400 mt-0.5 shrink-0" />
+                    <svg class="size-4 text-red-400 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     <p class="text-sm text-red-300 flex-1">{{ vibe.error.value }}</p>
                   </div>
                 </div>
 
                 <div class="mt-4 flex flex-col gap-3 sm:flex-row">
                   <button class="flex-1 rounded-2xl py-3 text-sm font-semibold transition-all duration-200" :class="vibe.draft.value.trim()
-                    ? 'bg-[#00ff41] text-black hover:bg-[#33ff6a] cursor-pointer'
+                    ? 'bg-[var(--app-accent)] text-black hover:opacity-90 cursor-pointer'
                     : 'bg-app-panel text-app-muted/40 cursor-not-allowed'" :disabled="!vibe.draft.value.trim()"
                     @click="submitDraft()">
                     Start Vibing
@@ -272,8 +290,8 @@ async function openGoalDoc() {
                 </div>
               </div>
 
-              <div v-if="vibe.handoff.value" class="rounded-2xl border border-[#00ff41]/20 bg-[#00ff41]/6 px-4 py-3">
-                <p class="text-[11px] uppercase tracking-[0.16em] text-[#66ff93]/80">Architect handoff attached</p>
+              <div v-if="vibe.handoff.value" class="rounded-2xl border border-[var(--app-accent)]/20 bg-[var(--app-accent)]/5 px-4 py-3">
+                <p class="text-[11px] uppercase tracking-[0.16em] text-[var(--app-accent)]/80">Architect handoff attached</p>
                 <p class="mt-1 text-sm leading-6 text-app-muted">{{ vibe.handoff.value.description?.slice(0, 160) }}</p>
               </div>
             </div>

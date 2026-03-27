@@ -11,6 +11,14 @@ onMounted(() => {
   const ctx = canvas.getContext('2d')!
   if (!ctx) return
 
+  // Read accent color from CSS variable
+  const style = getComputedStyle(document.documentElement)
+  const accent: string = style.getPropertyValue('--app-accent').trim() || '#888888'
+  const accentLight = accent.replace(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i, (_m: string, r: string, g: string, b: string) => {
+    const lighten = (hex: string) => Math.min(255, parseInt(hex, 16) + 80).toString(16).padStart(2, '0')
+    return `#${lighten(r)}${lighten(g)}${lighten(b)}`
+  })
+
   const chars = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789'
   const fontSize = 14
   let columns = 0
@@ -48,12 +56,12 @@ onMounted(() => {
 
       if (y > 0 && y < canvas.height) {
         // Head (bright white-green)
-        ctx.fillStyle = '#ccffcc'
+        ctx.fillStyle = accentLight
         ctx.globalAlpha = 0.9
         ctx.fillText(char, x, y)
 
         // Body (green, fading)
-        ctx.fillStyle = '#00ff41'
+        ctx.fillStyle = accent
         ctx.globalAlpha = 0.3
         ctx.fillText(chars[Math.floor(Math.random() * chars.length)], x, y - fontSize)
         ctx.globalAlpha = 0.12
