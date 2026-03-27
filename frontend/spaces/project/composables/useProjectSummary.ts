@@ -8,9 +8,15 @@
 import { ref, watch, type Ref } from 'vue'
 import { useOperator } from '@/operator'
 
+export interface FileEntry {
+  name: string
+  type: 'file' | 'directory'
+}
+
 export interface ProjectSummary {
   docs: { count: number; items: { title: string; type?: string }[] }
   files: { count: number; languages: { ext: string; count: number }[] }
+  fileTree: FileEntry[]
   git: { hasRepo: boolean; branch?: string }
   readme: string
   loading: boolean
@@ -20,6 +26,7 @@ function emptyStats(): ProjectSummary {
   return {
     docs: { count: 0, items: [] },
     files: { count: 0, languages: [] },
+    fileTree: [],
     git: { hasRepo: false },
     readme: '',
     loading: false,
@@ -140,6 +147,27 @@ export function useProjectSummary(projectPath: Ref<string | undefined>) {
     } catch { /* ignore */ }
   }
 
+  async function loadFileTree(path: string) {
+    const content = await callOperatorTool('list_dir', { path })
+    if (!content) return
+    try {
+      const parsed = JSON.parse(content)
+      const entries = parsed?.entries || parsed || []
+      if (!Array.isArray(entries)) return
+      const tree: FileEntry[] = entries
+        .filter((e: { name?: string }) => e.name && !e.name.startsWith('.'))
+        .map((e: { name: string; type?: string }) => ({
+          name: e.name,
+          type: (e.type === 'directory' || e.type === 'dir') ? 'directory' as const : 'file' as const,
+        }))
+        .sort((a: FileEntry, b: FileEntry) => {
+          if (a.type === b.type) return a.name.localeCompare(b.name)
+          return a.type === 'directory' ? -1 : 1
+        })
+      summary.value.fileTree = tree
+    } catch { /* ignore */ }
+  }
+
   async function loadReadme(path: string) {
     const content = await callOperatorTool('read_file', { path: `${path}/README.md` })
     if (!content) return
@@ -162,6 +190,7 @@ export function useProjectSummary(projectPath: Ref<string | undefined>) {
     await Promise.allSettled([
       loadDocs(path),
       loadFiles(path),
+      loadFileTree(path),
       loadGit(path),
       loadReadme(path),
     ])

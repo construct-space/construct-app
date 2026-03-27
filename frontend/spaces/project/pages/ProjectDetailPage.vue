@@ -132,86 +132,73 @@ function getExtLabel(ext: string): string {
         </button>
       </div>
 
-      <!-- Overview cards -->
-      <p class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Overview</p>
-      <div v-if="summary.loading" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-12">
-        <div v-for="i in 4" :key="i" class="h-24 rounded-lg bg-white/[0.02] animate-pulse" />
+      <!-- Overview: two columns -->
+      <div v-if="summary.loading" class="mb-12">
+        <div class="h-32 rounded-lg bg-[color-mix(in_srgb,var(--app-foreground)_2%,transparent)] animate-pulse" />
       </div>
-      <div v-else class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-12">
-        <div
-          v-if="summary.files.count > 0"
-          class="p-4 rounded-lg bg-white/[0.02] border border-transparent hover:border-[var(--app-border)] transition-colors cursor-pointer"
-          @click="enterSpace('code')"
-        >
-          <div class="flex items-center gap-2 mb-2">
-            <FolderTree class="size-4 text-blue-400" />
-            <span class="text-xs text-[var(--app-muted)] uppercase tracking-wider font-medium">Files</span>
-          </div>
-          <p class="text-2xl font-bold text-[var(--app-foreground)]">{{ summary.files.count }}</p>
-          <div v-if="summary.files.languages.length" class="flex flex-wrap gap-1 mt-2">
-            <span
-              v-for="lang in summary.files.languages.slice(0, 3)"
-              :key="lang.ext"
-              class="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.05] text-[var(--app-muted)]"
-            >{{ getExtLabel(lang.ext) }}</span>
-          </div>
+      <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+        <!-- Left: README + docs -->
+        <div class="lg:col-span-2 min-w-0">
+          <template v-if="summary.readme">
+            <div class="project-prose text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none mb-8"
+              v-html="renderMarkdown(summary.readme)" />
+          </template>
+
+          <template v-if="summary.docs.count > 0">
+            <p class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-3">Documentation</p>
+            <div class="space-y-1 mb-6">
+              <div
+                v-for="doc in summary.docs.items"
+                :key="doc.title"
+                class="flex items-center gap-2.5 px-3 py-1.5 rounded-md hover:bg-[color-mix(in_srgb,var(--app-foreground)_3%,transparent)] transition-colors"
+              >
+                <FileText class="size-3.5 text-violet-400 shrink-0" />
+                <span class="text-sm text-[var(--app-foreground)]">{{ doc.title }}</span>
+              </div>
+            </div>
+          </template>
         </div>
 
-        <div
-          v-if="summary.docs.count > 0"
-          class="p-4 rounded-lg bg-white/[0.02] border border-transparent hover:border-[var(--app-border)] transition-colors cursor-pointer"
-          @click="enterSpace('docs')"
-        >
-          <div class="flex items-center gap-2 mb-2">
-            <FileText class="size-4 text-violet-400" />
-            <span class="text-xs text-[var(--app-muted)] uppercase tracking-wider font-medium">Docs</span>
+        <!-- Right: file tree + stats -->
+        <div class="space-y-6">
+          <!-- Git -->
+          <div v-if="summary.git.hasRepo" class="flex items-center gap-2 text-sm">
+            <GitBranch class="size-3.5 text-orange-400" />
+            <span class="text-[var(--app-foreground)]">{{ summary.git.branch || 'main' }}</span>
           </div>
-          <p class="text-2xl font-bold text-[var(--app-foreground)]">{{ summary.docs.count }}</p>
-          <div v-if="summary.docs.items.length" class="mt-2 space-y-0.5">
-            <p
-              v-for="doc in summary.docs.items.slice(0, 3)"
-              :key="doc.title"
-              class="text-[10px] text-[var(--app-muted)] truncate"
-            >
-{{ doc.title }}
-</p>
-          </div>
-        </div>
 
-        <div
-          v-if="summary.git.hasRepo"
-          class="p-4 rounded-lg bg-white/[0.02] border border-transparent hover:border-[var(--app-border)] transition-colors cursor-pointer"
-          @click="enterSpace('git')"
-        >
-          <div class="flex items-center gap-2 mb-2">
-            <GitBranch class="size-4 text-orange-400" />
-            <span class="text-xs text-[var(--app-muted)] uppercase tracking-wider font-medium">Git</span>
+          <!-- File stats -->
+          <div v-if="summary.files.count > 0">
+            <div class="flex items-center gap-2 mb-2">
+              <FolderTree class="size-3.5 text-blue-400" />
+              <span class="text-xs text-[var(--app-muted)] uppercase tracking-wider font-medium">{{ summary.files.count }} files</span>
+            </div>
+            <div v-if="summary.files.languages.length" class="flex flex-wrap gap-1.5">
+              <span
+                v-for="lang in summary.files.languages.slice(0, 6)"
+                :key="lang.ext"
+                class="text-[10px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] text-[var(--app-muted)]"
+              >{{ getExtLabel(lang.ext) }} · {{ lang.count }}</span>
+            </div>
           </div>
-          <p class="text-sm font-medium text-[var(--app-foreground)] mt-1">{{ summary.git.branch || 'Repository' }}</p>
-          <p class="text-[10px] text-[var(--app-muted)] mt-1">Version controlled</p>
+
+          <!-- File list -->
+          <div v-if="summary.fileTree.length > 0">
+            <p class="text-xs text-[var(--app-muted)] uppercase tracking-wider font-medium mb-2">Files</p>
+            <div class="space-y-0.5">
+              <div
+                v-for="file in summary.fileTree"
+                :key="file.name"
+                class="flex items-center gap-2 py-0.5 text-xs"
+              >
+                <span v-if="file.type === 'directory'" class="text-[var(--app-muted)]">📁</span>
+                <span v-else class="text-[var(--app-muted)]">📄</span>
+                <span :class="file.type === 'directory' ? 'text-[var(--app-foreground)] font-medium' : 'text-[var(--app-muted)]'">{{ file.name }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      <!-- README -->
-      <template v-if="summary.readme">
-        <div class="project-prose text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none mb-12"
-          v-html="renderMarkdown(summary.readme)" />
-      </template>
-
-      <!-- Docs list -->
-      <template v-if="summary.docs.count > 0">
-        <p class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Documentation</p>
-        <div class="space-y-1.5 mb-12">
-          <div
-            v-for="doc in summary.docs.items"
-            :key="doc.title"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.03] transition-colors"
-          >
-            <FileText class="size-4 text-violet-400 shrink-0" />
-            <span class="text-sm text-[var(--app-foreground)]">{{ doc.title }}</span>
-          </div>
-        </div>
-      </template>
     </div>
 
     <div v-else class="flex items-center justify-center h-full">
