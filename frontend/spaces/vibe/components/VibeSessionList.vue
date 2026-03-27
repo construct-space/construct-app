@@ -114,7 +114,7 @@ function hasFailed(goals: VibeStoredSession[]): boolean {
             <div class="flex items-center gap-2 shrink-0">
               <span
                 class="rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em]"
-                :class="hasFailed(group.goals) ? 'bg-red-500/10 text-red-300' : allComplete(group.goals) ? 'bg-[#00cc34]/10 text-[#33ff6a]' : 'bg-white/8 text-app-muted'"
+                :class="hasFailed(group.goals) ? 'bg-red-500/10 text-red-300' : allComplete(group.goals) ? 'bg-[var(--app-accent)]/10 text-[var(--app-accent)]' : 'bg-white/8 text-app-muted'"
               >
                 {{ hasFailed(group.goals) ? 'failed' : allComplete(group.goals) ? 'complete' : 'active' }}
               </span>

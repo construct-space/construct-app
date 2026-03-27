@@ -43,7 +43,7 @@ function truncate(text: string, max: number): string {
 <template>
   <div class="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-app bg-black/10">
     <div class="flex items-center gap-3 min-w-0">
-      <div class="flex items-center gap-1.5 rounded-full border border-[#00ff41]/20 bg-[#00ff41]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#33ff6a]">
+      <div class="flex items-center gap-1.5 rounded-full border border-[var(--app-accent)]/20 bg-[var(--app-accent)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--app-accent)]">
         <Icon name="i-lucide-zap" class="size-3" />
         Vibe
       </div>
@@ -71,16 +71,16 @@ function truncate(text: string, max: number): string {
               v-for="s in savedSessions"
               :key="s.id"
               class="flex items-center gap-2 px-3 py-2 text-xs cursor-pointer transition"
-              :class="s.id === currentSessionId ? 'bg-[#00ff41]/10 text-[#66ff93]' : 'text-app-muted hover:bg-white/5 hover:text-app'"
+              :class="s.id === currentSessionId ? 'bg-[var(--app-accent)]/10 text-[var(--app-accent)]' : 'text-app-muted hover:bg-white/5 hover:text-app'"
               @click="emit('switch-session', s.id); showGoalMenu = false"
             >
               <Icon
                 :name="s.status === 'complete' ? 'i-lucide-check-circle' : s.status === 'failed' || s.status === 'cancelled' || s.status === 'canceled' ? 'i-lucide-x-circle' : 'i-lucide-circle'"
                 class="size-3 shrink-0"
-                :class="s.status === 'complete' ? 'text-[#00ff41]' : s.status === 'failed' || s.status === 'cancelled' || s.status === 'canceled' ? 'text-red-400' : 'text-app-muted/50'"
+                :class="s.status === 'complete' ? 'text-[var(--app-accent)]' : s.status === 'failed' || s.status === 'cancelled' || s.status === 'canceled' ? 'text-red-400' : 'text-app-muted/50'"
               />
               <span class="truncate flex-1">{{ truncate(s.goal || 'Untitled', 50) }}</span>
-              <span v-if="s.id === currentSessionId" class="text-[9px] text-[#33ff6a]/60">current</span>
+              <span v-if="s.id === currentSessionId" class="text-[9px] text-[var(--app-accent)]/60">current</span>
             </div>
           </div>
         </div>
@@ -119,7 +119,7 @@ function truncate(text: string, max: number): string {
       <template v-else-if="isDone && projectPath">
         <button
           v-if="isConstructSpace"
-          class="rounded-lg bg-[#00ff41] px-2.5 py-1 text-[11px] font-semibold text-black transition hover:bg-[#33ff6a] disabled:opacity-50"
+          class="rounded-lg bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold text-black transition hover:bg-[var(--app-accent)] disabled:opacity-50"
           :disabled="spaceActionStarting"
           @click="emit('space-open')"
         >
@@ -128,9 +128,9 @@ function truncate(text: string, max: number): string {
           {{ spaceActionStarting ? 'Opening...' : 'Open Space in Construct Dev' }}
         </button>
         <template v-else-if="previewUrl">
-          <span class="text-[11px] text-[#00ff41] font-mono">{{ previewUrl }}</span>
+          <span class="text-[11px] text-[var(--app-accent)] font-mono">{{ previewUrl }}</span>
           <button
-            class="rounded-lg bg-[#00ff41] px-2.5 py-1 text-[11px] font-semibold text-black transition hover:bg-[#33ff6a]"
+            class="rounded-lg bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold text-black transition hover:bg-[var(--app-accent)]"
             @click="emit('preview-open')"
           >
             <Icon name="i-lucide-app-window" class="size-3 inline mr-0.5" />
@@ -145,7 +145,7 @@ function truncate(text: string, max: number): string {
         </template>
         <button
           v-else
-          class="rounded-lg bg-[#00ff41] px-2.5 py-1 text-[11px] font-semibold text-black transition hover:bg-[#33ff6a] disabled:opacity-50"
+          class="rounded-lg bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold text-black transition hover:bg-[var(--app-accent)] disabled:opacity-50"
           :disabled="previewStarting"
           @click="emit('preview-start')"
         >

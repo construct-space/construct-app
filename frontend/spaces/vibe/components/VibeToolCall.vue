@@ -76,13 +76,13 @@ function truncate(text: string, max: number): string {
         :name="call.state === 'running' ? 'i-lucide-loader-2' : call.state === 'done' ? 'i-lucide-check' : 'i-lucide-x'"
         class="mt-1 size-3 shrink-0"
         :class="{
-          'text-[#00ff41] animate-spin': call.state === 'running',
-          'text-[#00ff41]': call.state === 'done',
+          'text-[var(--app-accent)] animate-spin': call.state === 'running',
+          'text-[var(--app-accent)]': call.state === 'done',
           'text-red-400': call.state === 'error',
         }"
       />
       <span class="min-w-0 flex-1">
-        <span class="text-[#33ff6a]">{{ displayName }}</span>
+        <span class="text-[var(--app-accent)]">{{ displayName }}</span>
         <span v-if="primaryArg && !expanded" class="text-app-muted/70">('{{ shortArg }}')</span>
       </span>
       <button
@@ -98,7 +98,7 @@ function truncate(text: string, max: number): string {
     </div>
     <div v-if="expanded" class="ml-5 mt-1 mb-1.5 space-y-1.5">
       <div v-if="primaryArg" class="rounded-lg bg-black/30 px-3 py-2 text-[11px] text-app-muted/80 whitespace-pre-wrap break-all">{{ primaryArg }}</div>
-      <div v-if="call.result" class="rounded-lg px-3 py-2 text-[11px] whitespace-pre-wrap break-all" :class="call.isError ? 'bg-red-500/10 text-red-300/80' : 'bg-[#00cc34]/8 text-[#33ff6a]/70'">{{ call.result }}</div>
+      <div v-if="call.result" class="rounded-lg px-3 py-2 text-[11px] whitespace-pre-wrap break-all" :class="call.isError ? 'bg-red-500/10 text-red-300/80' : 'bg-[var(--app-accent)]/8 text-[var(--app-accent)]/70'">{{ call.result }}</div>
     </div>
   </div>
 </template>

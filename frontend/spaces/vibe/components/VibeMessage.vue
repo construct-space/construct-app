@@ -28,7 +28,7 @@ const renderedHtml = computed(() => {
   <div
     class="rounded-2xl border px-4 py-3"
     :class="role === 'user'
-      ? 'ml-8 border-[#00ff41]/15 bg-[#00ff41]/6'
+      ? 'ml-8 border-[var(--app-accent)]/15 bg-[var(--app-accent)]/6'
       : 'mr-8 border-app bg-white/[0.03]'"
   >
     <p class="text-[10px] uppercase tracking-[0.16em] text-app-muted/60 mb-1.5">
@@ -39,12 +39,12 @@ const renderedHtml = computed(() => {
     </div>
     <div
       v-else
-      class="prose prose-sm dark:prose-invert max-w-none prose-p:leading-6 prose-pre:bg-black/30 prose-code:text-[#66ff93]/90"
+      class="prose prose-sm dark:prose-invert max-w-none prose-p:leading-6 prose-pre:bg-black/30 prose-code:text-[var(--app-accent)]/90"
       v-html="renderedHtml"
     />
     <span
       v-if="isStreaming && role === 'assistant'"
-      class="inline-block w-1.5 h-4 bg-[#00ff41] animate-pulse ml-0.5 align-text-bottom"
+      class="inline-block w-1.5 h-4 bg-[var(--app-accent)] animate-pulse ml-0.5 align-text-bottom"
     />
   </div>
 </template>

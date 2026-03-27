@@ -328,9 +328,9 @@ async function openGoalDoc() {
             @space-open="openSpaceInConstructDev()" />
 
           <!-- Goal banner -->
-          <div class="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-app bg-[#00ff41]/[0.03]">
+          <div class="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-app bg-[var(--app-accent)]/[0.03]">
             <div class="min-w-0">
-              <p class="text-[10px] uppercase tracking-[0.14em] text-[#33ff6a]/70">Goal</p>
+              <p class="text-[10px] uppercase tracking-[0.14em] text-[var(--app-accent)]/70">Goal</p>
               <p class="mt-0.5 text-sm leading-6 text-app truncate">
                 {{ vibe.session.value?.goal || vibe.submittedGoal.value || vibe.draft.value || 'Waiting for goal...' }}
               </p>
@@ -376,10 +376,10 @@ async function openGoalDoc() {
 
             <!-- DIVIDER -->
             <div
-              class="w-1 shrink-0 cursor-col-resize group relative flex items-center justify-center hover:bg-[#00ff41]/10 transition-colors"
-              :class="isDragging && 'bg-[#00ff41]/10'" @mousedown="onDividerMouseDown" @dblclick="onDividerDblClick">
+              class="w-1 shrink-0 cursor-col-resize group relative flex items-center justify-center hover:bg-[var(--app-accent)]/10 transition-colors"
+              :class="isDragging && 'bg-[var(--app-accent)]/10'" @mousedown="onDividerMouseDown" @dblclick="onDividerDblClick">
               <div class="w-px h-full group-hover:w-0.5 rounded-full transition-all"
-                :class="isDragging ? 'w-0.5 bg-[#00ff41]/40' : 'bg-[var(--app-border)]/20 group-hover:bg-[#00ff41]/30'" />
+                :class="isDragging ? 'w-0.5 bg-[var(--app-accent)]/40' : 'bg-[var(--app-border)]/20 group-hover:bg-[var(--app-accent)]/30'" />
             </div>
 
             <!-- RIGHT: Activity -->

@@ -56,7 +56,7 @@ watch(
     >
       <template v-if="toolHistory.length === 0">
         <div v-if="isRunning" class="flex items-center gap-2 py-4 justify-center">
-          <span class="size-2 rounded-full bg-[#00ff41] animate-pulse" />
+          <span class="size-2 rounded-full bg-[var(--app-accent)] animate-pulse" />
           <p class="text-xs text-app-muted/50">Waiting for first tool call...</p>
         </div>
         <p v-else class="text-xs text-app-muted/50 py-4 text-center">
@@ -72,7 +72,7 @@ watch(
     </div>
     <div v-if="isRunning" class="shrink-0 px-3 py-1.5 border-t border-app">
       <div class="flex items-center gap-2">
-        <span class="size-1.5 rounded-full bg-[#00ff41] animate-pulse" />
+        <span class="size-1.5 rounded-full bg-[var(--app-accent)] animate-pulse" />
         <span class="text-[10px] text-app-muted/60">Running</span>
       </div>
     </div>

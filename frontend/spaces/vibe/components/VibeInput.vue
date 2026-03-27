@@ -42,13 +42,13 @@ defineExpose({ focus })
         ref="textareaRef"
         :value="modelValue"
         rows="2"
-        class="flex-1 rounded-xl border border-app bg-black/20 px-4 py-2.5 text-sm text-app outline-none transition placeholder:text-app-muted/40 focus:border-[#00ff41]/30 focus:ring-1 focus:ring-[#00ff41]/20 resize-none"
+        class="flex-1 rounded-xl border border-app bg-black/20 px-4 py-2.5 text-sm text-app outline-none transition placeholder:text-app-muted/40 focus:border-[var(--app-accent)]/30 focus:ring-1 focus:ring-[var(--app-accent)]/20 resize-none"
         :placeholder="placeholder || (isRunning ? 'Queue a follow-up...' : 'Describe what to build...')"
         @input="onInput"
         @keydown="onKeydown"
       />
       <button
-        class="self-end rounded-xl bg-[#00ff41] px-3 py-2.5 text-sm font-semibold text-black transition hover:bg-[#33ff6a] disabled:cursor-not-allowed disabled:opacity-40"
+        class="self-end rounded-xl bg-[var(--app-accent)] px-3 py-2.5 text-sm font-semibold text-black transition hover:bg-[var(--app-accent)] disabled:cursor-not-allowed disabled:opacity-40"
         :disabled="!modelValue.trim()"
         @click="emit('submit')"
       >
@@ -57,7 +57,7 @@ defineExpose({ focus })
     </div>
     <div
       v-if="queueCount && queueCount > 0"
-      class="absolute -top-2 right-12 rounded-full bg-[#00ff41] px-2 py-0.5 text-[10px] font-bold text-black"
+      class="absolute -top-2 right-12 rounded-full bg-[var(--app-accent)] px-2 py-0.5 text-[10px] font-bold text-black"
     >
       {{ queueCount }} queued
     </div>

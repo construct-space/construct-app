@@ -126,16 +126,16 @@ watch(
       <!-- Empty: working but no text yet -->
       <template v-if="displayMessages.length === 0 && isWorking">
         <div class="flex items-center gap-2 text-sm text-app-muted py-2">
-          <span class="size-1.5 rounded-full bg-[#00ff41] animate-pulse" />
+          <span class="size-1.5 rounded-full bg-[var(--app-accent)] animate-pulse" />
           <span>{{ liveStatus }}</span>
         </div>
       </template>
 
       <!-- Empty: done -->
       <template v-else-if="displayMessages.length === 0 && isDone && toolCount > 0">
-        <div class="rounded-xl border border-[#00ff41]/15 bg-[#00ff41]/[0.04] p-4">
+        <div class="rounded-xl border border-[var(--app-accent)]/15 bg-[var(--app-accent)]/[0.04] p-4">
           <div class="flex items-center gap-2 mb-2">
-            <Icon name="i-lucide-check-circle" class="size-4 text-[#00ff41]" />
+            <Icon name="i-lucide-check-circle" class="size-4 text-[var(--app-accent)]" />
             <p class="text-sm font-medium text-app">Done</p>
           </div>
           <p class="text-xs text-app-muted/70">{{ toolCount }} tool calls completed.</p>
@@ -156,14 +156,14 @@ watch(
 
         <!-- Progress/status update (streams inline) -->
         <div v-else-if="item.type === 'status'" class="flex items-start gap-2 text-xs text-app-muted/70 py-0.5">
-          <span class="size-1.5 rounded-full bg-[#00ff41]/60 mt-1 shrink-0" />
+          <span class="size-1.5 rounded-full bg-[var(--app-accent)]/60 mt-1 shrink-0" />
           <span>{{ item.content }}</span>
         </div>
       </template>
 
       <!-- Live working indicator -->
       <div v-if="isWorking" class="flex items-center gap-2 text-xs text-app-muted py-1">
-        <span class="size-1.5 rounded-full bg-[#00ff41] animate-pulse" />
+        <span class="size-1.5 rounded-full bg-[var(--app-accent)] animate-pulse" />
         <span>{{ liveStatus }}</span>
       </div>
     </div>
@@ -173,7 +173,7 @@ watch(
       <div class="flex flex-wrap items-center gap-2">
         <template v-if="isConstructSpace">
           <button
-            class="rounded-xl bg-[#00ff41] px-4 py-2 text-xs font-semibold text-black transition hover:bg-[#33ff6a] disabled:opacity-50"
+            class="rounded-xl bg-[var(--app-accent)] px-4 py-2 text-xs font-semibold text-black transition hover:bg-[var(--app-accent)] disabled:opacity-50"
             :disabled="spaceActionStarting"
             @click="emit('space-open')"
           >
@@ -182,7 +182,7 @@ watch(
         </template>
         <template v-else-if="!previewRunning && !previewUrl">
           <button
-            class="rounded-xl bg-[#00ff41] px-4 py-2 text-xs font-semibold text-black transition hover:bg-[#33ff6a] disabled:opacity-50"
+            class="rounded-xl bg-[var(--app-accent)] px-4 py-2 text-xs font-semibold text-black transition hover:bg-[var(--app-accent)] disabled:opacity-50"
             :disabled="previewStarting"
             @click="emit('preview-start')"
           >
@@ -190,8 +190,8 @@ watch(
           </button>
         </template>
         <template v-else-if="previewUrl">
-          <span class="text-xs text-[#00ff41] font-mono">{{ previewUrl }}</span>
-          <button class="rounded-xl bg-[#00ff41] px-3 py-2 text-xs font-semibold text-black" @click="emit('preview-open')">Open</button>
+          <span class="text-xs text-[var(--app-accent)] font-mono">{{ previewUrl }}</span>
+          <button class="rounded-xl bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-black" @click="emit('preview-open')">Open</button>
           <button class="rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-1.5 text-xs text-red-300" @click="emit('preview-stop')">Stop</button>
         </template>
       </div>
