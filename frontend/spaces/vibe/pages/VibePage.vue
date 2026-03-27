@@ -41,6 +41,12 @@ const { setBreadcrumbs } = useToolbar()
 const toast = useNotification()
 const vibe = useVibe()
 const preview = useVibePreview()
+
+// Show toast when preview fails
+watch(() => preview.error.value, (err) => {
+  if (err) toast.add({ title: 'Failed to start dev server', description: err, color: 'error' })
+})
+
 const hasProjectContext = computed(() => !!projectStore.currentProject)
 const currentProjectPath = computed(() => projectStore.currentProject?.local_path || projectStore.currentProject?.path || '')
 const vibeTitle = computed(() => {
