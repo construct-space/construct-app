@@ -6,6 +6,8 @@ import { useProjectStore } from '@/stores/project'
 import { useToolbar } from '@/composables/useToolbar'
 import { buildProjectRoutePath } from '@/utils/projectRoutes'
 import { useVibe } from '../composables/useVibe'
+import { vibeStatusBadgeClass } from '../composables/useVibeFormat'
+import { Zap } from 'lucide-vue-next'
 
 const standalonePrompts = [
   'What should Vibe build?',
@@ -312,21 +314,47 @@ async function openGoalDoc() {
             @delete="vibe.deleteSession($event)" @refresh="vibe.refreshHistory()" />
         </div>
 
-        <!-- ═══ Active session: header + split pane ═══ -->
+        <!-- ═══ Active session: goal banner + split pane ═══ -->
         <template v-else>
-          <VibeHeader :project-name="vibe.currentProject.value?.name || vibe.session.value?.project_name || ''"
-            :status-label="headerStatus" :is-running="vibe.isRunning.value" :is-construct-space="isConstructSpace"
-            :preview-url="preview.serverUrl.value" :preview-starting="preview.isStarting.value"
-            :preview-running="preview.isRunning.value" :space-action-starting="spaceActionStarting"
-            :project-path="vibe.session.value?.project_path || vibe.projectPath.value || ''"
-            :is-done="vibe.status.value.state === 'complete' || vibe.session.value?.status === 'complete'"
-            :saved-sessions="currentProjectSessions" :current-session-id="vibe.session.value?.session_id || ''"
-            @new-goal="vibe.newGoal()" @new-project="vibe.newProject()" @switch-session="vibe.openSession($event)"
-            @reset="vibe.reset(); preview.stop()" @stop="vibe.stop()"
-            @preview-start="preview.start(vibe.session.value?.project_path || vibe.projectPath.value || '')"
-            @preview-open="preview.openInConstruct()" @preview-stop="preview.stop()"
-            @space-open="openSpaceInConstructDev()" />
-
+          <!-- Toolbar slots: left=status, center=goal, right=actions -->
+          <Teleport to="#toolbar-left">
+            <div class="flex items-center gap-1.5 text-[11px]">
+              <Zap class="size-3 text-[var(--app-accent)]" />
+              <span v-if="vibe.isRunning.value" class="size-1.5 rounded-full bg-[var(--app-accent)] animate-pulse" />
+              <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider" :class="vibeStatusBadgeClass(headerStatus)">
+                {{ headerStatus }}
+              </span>
+            </div>
+          </Teleport>
+          <Teleport to="#toolbar-center">
+            <p class="text-[11px] text-[var(--app-muted)] truncate max-w-[300px]">
+              {{ vibe.session.value?.goal || vibe.submittedGoal.value || vibe.draft.value || '' }}
+            </p>
+          </Teleport>
+          <Teleport to="#toolbar-right">
+            <div class="flex items-center gap-1.5">
+              <button
+                class="rounded-md px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)] transition hover:text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)]"
+                :disabled="vibe.isRunning.value"
+                @click="vibe.newGoal()">
+                New Goal
+              </button>
+              <template v-if="!vibe.isRunning.value && (vibe.status.value.state === 'complete' || vibe.session.value?.status === 'complete')">
+                <button v-if="isConstructSpace"
+                  class="rounded-md bg-[var(--app-accent)] px-2 py-0.5 text-[10px] font-semibold text-black transition hover:opacity-90"
+                  :disabled="spaceActionStarting"
+                  @click="openSpaceInConstructDev()">
+                  Open Space
+                </button>
+                <button v-else-if="!preview.serverUrl.value"
+                  class="rounded-md bg-[var(--app-accent)] px-2 py-0.5 text-[10px] font-semibold text-black transition hover:opacity-90"
+                  :disabled="preview.isStarting.value"
+                  @click="preview.start(vibe.session.value?.project_path || vibe.projectPath.value || '')">
+                  Run
+                </button>
+              </template>
+            </div>
+          </Teleport>
           <!-- Goal banner -->
           <div class="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-app bg-[var(--app-accent)]/[0.03]">
             <div class="min-w-0">
