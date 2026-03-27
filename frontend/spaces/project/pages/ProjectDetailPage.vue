@@ -189,7 +189,20 @@ function getExtLabel(ext: string): string {
         </div>
       </div>
 
-      <!-- Spaces removed — each space shows its own projects -->
+      <!-- Docs list -->
+      <template v-if="summary.docs.count > 0">
+        <p class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Documentation</p>
+        <div class="space-y-1.5 mb-12">
+          <div
+            v-for="doc in summary.docs.items"
+            :key="doc.title"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.03] transition-colors"
+          >
+            <FileText class="size-4 text-violet-400 shrink-0" />
+            <span class="text-sm text-[var(--app-foreground)]">{{ doc.title }}</span>
+          </div>
+        </div>
+      </template>
     </div>
 
     <div v-else class="flex items-center justify-center h-full">
