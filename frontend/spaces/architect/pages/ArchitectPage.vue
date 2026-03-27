@@ -10,6 +10,8 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentSession, type RequestBlock } from '@/operator/useAgentSession'
 import { useProjectStore } from '@/stores/project'
+import { useProjectSummary } from '@/spaces/project/composables/useProjectSummary'
+import { DraftingCompass, FileText, Folder, File } from 'lucide-vue-next'
 import AgentView from '@/components/agent/AgentView.vue'
 import AgentInput from '@/components/agent/AgentInput.vue'
 
@@ -31,6 +33,9 @@ const projectPath = computed(() => {
   if (currentProject.value?.local_path) return currentProject.value.local_path
   return ''
 })
+
+const hasProject = computed(() => !!projectPath.value)
+const { summary } = useProjectSummary(projectPath)
 
 const inputPlaceholder = computed(() => {
   if (turns.value.length > 0) return 'Continue or refine...'
@@ -106,39 +111,73 @@ function startVibe() {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-app">
-    <!-- Header -->
-    <div class="shrink-0 flex items-center justify-between px-4 py-2">
-<div v-if="docsWritten && !isLoading && detectedProjectPath" class="flex items-center gap-2">
-        <button
-          class="rounded-lg bg-app-accent px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-app-accent/80"
-          @click="router.push({ path: '/app/projects', query: { open: detectedProjectPath } })">
-          <Icon name="i-lucide-folder-open" class="size-3 inline mr-1" />
-          Open Project
-        </button>
+  <div class="flex h-full bg-app">
+    <!-- Main -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Header -->
+      <div class="shrink-0 flex items-center justify-between px-4 py-2">
+        <div v-if="docsWritten && !isLoading && detectedProjectPath" class="flex items-center gap-2">
+          <button
+            class="rounded-lg bg-app-accent px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-app-accent/80"
+            @click="router.push({ path: '/app/projects', query: { open: detectedProjectPath } })">
+            Open Project
+          </button>
+        </div>
+      </div>
+
+      <!-- Agent view -->
+      <div class="flex-1 min-h-0 flex justify-center overflow-hidden">
+        <div class="w-full max-w-2xl">
+          <AgentView :turns="turns" :is-loading="isLoading" :status-message="statusMessage"
+            @question-answer="handleQuestionAnswer">
+            <template #empty>
+              <DraftingCompass class="size-12 text-blue-400/30 mb-4" />
+              <h2 class="text-xl font-semibold text-app mb-1">Architect</h2>
+              <p v-if="hasProject" class="text-sm text-app-muted max-w-md">
+                Add features, update docs, or refine the architecture of this project.
+              </p>
+              <p v-else class="text-sm text-app-muted max-w-md">
+                Describe your project. I'll ask questions, then write the design docs.
+              </p>
+            </template>
+          </AgentView>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="shrink-0 flex justify-center">
+        <div class="w-full max-w-2xl">
+          <AgentInput :placeholder="inputPlaceholder" :loading="isLoading" @send="handleSend" @stop="session.stop()" />
+        </div>
       </div>
     </div>
 
-    <!-- Agent view -->
-    <div class="flex-1 min-h-0 flex justify-center overflow-hidden">
-      <div class="w-full max-w-2xl">
-      <AgentView :turns="turns" :is-loading="isLoading" :status-message="statusMessage"
-        @question-answer="handleQuestionAnswer">
-        <template #empty>
-          <Icon name="i-lucide-drafting-compass" class="size-12 text-blue-400/30 mb-4" />
-          <h2 class="text-xl font-semibold text-app mb-1">Architect</h2>
-          <p class="text-sm text-app-muted max-w-md">
-            Describe your project. I'll write the design docs, then hand off to Vibe.
-          </p>
-        </template>
-      </AgentView>
+    <!-- Sidebar: project files -->
+    <div v-if="hasProject && (summary.docs.count > 0 || summary.fileTree.length > 0)"
+      class="w-56 shrink-0 border-l border-[var(--app-border)] overflow-auto p-3 space-y-5">
+      <!-- Docs -->
+      <div v-if="summary.docs.count > 0">
+        <p class="text-[10px] text-[var(--app-muted)] uppercase tracking-wider font-medium mb-2">Docs</p>
+        <div class="space-y-0.5">
+          <div v-for="doc in summary.docs.items" :key="doc.title"
+            class="flex items-center gap-1.5 py-0.5 text-[11px]">
+            <FileText class="size-3 text-violet-400 shrink-0" />
+            <span class="text-[var(--app-foreground)] truncate">{{ doc.title }}</span>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <!-- Input -->
-    <div class="shrink-0 flex justify-center">
-      <div class="w-full max-w-2xl">
-        <AgentInput :placeholder="inputPlaceholder" :loading="isLoading" @send="handleSend" @stop="session.stop()" />
+      <!-- Files -->
+      <div v-if="summary.fileTree.length > 0">
+        <p class="text-[10px] text-[var(--app-muted)] uppercase tracking-wider font-medium mb-2">Files</p>
+        <div class="space-y-0.5">
+          <div v-for="file in summary.fileTree" :key="file.name"
+            class="flex items-center gap-1.5 py-0.5 text-[11px]">
+            <Folder v-if="file.type === 'directory'" class="size-3 text-amber-400 shrink-0" />
+            <File v-else class="size-3 text-[var(--app-muted)] shrink-0" />
+            <span :class="file.type === 'directory' ? 'text-[var(--app-foreground)] font-medium' : 'text-[var(--app-muted)]'" class="truncate">{{ file.name }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
