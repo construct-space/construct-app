@@ -58,14 +58,38 @@ function formatError(raw: string): string {
   if (lower.includes('not connected')) {
     return 'Not connected to the operator service. Restart the app or check Settings → Developer.'
   }
-  // Fallback: strip JSON noise, show just the message
-  try {
-    const parsed = JSON.parse(raw)
-    const msg = parsed?.error?.message || parsed?.error || parsed?.message
-    if (msg && typeof msg === 'string') return msg
-  } catch { /* not JSON */ }
+  // Fallback: try to extract message from JSON
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0])
+      const msg = parsed?.error?.message || parsed?.error || parsed?.message
+      if (msg && typeof msg === 'string') return msg
+    } catch { /* not JSON */ }
+  }
 
   return raw
+}
+
+function parseErrorDetails(raw: string): Array<{ key: string; value: string }> | null {
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) return null
+  try {
+    const parsed = JSON.parse(jsonMatch[0])
+    const entries: Array<{ key: string; value: string }> = []
+    const flatten = (obj: Record<string, unknown>, prefix = '') => {
+      for (const [k, v] of Object.entries(obj)) {
+        const key = prefix ? `${prefix}.${k}` : k
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          flatten(v as Record<string, unknown>, key)
+        } else {
+          entries.push({ key, value: String(v) })
+        }
+      }
+    }
+    flatten(parsed)
+    return entries.length > 0 ? entries : null
+  } catch { return null }
 }
 
 const emit = defineEmits<{
@@ -144,10 +168,17 @@ function openUrl(url: string) {
 
       <!-- Error -->
       <div v-else-if="block.type === 'error'" class="my-1.5 px-3 py-2.5 rounded-lg border border-red-500/20 bg-red-500/10">
-        <p class="text-xs font-medium text-red-400">{{ formatError(block.message) }}</p>
-        <details v-if="formatError(block.message) !== block.message" class="mt-1.5">
-          <summary class="text-[10px] text-red-400/50 cursor-pointer hover:text-red-400/80">Raw error</summary>
-          <pre class="mt-1 text-[10px] text-red-400/40 whitespace-pre-wrap break-all">{{ block.message }}</pre>
+        <p class="text-xs font-medium text-red-300">{{ formatError(block.message) }}</p>
+        <details v-if="formatError(block.message) !== block.message" class="mt-2">
+          <summary class="text-[11px] text-red-300/60 cursor-pointer hover:text-red-300/90">Details</summary>
+          <div v-if="parseErrorDetails(block.message)" class="mt-1.5 space-y-0.5">
+            <div v-for="entry in parseErrorDetails(block.message)" :key="entry.key"
+              class="flex gap-2 text-[11px] leading-relaxed">
+              <span class="text-red-300/50 shrink-0">{{ entry.key }}:</span>
+              <span class="text-red-300/80 break-all">{{ entry.value }}</span>
+            </div>
+          </div>
+          <pre v-else class="mt-1 text-[11px] text-red-300/60 whitespace-pre-wrap break-all">{{ block.message }}</pre>
         </details>
       </div>
 
