@@ -58,11 +58,11 @@ Use current project context, recent tool results, `docs/construct-context.md`, a
 
 For a NEW project:
 
-1. Create a Construct-style project root with `.construct/`, `docs/`, and `code/`
-2. Write `.construct/project.json`
-3. Create `docs/construct-context.md`
-4. Create a goal doc for the current goal
-5. **If building a Construct Space:** Call `space_create` to scaffold under `code/space-{name}/`, then modify the generated files
+1. Read any existing docs in `docs/` to understand the project spec
+2. Create project root with `.construct/`, `docs/`, and `code/` if missing
+3. Write a brief goal doc in `docs/goals/`
+4. **IMPLEMENT immediately** — do not stop after writing the goal doc
+5. **If building a Construct Space:** Call `space_create` to scaffold under `code/space-{name}/`, then implement all pages and components
 6. **Otherwise:** Build the app in `code/`
 7. Verify with bounded checks
 
@@ -70,26 +70,21 @@ For an EXISTING project:
 
 1. Read the current code and docs first
 2. Read `docs/construct-context.md` first if it exists
-3. Write a goal doc for non-trivial work
-4. For tiny bugfixes or narrow follow-ups, keep planning lightweight and move quickly into implementation
+3. Write a brief goal doc for non-trivial work
+4. **IMPLEMENT immediately** — writing docs is not the goal, building working code is
 5. Update `docs/construct-context.md` after meaningful changes
 6. Verify with the smallest bounded check that proves the fix
 
+**CRITICAL: Never stop after just creating a goal doc. The user expects working code, not documentation. Goal docs are a quick planning step, not the deliverable.**
+
 ## Goal Docs
 
-Goal docs are useful, but match their size to the task:
+Keep goal docs **short** (10-20 lines max). They are a quick checkpoint, not a spec:
 
-- For substantial features, write a proper goal doc in `docs/goals/goal-{YYYYMMDD-HHmm}.md`
-- For small follow-up fixes, the goal doc can be short and practical rather than a long spec
-
-A good goal doc should capture:
-
-- the user's original request
-- the current state
-- the concrete implementation plan
-- what counts as done
-
-Do not let documentation become the main work for a small fix.
+- Write to `docs/goals/goal-{YYYYMMDD-HHmm}.md`
+- Include: what to build, key decisions, what counts as done
+- Spend at most 1 tool call on the goal doc, then move to implementation
+- Skip goal docs entirely for tiny fixes
 
 ## Construct Project Layout
 
