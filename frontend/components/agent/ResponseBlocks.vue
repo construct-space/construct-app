@@ -23,6 +23,51 @@ const props = defineProps<{
   streaming?: boolean
 }>()
 
+function formatError(raw: string): string {
+  const lower = raw.toLowerCase()
+
+  // Rate limit
+  if (lower.includes('429') || lower.includes('rate-limit') || lower.includes('rate limit')) {
+    return 'This model is temporarily rate-limited. Wait a moment and retry, or switch to a different model.'
+  }
+  // No endpoints / privacy policy
+  if (lower.includes('no endpoints') || lower.includes('guardrail') || lower.includes('data policy')) {
+    return 'This model is blocked by your OpenRouter privacy settings. Update them at openrouter.ai/settings/privacy.'
+  }
+  // Auth / key errors
+  if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('invalid api key') || lower.includes('invalid_api_key')) {
+    return 'Authentication failed. Check your API key in Settings → Providers.'
+  }
+  // Model not found
+  if (lower.includes('404') && (lower.includes('model') || lower.includes('not found'))) {
+    return 'Model not found. It may have been removed. Choose a different model in Settings → LLMs.'
+  }
+  // Quota / billing
+  if (lower.includes('402') || lower.includes('quota') || lower.includes('insufficient') || lower.includes('billing')) {
+    return 'Quota exceeded or billing issue. Check your provider account.'
+  }
+  // Context length
+  if (lower.includes('context length') || lower.includes('too many tokens') || lower.includes('max.*token')) {
+    return 'Message too long for this model. Try a shorter prompt or a model with a larger context window.'
+  }
+  // Server error
+  if (lower.includes('500') || lower.includes('internal server error') || lower.includes('502') || lower.includes('503')) {
+    return 'Provider server error. Try again in a moment.'
+  }
+  // Not connected
+  if (lower.includes('not connected')) {
+    return 'Not connected to the operator service. Restart the app or check Settings → Developer.'
+  }
+  // Fallback: strip JSON noise, show just the message
+  try {
+    const parsed = JSON.parse(raw)
+    const msg = parsed?.error?.message || parsed?.error || parsed?.message
+    if (msg && typeof msg === 'string') return msg
+  } catch { /* not JSON */ }
+
+  return raw
+}
+
 const emit = defineEmits<{
   action: [actionId: string]
   'question-answer': [questionId: string, answer: string | string[]]
@@ -98,8 +143,12 @@ function openUrl(url: string) {
       </div>
 
       <!-- Error -->
-      <div v-else-if="block.type === 'error'" class="my-1.5 px-3 py-2 text-xs text-red-500 bg-red-500/10 rounded-lg border border-red-500/20">
-        {{ block.message }}
+      <div v-else-if="block.type === 'error'" class="my-1.5 px-3 py-2.5 rounded-lg border border-red-500/20 bg-red-500/10">
+        <p class="text-xs font-medium text-red-400">{{ formatError(block.message) }}</p>
+        <details v-if="formatError(block.message) !== block.message" class="mt-1.5">
+          <summary class="text-[10px] text-red-400/50 cursor-pointer hover:text-red-400/80">Raw error</summary>
+          <pre class="mt-1 text-[10px] text-red-400/40 whitespace-pre-wrap break-all">{{ block.message }}</pre>
+        </details>
       </div>
 
       <!-- Status -->
