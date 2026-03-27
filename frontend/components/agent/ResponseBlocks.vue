@@ -167,18 +167,18 @@ function openUrl(url: string) {
       </div>
 
       <!-- Error -->
-      <div v-else-if="block.type === 'error'" class="my-1.5 px-3 py-2.5 rounded-lg border border-red-500/20 bg-red-500/10">
-        <p class="text-xs font-medium text-red-300">{{ formatError(block.message) }}</p>
+      <div v-else-if="block.type === 'error'" class="my-1.5 px-3 py-2.5 rounded-lg border border-red-500/30 bg-red-500/10">
+        <p class="text-xs font-medium text-red-500">{{ formatError(block.message) }}</p>
         <details v-if="formatError(block.message) !== block.message" class="mt-2">
-          <summary class="text-[11px] text-red-300/60 cursor-pointer hover:text-red-300/90">Details</summary>
+          <summary class="text-[11px] text-red-400 cursor-pointer hover:text-red-300">Details</summary>
           <div v-if="parseErrorDetails(block.message)" class="mt-1.5 space-y-0.5">
             <div v-for="entry in parseErrorDetails(block.message)" :key="entry.key"
               class="flex gap-2 text-[11px] leading-relaxed">
-              <span class="text-red-300/50 shrink-0">{{ entry.key }}:</span>
-              <span class="text-red-300/80 break-all">{{ entry.value }}</span>
+              <span class="text-red-500/70 shrink-0">{{ entry.key }}:</span>
+              <span class="text-red-400 break-all">{{ entry.value }}</span>
             </div>
           </div>
-          <pre v-else class="mt-1 text-[11px] text-red-300/60 whitespace-pre-wrap break-all">{{ block.message }}</pre>
+          <pre v-else class="mt-1 text-[11px] text-red-400 whitespace-pre-wrap break-all">{{ block.message }}</pre>
         </details>
       </div>
 
