@@ -248,8 +248,8 @@ function getExtLabel(ext: string): string {
     <!-- Doc preview modal -->
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="previewDoc" class="fixed inset-0 z-50 flex items-center justify-center p-8" @click.self="previewDoc = null">
-          <div class="absolute inset-0 bg-black/60" />
+        <div v-if="previewDoc" class="fixed inset-0 z-50 flex items-center justify-center p-8">
+          <div class="absolute inset-0 bg-black/60" @click="previewDoc = null" />
           <div class="relative w-full max-w-3xl max-h-[80vh] rounded-xl border border-[var(--app-border)] bg-[var(--app-background)] shadow-2xl flex flex-col overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3 border-b border-[var(--app-border)] shrink-0">
               <h3 class="text-sm font-semibold text-[var(--app-foreground)]">{{ previewDoc.title }}</h3>
