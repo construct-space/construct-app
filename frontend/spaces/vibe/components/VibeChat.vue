@@ -38,6 +38,17 @@ const props = defineProps<{
 
 const isWorking = computed(() => props.isRunning || ['implementing', 'planning', 'setting_up', 'researching', 'verifying', 'reviewing', 'running'].includes(props.sessionStatus))
 
+// Accumulate status narration messages instead of overwriting
+const narrationLog = ref<string[]>([])
+watch(() => props.statusUpdate, (val) => {
+  const text = val?.trim()
+  if (text && text !== 'Done' && narrationLog.value[narrationLog.value.length - 1] !== text) {
+    narrationLog.value.push(text)
+  }
+})
+// Reset when session changes
+watch(() => props.goal, () => { narrationLog.value = [] })
+
 const emit = defineEmits<{
   'update:draft': [value: string]
   'submit': []
@@ -80,7 +91,16 @@ const streamedItems = computed<StreamItem[]>(() => {
     })
   }
 
-  // Append progress updates as inline status items
+  // Append accumulated narration as status items
+  for (let i = 0; i < narrationLog.value.length; i++) {
+    items.push({
+      id: `narration-${i}`,
+      type: 'status',
+      content: narrationLog.value[i],
+    })
+  }
+
+  // Append progress updates
   for (const update of props.progressUpdates) {
     items.push({
       id: `progress-${update.id}`,
