@@ -12,6 +12,7 @@ export interface ProjectSummary {
   docs: { count: number; items: { title: string; type?: string }[] }
   files: { count: number; languages: { ext: string; count: number }[] }
   git: { hasRepo: boolean; branch?: string }
+  readme: string
   loading: boolean
 }
 
@@ -20,6 +21,7 @@ function emptyStats(): ProjectSummary {
     docs: { count: 0, items: [] },
     files: { count: 0, languages: [] },
     git: { hasRepo: false },
+    readme: '',
     loading: false,
   }
 }
@@ -46,10 +48,10 @@ export function useProjectSummary(projectPath: Ref<string | undefined>) {
   }
 
   async function loadDocs(path: string) {
-    const content = await callOperatorTool('list_directory', { path: `${path}/docs` })
+    const content = await callOperatorTool('list_dir', { path: `${path}/docs` })
     if (!content) {
       // Try .construct/docs as fallback
-      const fallback = await callOperatorTool('list_directory', { path: `${path}/.construct/docs` })
+      const fallback = await callOperatorTool('list_dir', { path: `${path}/.construct/docs` })
       if (!fallback) return
       parseDocs(fallback)
       return
@@ -138,6 +140,18 @@ export function useProjectSummary(projectPath: Ref<string | undefined>) {
     } catch { /* ignore */ }
   }
 
+  async function loadReadme(path: string) {
+    const content = await callOperatorTool('read_file', { path: `${path}/README.md` })
+    if (content) {
+      try {
+        const parsed = JSON.parse(content)
+        summary.value.readme = parsed?.content || parsed || ''
+      } catch {
+        summary.value.readme = content
+      }
+    }
+  }
+
   async function loadAll() {
     const path = projectPath.value
     if (!path) return
@@ -149,6 +163,7 @@ export function useProjectSummary(projectPath: Ref<string | undefined>) {
       loadDocs(path),
       loadFiles(path),
       loadGit(path),
+      loadReadme(path),
     ])
 
     summary.value.loading = false

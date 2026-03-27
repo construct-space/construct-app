@@ -10,7 +10,10 @@ import { routeParamString } from '@/utils/projectRoutes'
 import { useProjectSummary } from '../composables/useProjectSummary'
 import { useBasepodDeploy } from '@/composables/useBasepodDeploy'
 import { Rocket, Zap, ExternalLink, FolderTree, FileText, GitBranch, Globe, Calendar, Layers, Loader2 } from 'lucide-vue-next'
+import { useMarkdown } from '@/composables/useMarkdown'
 import ProjectDeployModal from '../components/ProjectDeployModal.vue'
+
+const { renderMarkdown } = useMarkdown()
 
 const router = useRouter()
 const route = useRoute()
@@ -188,6 +191,12 @@ function getExtLabel(ext: string): string {
           <p class="text-[10px] text-[var(--app-muted)] mt-1">Version controlled</p>
         </div>
       </div>
+
+      <!-- README -->
+      <template v-if="summary.readme">
+        <div class="prose prose-sm prose-invert max-w-none mb-12 rounded-lg border border-[var(--app-border)] bg-white/[0.02] px-6 py-5"
+          v-html="renderMarkdown(summary.readme)" />
+      </template>
 
       <!-- Docs list -->
       <template v-if="summary.docs.count > 0">
