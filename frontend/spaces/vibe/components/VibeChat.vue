@@ -8,7 +8,8 @@ import { ref, computed, watch, nextTick } from 'vue'
 import type { ProgressUpdate } from '@/operator/useStreamStatus'
 import type { VibeUiMessage } from '../composables/useVibe'
 import { useMarkdown } from '@/composables/useMarkdown'
-import VibeInput from './VibeInput.vue'
+import AgentInput from '@/components/agent/AgentInput.vue'
+import type { RequestBlock } from '@/operator/useAgentSession'
 
 const { renderMarkdown } = useMarkdown()
 
@@ -40,6 +41,7 @@ const isWorking = computed(() => props.isRunning || ['implementing', 'planning',
 const emit = defineEmits<{
   'update:draft': [value: string]
   'submit': []
+  'stop': []
   'preview-start': []
   'preview-open': []
   'preview-stop': []
@@ -199,15 +201,15 @@ watch(
     </div>
 
     <!-- Input -->
-    <div class="shrink-0 px-4 py-3 border-t border-app">
-      <VibeInput
-        :model-value="draft"
-        :is-running="isRunning"
-        :queue-count="queueCount"
-        :placeholder="isDone && !isRunning ? 'Follow up or change direction...' : undefined"
-        @update:model-value="emit('update:draft', $event)"
-        @submit="emit('submit')"
-      />
+    <div class="shrink-0 flex justify-center">
+      <div class="w-full max-w-2xl">
+        <AgentInput
+          :loading="isRunning"
+          :placeholder="isDone && !isRunning ? 'Follow up or change direction...' : 'Describe what to build...'"
+          @send="(blocks: RequestBlock[]) => { const text = blocks.filter((b: RequestBlock) => b.type === 'text').map((b: RequestBlock) => (b as any).content).join('\n'); emit('update:draft', text); nextTick(() => emit('submit')) }"
+          @stop="emit('stop')"
+        />
+      </div>
     </div>
   </div>
 </template>
