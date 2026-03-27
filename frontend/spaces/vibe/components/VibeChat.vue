@@ -72,8 +72,12 @@ interface StreamItem {
 
 const streamedItems = computed<StreamItem[]>(() => {
   const items: StreamItem[] = []
+  const seen = new Set<string>()
 
   for (const msg of displayMessages.value) {
+    const key = msg.content.trim().toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
     items.push({
       id: msg.id,
       type: msg.role === 'status' ? 'status' : msg.role === 'user' ? 'user' : 'assistant',
@@ -82,11 +86,11 @@ const streamedItems = computed<StreamItem[]>(() => {
   }
 
   for (const update of props.progressUpdates) {
-    items.push({
-      id: `progress-${update.id}`,
-      type: 'status',
-      content: update.headline + (update.detail ? ` — ${update.detail}` : ''),
-    })
+    const content = update.headline + (update.detail ? ` — ${update.detail}` : '')
+    const key = content.trim().toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    items.push({ id: `progress-${update.id}`, type: 'status', content })
   }
 
   return items
