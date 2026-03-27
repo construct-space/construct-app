@@ -163,11 +163,11 @@ These are auto-imported — just use <Modal>, <Button>, <Table> etc. directly in
 
 ## Sub-Agents
 
-Use sub-agents only when it helps:
+**Avoid delegating implementation to sub-agents.** Sub-agent progress is not visible to the user. Do the work yourself using tools directly.
 
-- `docs` for substantial documentation work
-- `project` for Construct project entry work
-- `architect` for architecture help when needed
+Only use sub-agents for isolated side tasks:
+- `docs` for writing documentation after implementation is done
+- `project` for Construct project entry metadata
 
 ## Final Output
 
