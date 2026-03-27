@@ -18,10 +18,10 @@ const standalonePrompts = [
   'Turn words into software.',
 ]
 const projectPrompts = [
-  'What\'s next for this project?',
-  'What should we add?',
-  'Ready to ship the next feature.',
-  'What needs to change?',
+  'Ready to build.',
+  'Let\'s ship this.',
+  'Time to code.',
+  'Let\'s get to work.',
 ]
 import VibeHeader from '../components/VibeHeader.vue'
 import VibeChat from '../components/VibeChat.vue'
@@ -47,7 +47,7 @@ const vibeTitle = computed(() => {
 })
 const vibeSubtitle = computed(() =>
   hasProjectContext.value
-    ? 'Vibe will read your project docs, plan the work, and implement it.'
+    ? 'Vibe will read the project docs and start building.'
     : 'Describe a goal and Vibe will plan, implement, and verify in one flow.',
 )
 
@@ -268,7 +268,7 @@ async function openGoalDoc() {
                 <div class="mt-3">
                   <textarea v-model="vibe.draft.value"
                     class="w-full rounded-2xl border border-app bg-[var(--app-background)] px-4 py-3 text-sm text-app-foreground placeholder-app-muted/40 outline-none focus:border-[var(--app-accent)]/30 focus:ring-1 focus:ring-[var(--app-accent)]/30 resize-none transition-colors"
-                    :placeholder="hasProjectContext ? 'e.g. Add a settings page with theme picker and notification preferences...' : 'e.g. Build an HTML landing page for a SaaS product with hero, pricing, testimonials, and a contact form...'"
+                    :placeholder="hasProjectContext ? 'Or describe a specific goal...' : 'e.g. Build an HTML landing page for a SaaS product with hero, pricing, testimonials, and a contact form...'"
                     rows="5" @keydown.enter.exact.prevent="submitDraft()" @keydown.enter.meta.prevent="submitDraft()"
                     @keydown.enter.ctrl.prevent="submitDraft()" />
                 </div>
@@ -281,9 +281,17 @@ async function openGoalDoc() {
                 </div>
 
                 <div class="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <button class="flex-1 rounded-2xl py-3 text-sm font-semibold transition-all duration-200" :class="vibe.draft.value.trim()
-                    ? 'bg-[var(--app-accent)] text-black hover:opacity-90 cursor-pointer'
-                    : 'bg-app-panel text-app-muted/40 cursor-not-allowed'" :disabled="!vibe.draft.value.trim()"
+                  <button v-if="hasProjectContext"
+                    class="flex-1 rounded-2xl py-3 text-sm font-semibold transition-all duration-200 bg-[var(--app-accent)] text-black hover:opacity-90 cursor-pointer"
+                    @click="if (!vibe.draft.value.trim()) vibe.draft.value = 'Read the project docs in docs/ and implement the full project. Use space_create for Construct Spaces.'; submitDraft()">
+                    Start Vibing
+                  </button>
+                  <button v-else
+                    class="flex-1 rounded-2xl py-3 text-sm font-semibold transition-all duration-200"
+                    :class="vibe.draft.value.trim()
+                      ? 'bg-[var(--app-accent)] text-black hover:opacity-90 cursor-pointer'
+                      : 'bg-app-panel text-app-muted/40 cursor-not-allowed'"
+                    :disabled="!vibe.draft.value.trim()"
                     @click="submitDraft()">
                     Start Vibing
                   </button>
