@@ -277,7 +277,7 @@ export const useAuthStore = defineStore('auth', {
                   token: fileAuth.token,
                   oauthToken: fileAuth.oauth_token,
                   isAuthenticated: fileAuth.authenticated,
-                }, { setAuthenticated: false })
+                }, { setAuthenticated: !!fileAuth.authenticated })
               }
             }
           }
