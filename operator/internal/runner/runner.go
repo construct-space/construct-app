@@ -1476,6 +1476,7 @@ func (r *Runner) handleSpawnAgent(ctx context.Context, parentReq *RunRequest, tc
 		Task:    args.Task,
 		Model:   parentReq.Model,
 		Project: parentReq.Project,
+		Stream:  parentReq.Stream, // Forward parent's stream so sub-agent events are visible
 	})
 	if err != nil {
 		return provider.ToolResult{
