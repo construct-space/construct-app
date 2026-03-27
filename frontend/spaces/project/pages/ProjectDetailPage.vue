@@ -194,7 +194,7 @@ function getExtLabel(ext: string): string {
 
       <!-- README -->
       <template v-if="summary.readme">
-        <div class="prose prose-sm prose-invert max-w-none mb-12 rounded-lg border border-[var(--app-border)] bg-white/[0.02] px-6 py-5"
+        <div class="project-prose text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none mb-12"
           v-html="renderMarkdown(summary.readme)" />
       </template>
 
@@ -224,3 +224,13 @@ function getExtLabel(ext: string): string {
     />
   </div>
 </template>
+
+<style scoped>
+.project-prose {
+  --tw-prose-body: var(--app-foreground);
+  --tw-prose-headings: var(--app-foreground);
+  --tw-prose-bold: var(--app-foreground);
+  --tw-prose-links: var(--app-accent);
+  --tw-prose-code: var(--app-foreground);
+}
+</style>

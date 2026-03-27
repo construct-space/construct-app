@@ -142,14 +142,14 @@ export function useProjectSummary(projectPath: Ref<string | undefined>) {
 
   async function loadReadme(path: string) {
     const content = await callOperatorTool('read_file', { path: `${path}/README.md` })
-    if (content) {
-      try {
-        const parsed = JSON.parse(content)
-        summary.value.readme = parsed?.content || parsed || ''
-      } catch {
-        summary.value.readme = content
-      }
-    }
+    if (!content) return
+    let text = content
+    try {
+      const parsed = JSON.parse(content)
+      text = parsed?.content || parsed || content
+    } catch { /* raw text */ }
+    // Strip line number prefixes added by read_file tool (e.g. "   1│ ")
+    summary.value.readme = String(text).replace(/^\s*\d+[│|]\s?/gm, '')
   }
 
   async function loadAll() {
