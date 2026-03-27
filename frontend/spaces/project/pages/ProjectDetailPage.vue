@@ -10,7 +10,7 @@ import { routeParamString } from '@/utils/projectRoutes'
 import { useProjectSummary } from '../composables/useProjectSummary'
 import { useBasepodDeploy } from '@/composables/useBasepodDeploy'
 import { useOperator } from '@/operator'
-import { Rocket, Zap, ExternalLink, FolderTree, FileText, GitBranch, Globe, Calendar, Layers, Loader2, Folder, File, X } from 'lucide-vue-next'
+import { Rocket, Zap, ExternalLink, FolderTree, FileText, GitBranch, Globe, Calendar, Layers, Loader2, Folder, File, X, DraftingCompass } from 'lucide-vue-next'
 import { useMarkdown } from '@/composables/useMarkdown'
 import ProjectDeployModal from '../components/ProjectDeployModal.vue'
 
@@ -154,6 +154,13 @@ function getExtLabel(ext: string): string {
         >
           <Zap class="size-4 text-amber-400" />
           Open Vibe
+        </button>
+        <button
+          class="inline-flex items-center gap-2 rounded-full border border-[var(--app-border)] px-4 py-2 text-sm font-medium text-[var(--app-foreground)] transition-colors hover:border-blue-400/40 hover:bg-blue-400/10"
+          @click="enterSpace('architect')"
+        >
+          <DraftingCompass class="size-4 text-blue-400" />
+          Architect
         </button>
       </div>
 

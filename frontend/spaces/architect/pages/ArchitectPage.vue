@@ -32,11 +32,11 @@ const projectPath = computed(() => {
   return ''
 })
 
-const inputPlaceholder = computed(() =>
-  turns.value.length === 0
-    ? 'Describe what you want to build...'
-    : 'Continue or refine...'
-)
+const inputPlaceholder = computed(() => {
+  if (turns.value.length > 0) return 'Continue or refine...'
+  if (projectPath.value) return 'What do you want to add or change?'
+  return 'Describe what you want to build...'
+})
 
 // Detect if docs were written
 const docsWritten = computed(() =>
@@ -79,7 +79,7 @@ async function handleSend(blocks: RequestBlock[]) {
   const path = projectPath.value || detectedProjectPath.value
   let taskOverride: string | undefined
   if (path && !text.includes(path)) {
-    taskOverride = `${text}\n\nProject path: ${path}`
+    taskOverride = `${text}\n\nProject path: ${path}\nThis is an existing project. Read the docs/ folder first to understand the current architecture before making changes. Update or add docs as needed.`
   } else if (!path && projectsRoot.value && turns.value.length === 0) {
     taskOverride = `${text}\n\nProjects root: ${projectsRoot.value}\nDo NOT create any files or directories yet. Start by asking interview questions as structured JSON to understand the requirements first.`
   }
