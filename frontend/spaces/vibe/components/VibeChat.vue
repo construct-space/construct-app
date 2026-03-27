@@ -170,36 +170,6 @@ watch(
       </div>
     </div>
 
-    <!-- Completion controls -->
-    <div v-if="isDone && projectPath && !isRunning" class="shrink-0 px-4 py-2 border-t border-app">
-      <div class="flex flex-wrap items-center gap-2">
-        <template v-if="isConstructSpace">
-          <button
-            class="rounded-xl bg-[var(--app-accent)] px-4 py-2 text-xs font-semibold text-black transition hover:bg-[var(--app-accent)] disabled:opacity-50"
-            :disabled="spaceActionStarting"
-            @click="emit('space-open')"
-          >
-            {{ spaceActionStarting ? 'Opening...' : 'Open Space' }}
-          </button>
-        </template>
-        <template v-else-if="!previewRunning && !previewUrl">
-          <button
-            class="rounded-xl bg-[var(--app-accent)] px-4 py-2 text-xs font-semibold text-black transition hover:bg-[var(--app-accent)] disabled:opacity-50"
-            :disabled="previewStarting"
-            @click="emit('preview-start')"
-          >
-            {{ previewStarting ? 'Starting...' : 'Run' }}
-          </button>
-        </template>
-        <template v-else-if="previewUrl">
-          <span class="text-xs text-[var(--app-accent)] font-mono">{{ previewUrl }}</span>
-          <button class="rounded-xl bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-black" @click="emit('preview-open')">Open</button>
-          <button class="rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-1.5 text-xs text-red-300" @click="emit('preview-stop')">Stop</button>
-        </template>
-      </div>
-      <p v-if="completionActionError" class="mt-2 text-xs text-red-300">{{ completionActionError }}</p>
-    </div>
-
     <!-- Input -->
     <div class="shrink-0 flex justify-center">
       <div class="w-full max-w-2xl">

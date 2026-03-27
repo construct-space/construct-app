@@ -327,9 +327,12 @@ async function openGoalDoc() {
             </div>
           </Teleport>
           <Teleport to="#toolbar-center">
-            <p class="text-[11px] text-[var(--app-muted)] truncate max-w-[300px]">
-              {{ vibe.session.value?.goal || vibe.submittedGoal.value || vibe.draft.value || '' }}
-            </p>
+            <button
+              class="flex items-center gap-1.5 text-[11px] text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition truncate max-w-[300px]"
+              :title="vibe.session.value?.goal || ''"
+              @click="openGoalDoc()">
+              <span class="truncate">{{ vibe.session.value?.goal || vibe.submittedGoal.value || '' }}</span>
+            </button>
           </Teleport>
           <Teleport to="#toolbar-right">
             <div class="flex items-center gap-1.5">
@@ -341,13 +344,13 @@ async function openGoalDoc() {
               </button>
               <template v-if="!vibe.isRunning.value && (vibe.status.value.state === 'complete' || vibe.session.value?.status === 'complete')">
                 <button v-if="isConstructSpace"
-                  class="rounded-md bg-[var(--app-accent)] px-2 py-0.5 text-[10px] font-semibold text-black transition hover:opacity-90"
+                  class="rounded-md bg-emerald-500 px-2.5 py-0.5 text-[10px] font-semibold text-white transition hover:bg-emerald-600"
                   :disabled="spaceActionStarting"
                   @click="openSpaceInConstructDev()">
                   Open Space
                 </button>
                 <button v-else-if="!preview.serverUrl.value"
-                  class="rounded-md bg-[var(--app-accent)] px-2 py-0.5 text-[10px] font-semibold text-black transition hover:opacity-90"
+                  class="rounded-md bg-emerald-500 px-2.5 py-0.5 text-[10px] font-semibold text-white transition hover:bg-emerald-600"
                   :disabled="preview.isStarting.value"
                   @click="preview.start(vibe.session.value?.project_path || vibe.projectPath.value || '')">
                   Run
@@ -355,21 +358,6 @@ async function openGoalDoc() {
               </template>
             </div>
           </Teleport>
-          <!-- Goal banner -->
-          <div class="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-app bg-[var(--app-accent)]/[0.03]">
-            <div class="min-w-0">
-              <p class="text-[10px] uppercase tracking-[0.14em] text-[var(--app-accent)]/70">Goal</p>
-              <p class="mt-0.5 text-sm leading-6 text-app truncate">
-                {{ vibe.session.value?.goal || vibe.submittedGoal.value || vibe.draft.value || 'Waiting for goal...' }}
-              </p>
-            </div>
-            <button v-if="vibe.session.value?.project_path"
-              class="shrink-0 ml-3 rounded-lg border border-app bg-white/5 px-2.5 py-1 text-[10px] font-medium text-app-muted transition hover:bg-white/8 hover:text-app"
-              title="Open goal doc" @click="openGoalDoc()">
-              <Icon name="i-lucide-file-text" class="size-3 inline mr-0.5" />
-              Goal Doc
-            </button>
-          </div>
 
           <!-- Error banner (persistent, visible) -->
           <div v-if="vibe.error.value"
