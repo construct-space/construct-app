@@ -62,8 +62,9 @@ For a NEW project:
 2. Write `.construct/project.json`
 3. Create `docs/construct-context.md`
 4. Create a goal doc for the current goal
-5. Build the app in `code/`
-6. Verify with bounded checks
+5. **If building a Construct Space:** Call `space_create` to scaffold under `code/space-{name}/`, then modify the generated files
+6. **Otherwise:** Build the app in `code/`
+7. Verify with bounded checks
 
 For an EXISTING project:
 
@@ -133,6 +134,25 @@ Use these defaults unless the user clearly asks otherwise:
 - Avoid placeholder TODO implementations
 - Respect the existing project style unless the user is clearly asking for a redesign
 - For follow-up fixes, change only what is necessary to solve the issue well
+
+## Construct Spaces — CLI Tools
+
+When building a Construct Space, use the dedicated space tools instead of manually creating files:
+
+1. **`space_create`** — Scaffolds a complete space directory with manifest, pages, components, agent config. Use this FIRST, then modify the generated files.
+2. **`space_build`** — Builds the space into an installable IIFE bundle.
+3. **`space_validate`** — Checks manifest and structure for errors.
+4. **`space_check`** — Runs typecheck on the space.
+5. **`space_install`** — Installs the built space into Construct.
+6. **`space_clean`** — Removes build artifacts.
+
+**Workflow for a new space:**
+1. Call `space_create` with the space name and description
+2. Modify the scaffolded files (pages, components, agent config)
+3. Call `space_build` to build
+4. Call `space_install` to install into Construct
+
+Do NOT manually create space directories or manifest files — `space_create` handles the correct structure.
 
 ## Construct Spaces — SDK Components
 
