@@ -38,16 +38,6 @@ const props = defineProps<{
 
 const isWorking = computed(() => props.isRunning || ['implementing', 'planning', 'setting_up', 'researching', 'verifying', 'reviewing', 'running'].includes(props.sessionStatus))
 
-// Accumulate status narration messages instead of overwriting
-const narrationLog = ref<string[]>([])
-watch(() => props.statusUpdate, (val) => {
-  const text = val?.trim()
-  if (text && text !== 'Done' && narrationLog.value[narrationLog.value.length - 1] !== text) {
-    narrationLog.value.push(text)
-  }
-})
-// Reset when session changes
-watch(() => props.goal, () => { narrationLog.value = [] })
 
 const emit = defineEmits<{
   'update:draft': [value: string]
@@ -82,34 +72,21 @@ interface StreamItem {
 
 const streamedItems = computed<StreamItem[]>(() => {
   const items: StreamItem[] = []
-  const seen = new Set<string>()
 
-  // Narration log (accumulated status updates)
-  for (let i = 0; i < narrationLog.value.length; i++) {
-    const content = narrationLog.value[i]
-    if (!seen.has(content)) {
-      seen.add(content)
-      items.push({ id: `narration-${i}`, type: 'status', content })
-    }
-  }
-
-  // Progress updates
-  for (const update of props.progressUpdates) {
-    const content = update.headline + (update.detail ? ` — ${update.detail}` : '')
-    if (!seen.has(content)) {
-      seen.add(content)
-      items.push({ id: `progress-${update.id}`, type: 'status', content })
-    }
-  }
-
-  // Assistant text messages (longer prose, not status one-liners)
   for (const msg of displayMessages.value) {
-    if (msg.role === 'user') {
-      items.push({ id: msg.id, type: 'user', content: msg.content })
-    } else if (msg.content.length > 80 && !seen.has(msg.content.slice(0, 60))) {
-      // Only show assistant messages that are substantial (not just status echoes)
-      items.push({ id: msg.id, type: 'assistant', content: msg.content })
-    }
+    items.push({
+      id: msg.id,
+      type: msg.role === 'status' ? 'status' : msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.content,
+    })
+  }
+
+  for (const update of props.progressUpdates) {
+    items.push({
+      id: `progress-${update.id}`,
+      type: 'status',
+      content: update.headline + (update.detail ? ` — ${update.detail}` : ''),
+    })
   }
 
   return items

@@ -38,7 +38,7 @@ interface ChatMessage {
 
 export interface VibeUiMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'status'
   content: string
 }
 
@@ -209,6 +209,20 @@ export function useVibe() {
   const isActive = streamStatus.isActive
   const toolHistory = streamStatus.toolHistory
   const status = streamStatus.status
+
+  // Accumulate narration updates as status messages so they persist in the chat
+  let _lastNarration = ''
+  watch(statusNarration, (val) => {
+    const text = val?.trim()
+    if (text && text !== 'Done' && text !== _lastNarration) {
+      _lastNarration = text
+      _state.value.messages = [..._state.value.messages, {
+        id: `narration-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        role: 'status' as const,
+        content: text,
+      }]
+    }
+  })
 
   const handoff = computed<VibeHandoff | null>(() => {
     const handoffId = typeof route.query.handoff === 'string' ? route.query.handoff : ''
@@ -490,6 +504,7 @@ export function useVibe() {
       })
     }
     for (const msg of userMessages) {
+      if (msg.role === 'status') continue // status narration is UI-only, not sent to model
       requestMessages.push({ role: msg.role, content: msg.content })
     }
     return requestMessages
