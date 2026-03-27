@@ -76,6 +76,8 @@ func providerFromSetting(settingKey, value string) provider.Provider {
 			APIKey:  value,
 			Models:  []string{"grok-3", "grok-3-mini"},
 		})
+	case "provider_key:openrouter":
+		return provider.NewOpenRouter(value)
 	default:
 		return nil
 	}
@@ -91,6 +93,8 @@ func providerEnvVarForSetting(settingKey string) string {
 		return "ZAI_API_KEY"
 	case "provider_key:xai":
 		return "XAI_API_KEY"
+	case "provider_key:openrouter":
+		return "OPENROUTER_API_KEY"
 	default:
 		return ""
 	}
@@ -106,6 +110,8 @@ func providerIDForSetting(settingKey string) string {
 		return "zai"
 	case "provider_key:xai":
 		return "xai"
+	case "provider_key:openrouter":
+		return "openrouter"
 	default:
 		return ""
 	}
@@ -113,11 +119,12 @@ func providerIDForSetting(settingKey string) string {
 
 func providerStatus(settings map[string]string) map[string]bool {
 	result := map[string]bool{
-		"deepseek": strings.TrimSpace(os.Getenv("DEEPSEEK_API_KEY")) != "",
-		"mimo":     strings.TrimSpace(os.Getenv("MIMO_API_KEY")) != "",
-		"xai":      strings.TrimSpace(os.Getenv("XAI_API_KEY")) != "",
-		"zai":      strings.TrimSpace(os.Getenv("ZAI_API_KEY")) != "",
-		"kimi":     false,
+		"deepseek":    strings.TrimSpace(os.Getenv("DEEPSEEK_API_KEY")) != "",
+		"mimo":        strings.TrimSpace(os.Getenv("MIMO_API_KEY")) != "",
+		"xai":         strings.TrimSpace(os.Getenv("XAI_API_KEY")) != "",
+		"zai":         strings.TrimSpace(os.Getenv("ZAI_API_KEY")) != "",
+		"openrouter":  strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")) != "",
+		"kimi":        false,
 	}
 	for key, value := range settings {
 		if !strings.HasPrefix(key, "provider_key:") {
@@ -766,18 +773,24 @@ func main() {
 	pendingOAuthFlows := map[string]chan pendingOAuthResult{}
 
 	// Anthropic OAuth — try OpenCode tokens first, then env vars
-	if oauthProvider, err := provider.NewAnthropicOAuthFromOpenCode(); err == nil {
-		opts = append(opts, runner.WithProvider(oauthProvider))
-		activeProviderIDs[oauthProvider.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: anthropic-oauth (opencode tokens)\n")
-	} else if token := os.Getenv("ANTHROPIC_OAUTH_TOKEN"); token != "" {
-		envProv := provider.NewAnthropicOAuth(provider.OAuthConfig{
-			AccessToken:  token,
-			RefreshToken: os.Getenv("ANTHROPIC_OAUTH_REFRESH"),
-		})
-		opts = append(opts, runner.WithProvider(envProv))
-		activeProviderIDs[envProv.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: anthropic-oauth (env)\n")
+	// Skip auto-discovery if user explicitly disconnected
+	if !oauthStorage.IsDisconnected("anthropic") {
+		if oauthProvider, err := provider.NewAnthropicOAuthFromOpenCode(); err == nil {
+			opts = append(opts, runner.WithProvider(oauthProvider))
+			activeProviderIDs[oauthProvider.ID()] = true
+			fmt.Fprintf(os.Stderr, "[operator] provider: anthropic-oauth (opencode tokens)\n")
+		}
+	}
+	if !activeProviderIDs["anthropic-oauth"] {
+		if token := os.Getenv("ANTHROPIC_OAUTH_TOKEN"); token != "" {
+			envProv := provider.NewAnthropicOAuth(provider.OAuthConfig{
+				AccessToken:  token,
+				RefreshToken: os.Getenv("ANTHROPIC_OAUTH_REFRESH"),
+			})
+			opts = append(opts, runner.WithProvider(envProv))
+			activeProviderIDs[envProv.ID()] = true
+			fmt.Fprintf(os.Stderr, "[operator] provider: anthropic-oauth (env)\n")
+		}
 	}
 	if key := os.Getenv("DEEPSEEK_API_KEY"); key != "" {
 		deepseekProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
@@ -821,13 +834,8 @@ func main() {
 		activeProviderIDs[prov.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: zai (settings)\n")
 	}
-	// OpenAI Codex OAuth — chatgpt.com backend (gpt-5.x models via Codex CLI tokens)
-	if codexProv := provider.NewCodexOAuthFromFile(); codexProv != nil {
-		opts = append(opts, runner.WithProvider(codexProv))
-		activeProviderIDs[codexProv.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: openai-oauth (codex chatgpt.com)\n")
-	}
-	// OpenAI API — only if user sets OPENAI_API_KEY (separate from Codex)
+	// OpenAI API — only if user sets OPENAI_API_KEY
+
 	if key := os.Getenv("OPENAI_API_KEY"); key != "" {
 		openaiProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
 			Name: "OpenAI", Key: "openai",
@@ -851,6 +859,16 @@ func main() {
 		opts = append(opts, runner.WithProvider(prov))
 		activeProviderIDs[prov.ID()] = true
 		fmt.Fprintf(os.Stderr, "[operator] provider: xai (settings)\n")
+	}
+	if key := os.Getenv("OPENROUTER_API_KEY"); key != "" {
+		orProv := provider.NewOpenRouter(key)
+		opts = append(opts, runner.WithProvider(orProv))
+		activeProviderIDs[orProv.ID()] = true
+		fmt.Fprintf(os.Stderr, "[operator] provider: openrouter (%d free models)\n", len(orProv.Models()))
+	} else if prov := providerFromSetting("provider_key:openrouter", stateStore.Settings()["provider_key:openrouter"]); prov != nil {
+		opts = append(opts, runner.WithProvider(prov))
+		activeProviderIDs[prov.ID()] = true
+		fmt.Fprintf(os.Stderr, "[operator] provider: openrouter (settings)\n")
 	}
 
 	appendOAuthRuntimeProviders(&opts, activeProviderIDs, oauthData)

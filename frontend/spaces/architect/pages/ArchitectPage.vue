@@ -81,7 +81,7 @@ async function handleSend(blocks: RequestBlock[]) {
   if (path && !text.includes(path)) {
     taskOverride = `${text}\n\nProject path: ${path}`
   } else if (!path && projectsRoot.value && turns.value.length === 0) {
-    taskOverride = `${text}\n\nProjects root: ${projectsRoot.value}\nChoose a short creative project name (1-2 words, lowercase-kebab) and create docs at {projects_root}/{name}/docs/`
+    taskOverride = `${text}\n\nProjects root: ${projectsRoot.value}\nDo NOT create any files or directories yet. Start by asking interview questions as structured JSON to understand the requirements first.`
   }
 
   await session.send(blocks, {

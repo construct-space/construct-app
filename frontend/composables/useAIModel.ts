@@ -11,7 +11,7 @@ import type { AIProvider } from '@/operator/types'
 
 // Storage key for default model (stores "providerId:modelId")
 const MODEL_STORAGE_KEY = 'cp_default_ai_model'
-const DEFAULT_MODEL = 'claude-code:claude-sonnet-4-6' // Claude Sonnet 4.6 default
+const DEFAULT_MODEL = 'anthropic:claude-sonnet-4-6' // Claude Sonnet 4.6 default
 const AUTO_MODEL_SENTINELS = new Set(['auto', 'conductor'])
 
 export type AuthType = 'oauth' | 'api' | 'local'
@@ -22,35 +22,12 @@ export interface AIModelOption {
   providerId: string
   providerLabel: string
   authType: AuthType
+  capabilities?: string[]
+  active: boolean
 }
 
 // Hardcoded providers — always available regardless of operator connection
 const DEFAULT_PROVIDERS: AIProvider[] = [
-  {
-    id: 'claude-code',
-    label: 'Claude Code',
-    authType: 'oauth',
-    models: [
-      { id: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-      { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-      { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
-    ],
-  },
-  {
-    id: 'codex',
-    label: 'Codex',
-    authType: 'oauth',
-    models: [
-      { id: 'gpt-5.4', label: 'GPT-5.4' },
-      { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
-      { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
-      { id: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark' },
-      { id: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
-      { id: 'gpt-5.2', label: 'GPT-5.2' },
-      { id: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max' },
-      { id: 'gpt-5.1-codex-mini', label: 'GPT-5.1 Codex Mini' },
-    ],
-  },
   {
     id: 'anthropic',
     label: 'Anthropic',
@@ -95,6 +72,22 @@ const DEFAULT_PROVIDERS: AIProvider[] = [
       { id: 'grok-code-fast-1', label: 'Grok Code' },
       { id: 'grok-4-1-fast-reasoning', label: 'Grok 4.1 Fast' },
     ],
+  },
+  {
+    id: 'mimo',
+    label: 'MiMo',
+    authType: 'api',
+    models: [
+      { id: 'MiMo-V2-Pro', label: 'MiMo V2 Pro' },
+      { id: 'MiMo-V2-Omni', label: 'MiMo V2 Omni' },
+      { id: 'MiMo-V2-Flash', label: 'MiMo V2 Flash' },
+    ],
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    authType: 'api',
+    models: [],
   },
 ]
 
@@ -156,11 +149,13 @@ export const useAIModel = () => {
     for (const provider of providers.value) {
       for (const model of provider.models) {
         models.push({
-          id: `${provider.id}:${model.id}`, // Composite ID for uniqueness
+          id: `${provider.id}:${model.id}`,
           label: model.label,
           providerId: provider.id,
           providerLabel: provider.label,
           authType: (provider.authType || 'api') as AuthType,
+          capabilities: model.capabilities,
+          active: provider.active !== false,
         })
       }
     }
@@ -297,7 +292,13 @@ export const useAIModel = () => {
       }
 
       const response = await operator.listProviders()
-      providers.value = response.providers || []
+      const activeProviders = (response.providers || []).map(p => ({ ...p, active: true }))
+      const activeIds = new Set(activeProviders.map(p => p.id))
+      // Merge: active providers first, then inactive defaults for providers not yet connected
+      const inactiveDefaults = DEFAULT_PROVIDERS
+        .filter(d => !activeIds.has(d.id))
+        .map(d => ({ ...d, active: false }))
+      providers.value = [...activeProviders, ...inactiveDefaults]
       const defaultProviderId = (response.defaultProvider || response.default || '').trim()
       const defaultModelFromServer = (response.defaultModel || '').trim()
         || (() => {

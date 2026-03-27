@@ -83,18 +83,32 @@ func (s *Storage) SetOAuth(providerID string, creds *Credentials) error {
 	})
 }
 
-// Delete removes credentials for a provider.
+// Delete removes credentials for a provider and stores a "disconnected"
+// marker so auto-discovery (e.g. CLI token loading) does not re-add it.
 func (s *Storage) Delete(providerID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	data, err := s.readFile()
 	if err != nil {
-		return nil
+		data = make(StorageData)
 	}
 
-	delete(data, providerID)
+	data[providerID] = &AuthCredential{Type: "disconnected"}
 	return s.writeFile(data)
+}
+
+// IsDisconnected returns true if the user explicitly disconnected a provider.
+func (s *Storage) IsDisconnected(providerID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := s.readFile()
+	if err != nil {
+		return false
+	}
+	cred := data[providerID]
+	return cred != nil && cred.Type == "disconnected"
 }
 
 // GetAPIKey returns the API key for a provider, handling both api_key and oauth types.

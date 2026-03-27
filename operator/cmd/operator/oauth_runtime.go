@@ -107,7 +107,7 @@ func providerFromOAuthCredentials(providerID string, creds *oauth.Credentials) p
 
 func appendOAuthRuntimeProviders(opts *[]runner.Option, existing map[string]bool, authData oauth.StorageData) {
 	for providerID, cred := range authData {
-		if cred == nil || cred.Type != "oauth" || cred.Credentials == nil {
+		if cred == nil || cred.Type != "oauth" || cred.Credentials == nil || cred.Type == "disconnected" {
 			continue
 		}
 		runtimeID := oauthRuntimeProviderID(providerID)
@@ -132,10 +132,13 @@ func oauthConnectedProviderEntries(authData oauth.StorageData, runnerProviders [
 	var entries []map[string]any
 	for providerID, desc := range oauthProviderDescriptors {
 		connected := false
-		if cred := authData[providerID]; cred != nil && cred.Type == "oauth" && cred.Credentials != nil {
+		cred := authData[providerID]
+		// Explicitly disconnected providers stay disconnected
+		if cred != nil && cred.Type == "disconnected" {
+			connected = false
+		} else if cred != nil && cred.Type == "oauth" && cred.Credentials != nil {
 			connected = true
-		}
-		if !connected && desc.RuntimeID != "" && activeIDs[desc.RuntimeID] {
+		} else if desc.RuntimeID != "" && activeIDs[desc.RuntimeID] {
 			connected = true
 		}
 
@@ -146,7 +149,7 @@ func oauthConnectedProviderEntries(authData oauth.StorageData, runnerProviders [
 			"connected": connected,
 			"runtime":   desc.RuntimeID != "",
 		}
-		if cred := authData[providerID]; cred != nil && cred.Credentials != nil {
+		if cred != nil && cred.Credentials != nil {
 			if email, _ := cred.Credentials.Extra["email"].(string); strings.TrimSpace(email) != "" {
 				entry["email"] = email
 			}

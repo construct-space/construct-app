@@ -1647,10 +1647,24 @@ func (r *Runner) ListProviders() []map[string]any {
 
 	result := make([]map[string]any, 0, len(r.providers))
 	for _, p := range r.providers {
-		modelIDs := p.Models()
-		models := make([]map[string]string, len(modelIDs))
-		for i, m := range modelIDs {
-			models[i] = map[string]string{"id": m, "label": m}
+		// Use rich metadata if the provider supplies it
+		var models []map[string]any
+		if mp, ok := p.(provider.ModelMetaProvider); ok {
+			meta := mp.ModelsMeta()
+			models = make([]map[string]any, len(meta))
+			for i, m := range meta {
+				models[i] = map[string]any{
+					"id":           m.ID,
+					"label":        m.Label,
+					"capabilities": m.Capabilities,
+				}
+			}
+		} else {
+			modelIDs := p.Models()
+			models = make([]map[string]any, len(modelIDs))
+			for i, m := range modelIDs {
+				models[i] = map[string]any{"id": m, "label": m}
+			}
 		}
 		result = append(result, map[string]any{
 			"id":     p.ID(),

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useProviderAuth } from '@/composables/useProviderAuth'
 import { useAIModel } from '@/composables/useAIModel'
 import { useOperator } from '@/operator'
 import { useContextDB } from '@/composables/useContextDB'
@@ -16,14 +15,16 @@ const { modelsByProvider, defaultModelId, setDefaultModel, allModels, resolveMod
 
 const PROVIDER_LABELS: Record<string, string> = {
   'anthropic': 'Anthropic',
-  'claude-code': 'Claude Code',
-  'codex': 'Codex',
+  'anthropic-oauth': 'Anthropic',
   'deepseek': 'DeepSeek',
   'mimo': 'MiMo',
   'openai': 'OpenAI',
+  'openai-oauth': 'OpenAI',
   'xai': 'xAI',
   'openrouter': 'OpenRouter',
   'zai': 'Z.AI',
+  'github-copilot': 'GitHub Copilot',
+  'google-gemini-cli': 'Google Gemini',
 }
 
 const MODEL_LABELS: Record<string, string> = {
@@ -75,41 +76,10 @@ const MODEL_LABELS: Record<string, string> = {
   'mistralai/mistral-medium-3': 'Mistral Medium 3',
 }
 
-function isAnthropicCodeAuth(providerId: string, providerLabel: string, authType: 'oauth' | 'api' | 'local') {
-  const haystack = `${providerId} ${providerLabel} ${authType}`.toLowerCase()
-  return (
-    haystack.includes('claude-code') ||
-    ((haystack.includes('anthropic') || providerId.toLowerCase().includes('anthropic')) && (haystack.includes('oauth') || authType === 'oauth'))
-  )
-}
-
-function isOpenAICliAuth(providerId: string, providerLabel: string, authType: 'oauth' | 'api' | 'local') {
-  const haystack = `${providerId} ${providerLabel} ${authType}`.toLowerCase()
-  return (
-    haystack.includes('openai')
-    && (haystack.includes('oauth') || haystack.includes('codex') || haystack.includes('openai-cli') || authType === 'oauth')
-  )
-}
-
-function displayAuthType(providerId: string, providerLabel: string, authType: 'oauth' | 'api' | 'local') {
-  return isAnthropicCodeAuth(providerId, providerLabel, authType) || isOpenAICliAuth(providerId, providerLabel, authType)
-    ? 'oauth'
-    : authType
-}
-
-function formatProviderLabel(raw: string, providerLabel: string, authType?: 'oauth' | 'api' | 'local') {
+function formatProviderLabel(raw: string) {
   const normalized = raw.trim()
   if (!normalized) return 'Provider'
-
-  const computedAuthType = authType ? displayAuthType(raw, providerLabel, authType) : authType
   const normalizedLower = normalized.toLowerCase()
-  if (isAnthropicCodeAuth(raw, providerLabel, authType || 'api')) {
-    return 'Anthropic (Claude Code)'
-  }
-  if (isOpenAICliAuth(raw, providerLabel, computedAuthType as 'oauth' | 'api' | 'local')) {
-    return 'OpenAI (Codex)'
-  }
-  if (normalizedLower === 'claude-code') return 'Claude Code'
   return PROVIDER_LABELS[normalizedLower] || PROVIDER_LABELS[normalized] || normalized
     .split(/[-_]/g)
     .filter(Boolean)
@@ -123,43 +93,16 @@ function formatModelLabel(raw: string) {
   return MODEL_LABELS[normalized] || normalized
 }
 
-function authLabel(providerId: string, providerLabel: string, authType: 'oauth' | 'api' | 'local') {
-  if (isAnthropicCodeAuth(providerId, providerLabel, authType)) return 'Claude Code'
-  if (isOpenAICliAuth(providerId, providerLabel, authType)) return 'Codex'
-  if (displayAuthType(providerId, providerLabel, authType) === 'oauth') return 'OAuth'
-  const normalizedProviderId = providerId.trim().toLowerCase()
-  const hasAnthropic = normalizedProviderId.includes('anthropic')
-  if (hasAnthropic && authType === 'oauth') return 'OAuth'
+function authLabel(authType: 'oauth' | 'api' | 'local') {
   if (authType === 'oauth') return 'OAuth'
   if (authType === 'local') return 'Local'
   return 'API key'
 }
 
-function providerMonogram(raw: string, providerLabel: string, authType?: 'oauth' | 'api' | 'local') {
-  const letters = formatProviderLabel(raw, providerLabel, authType)
-    .replace(/[^A-Za-z0-9 ]/g, '')
-    .split(/\s+/g)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(part => part[0]?.toUpperCase() || '')
-    .join('')
-  return letters || 'AI'
-}
-
-function providerDescription(providerId: string, providerLabel: string, authType: 'oauth' | 'api' | 'local') {
-  if (isAnthropicCodeAuth(providerId, providerLabel, authType)) return 'Uses your Claude Code session for Anthropic models.'
-  if (isOpenAICliAuth(providerId, providerLabel, authType)) return 'Uses your Codex CLI session for OpenAI models.'
-  const normalizedProviderId = providerId.trim().toLowerCase()
-  if (providerId === 'codex') return 'Uses your Codex CLI session for GPT and Codex models.'
+function providerDescription(authType: 'oauth' | 'api' | 'local') {
   if (authType === 'local') return 'Runs against locally available models.'
   if (authType === 'oauth') return 'Available after connecting the matching account.'
   return 'Enabled by the provider credentials saved in Construct.'
-}
-
-function providerTag(providerId: string, providerLabel: string, authType: 'oauth' | 'api' | 'local') {
-  if (isAnthropicCodeAuth(providerId, providerLabel, authType)) return 'anthropic'
-  if (isOpenAICliAuth(providerId, providerLabel, authType)) return 'openai'
-  return providerId || 'provider'
 }
 
 const resolvedDefaultModelId = computed(() =>
@@ -181,33 +124,42 @@ const defaultModelLabel = computed(() => {
 
 const defaultModelSubtext = computed(() => {
   const model = currentModelOption.value
-  if (model) return formatProviderLabel(model.providerLabel || model.providerId, model.providerLabel, model.authType)
+  if (model) return formatProviderLabel(model.providerLabel || model.providerId)
   if (hasExplicitDefaultModel.value) {
     return 'This saved default requires an active provider connection. Connect the provider, then choose a new default.'
   }
   return 'Pick one model to make it the default for Vibe, Architect, and Assistant.'
 })
 
+const capabilityFilter = ref<string | null>(null)
+
 const availableModelGroups = computed(() =>
   modelsByProvider.value
     .filter(group => group.models.length > 0)
-    .map(group => ({
-      ...group,
-      displayLabel: formatProviderLabel(group.provider.label || group.provider.id, group.provider.label, group.authType),
-      authDisplayLabel: authLabel(group.provider.id, group.provider.label, group.authType),
-      displayAuthType: displayAuthType(group.provider.id, group.provider.label, group.authType),
-      description: providerDescription(group.provider.id, group.provider.label, group.authType),
-      providerTag: providerTag(group.provider.id, group.provider.label, group.authType),
-      models: group.models.map(model => ({
+    .map(group => {
+      const active = group.provider.active !== false
+      const models = group.models.map(model => ({
         ...model,
         displayLabel: formatModelLabel(model.label),
-      })),
-    })),
+        capabilities: (model as any).capabilities as string[] | undefined,
+      }))
+      return {
+        ...group,
+        active,
+        displayLabel: formatProviderLabel(group.provider.label || group.provider.id),
+        authDisplayLabel: authLabel(group.authType),
+        description: providerDescription(group.authType),
+        models: capabilityFilter.value
+          ? models.filter(m => m.capabilities?.includes(capabilityFilter.value!))
+          : models,
+      }
+    })
+    .filter(group => group.models.length > 0),
 )
 
 const accordionItems = computed(() =>
   availableModelGroups.value.map(group => ({
-    label: `${group.displayLabel}  ·  ${group.models.length} models`,
+    label: `${group.displayLabel}  ·  ${group.models.length} model${group.models.length === 1 ? '' : 's'}${!group.active ? '  ·  Not connected' : ''}`,
     value: group.provider.id,
     slot: group.provider.id,
   })),
@@ -225,40 +177,7 @@ const availableModelCount = computed(() =>
   availableModelGroups.value.reduce((total, group) => total + group.models.length, 0),
 )
 
-// Provider auth (Claude Code keychain, Codex)
-const providerAuth = useProviderAuth()
-
-// OpenAI / Codex
 const operator = useOperator()
-
-// Fetch provider catalog from admin (via operator)
-const catalogProviders = ref<Record<string, { name: string; models: Array<{ model_id: string; display_name: string }> }>>({})
-
-async function loadCatalog() {
-  try {
-    const result = await operator.send('providers.catalog', {}) as { providers?: Array<{ id: string; name: string; type: string; models: Array<{ model_id: string; display_name: string }> }> }
-    if (result?.providers) {
-      for (const p of result.providers) {
-        catalogProviders.value[p.type] = { name: p.name, models: p.models || [] }
-        // Merge provider labels
-        if (p.name && !PROVIDER_LABELS[p.type]) {
-          PROVIDER_LABELS[p.type] = p.name
-        }
-        // Merge model labels
-        for (const m of p.models || []) {
-          if (m.display_name && !MODEL_LABELS[m.model_id]) {
-            MODEL_LABELS[m.model_id] = m.display_name
-          }
-        }
-      }
-    }
-  } catch {
-    // Catalog not available, use hardcoded defaults
-  }
-}
-
-const openAIAuthenticated = ref(false)
-const openAIAuthLoading = ref(false)
 
 // Provider API Keys
 const db = useContextDB()
@@ -479,8 +398,16 @@ async function pollOAuthFlow(providerId: string) {
   } catch (e) {
     oauthPollTimer = null
     oauthLoading.value[providerId] = false
-    const msg = e instanceof Error ? e.message : String(e)
-    toast.add({ title: `Login failed: ${msg}`, color: 'error' })
+    // Poll may fail if operator restarted — check if login completed anyway
+    await refreshOAuthProviders()
+    const provider = oauthProviders.find(entry => entry.id === providerId)
+    if (provider?.connected) {
+      await loadProviders()
+      toast.add({ title: `${provider.name} connected`, color: 'success' })
+    } else {
+      const msg = e instanceof Error ? e.message : String(e)
+      toast.add({ title: `Login failed: ${msg}`, color: 'error' })
+    }
   }
 }
 
@@ -593,72 +520,12 @@ async function loadKeys() {
   } catch { /* ignore */ }
 }
 
-async function useClaudeCodeTokens() {
-  const success = await providerAuth.loginFromKeychain()
-  if (success) {
-    await refreshOAuthProviders()
-    await loadProviders()
-    toast.add({ title: 'Authenticated via Claude Code', color: 'success' })
-  } else {
-    toast.add({ title: providerAuth.error.value || 'Claude Code not found or tokens expired', color: 'error' })
-  }
-}
-
-async function useCodexTokens() {
-  const success = await providerAuth.loginFromCodex()
-  if (success) {
-    openAIAuthenticated.value = true
-    await checkOpenAIStatus()
-    await refreshOAuthProviders()
-    await loadProviders()
-    toast.add({ title: 'Authenticated via Codex', color: 'success' })
-  } else {
-    toast.add({ title: providerAuth.error.value || 'Codex not found. Install: npm i -g @openai/codex', color: 'error' })
-  }
-}
-
-async function logoutAnthropic() {
-  await providerAuth.logout()
-  await refreshOAuthProviders()
-  await loadProviders()
-  toast.add({ title: 'Claude Max authentication cleared', color: 'info' })
-}
-
-async function checkOpenAIStatus() {
-  if (!operator.isTauri.value) return
-  try {
-    const result = await operator.send('auth.openai.status', {}) as { authenticated?: boolean }
-    openAIAuthenticated.value = !!result?.authenticated
-  } catch {
-    openAIAuthenticated.value = false
-  }
-}
-
-async function logoutOpenAI() {
-  if (!operator.isTauri.value) return
-  openAIAuthLoading.value = true
-  try {
-    await operator.send('auth.openai.clear', {})
-    openAIAuthenticated.value = false
-    await refreshOAuthProviders()
-    await loadProviders()
-    toast.add({ title: 'OpenAI authentication cleared', color: 'info' })
-  } catch {
-    toast.add({ title: 'Failed to disconnect OpenAI', color: 'error' })
-  } finally {
-    openAIAuthLoading.value = false
-  }
-}
-
 onMounted(async () => {
   try {
-    await loadCatalog()
     if (route.query.connect === 'oauth' || route.query.connect === 'openai') {
       activeTab.value = 'auth'
     }
     await refreshOAuthProviders()
-    await providerAuth.checkStatus()
-    await checkOpenAIStatus()
     await loadKeys()
   } catch {
     // silent
@@ -706,6 +573,30 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- Filter pills -->
+        <div class="flex gap-1.5 flex-wrap">
+          <button
+            class="px-2.5 py-1 text-[11px] rounded-full border transition-colors"
+            :class="!capabilityFilter
+              ? 'bg-[var(--app-accent)]/10 border-[var(--app-accent)]/30 text-[var(--app-accent)]'
+              : 'border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
+            @click="capabilityFilter = null">
+            All
+          </button>
+          <button v-for="cap in ['tools', 'vision', 'reasoning', 'structured']" :key="cap"
+            class="px-2.5 py-1 text-[11px] rounded-full border transition-colors inline-flex items-center gap-1"
+            :class="capabilityFilter === cap
+              ? 'bg-[var(--app-accent)]/10 border-[var(--app-accent)]/30 text-[var(--app-accent)]'
+              : 'border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
+            @click="capabilityFilter = capabilityFilter === cap ? null : cap">
+            <span v-if="cap === 'tools'">&#9881;</span>
+            <span v-else-if="cap === 'vision'">&#128065;</span>
+            <span v-else-if="cap === 'reasoning'">&#129504;</span>
+            <span v-else-if="cap === 'structured'">&#123;&#125;</span>
+            {{ cap }}
+          </button>
+        </div>
+
         <!-- Grouped model list (collapsible) -->
         <div v-if="availableModelGroups.length > 0"
           class="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] overflow-hidden">
@@ -713,17 +604,41 @@ onMounted(async () => {
             :ui="{ trigger: 'flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-[var(--app-foreground)] hover:bg-[var(--app-background)] transition-colors [&[data-state=open]>svg]:rotate-180' }">
             <template #body="{ item }">
               <div class="px-4 pb-2">
-                <button v-for="model in availableModelGroups.find(g => g.provider.id === item.value)?.models || []"
-                  :key="model.compositeId"
-                  class="flex items-center justify-between w-full px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer"
-                  :class="resolvedDefaultModelId === model.compositeId
-                    ? 'bg-[var(--app-accent)]/10 text-[var(--app-foreground)]'
-                    : 'text-[var(--app-muted)] hover:bg-[var(--app-background)] hover:text-[var(--app-foreground)]'"
-                  @click="setDefaultModel(model.compositeId)">
-                  <span class="text-sm">{{ model.displayLabel }}</span>
-                  <Check v-if="resolvedDefaultModelId === model.compositeId"
-                    class="size-3.5 text-[var(--app-accent)] shrink-0" />
-                </button>
+                <template v-for="group in [availableModelGroups.find(g => g.provider.id === item.value)]" :key="item.value">
+                  <!-- Not connected banner -->
+                  <div v-if="group && !group.active"
+                    class="mb-2 px-2 py-1.5 rounded-md bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] text-[11px] text-[var(--app-muted)] flex items-center justify-between">
+                    <span>Not connected — add API key or login to use these models</span>
+                    <button class="text-[var(--app-accent)] hover:underline ml-2"
+                      @click="activeTab = group.authType === 'oauth' ? 'auth' : 'providers'">
+                      Connect
+                    </button>
+                  </div>
+                  <button v-for="model in group?.models || []"
+                    :key="model.compositeId"
+                    :disabled="!group?.active"
+                    class="flex items-center justify-between w-full px-2 py-1.5 rounded-md text-left transition-colors"
+                    :class="[
+                      !group?.active
+                        ? 'opacity-40 cursor-not-allowed'
+                        : resolvedDefaultModelId === model.compositeId
+                          ? 'bg-[var(--app-accent)]/10 text-[var(--app-foreground)] cursor-pointer'
+                          : 'text-[var(--app-muted)] hover:bg-[var(--app-background)] hover:text-[var(--app-foreground)] cursor-pointer'
+                    ]"
+                    @click="group?.active && setDefaultModel(model.compositeId)">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span class="text-sm truncate">{{ model.displayLabel }}</span>
+                      <span v-if="model.capabilities?.length" class="flex gap-0.5 shrink-0">
+                        <span v-if="model.capabilities.includes('tools')" title="Tool calling" class="text-[10px] opacity-50">&#9881;</span>
+                        <span v-if="model.capabilities.includes('vision')" title="Vision" class="text-[10px] opacity-50">&#128065;</span>
+                        <span v-if="model.capabilities.includes('reasoning')" title="Reasoning" class="text-[10px] opacity-50">&#129504;</span>
+                        <span v-if="model.capabilities.includes('structured')" title="Structured output" class="text-[10px] opacity-50">&#123;&#125;</span>
+                      </span>
+                    </div>
+                    <Check v-if="resolvedDefaultModelId === model.compositeId"
+                      class="size-3.5 text-[var(--app-accent)] shrink-0" />
+                  </button>
+                </template>
               </div>
             </template>
           </Accordion>
@@ -732,9 +647,9 @@ onMounted(async () => {
         <!-- Empty state -->
         <div v-else
           class="rounded-lg border border-dashed border-[var(--app-border)] bg-[var(--app-surface)] px-6 py-8 text-center">
-          <p class="text-sm font-medium text-[var(--app-foreground)]">No providers connected</p>
+          <p class="text-sm font-medium text-[var(--app-foreground)]">No models available</p>
           <p class="mt-1 text-xs text-[var(--app-muted)]">
-Add an API key or connect Claude Code / Codex to get started.
+Add an API key or connect a provider to get started.
           </p>
           <div class="mt-3 flex justify-center gap-2">
             <Button size="sm" label="Providers" @click="activeTab = 'providers'" />
@@ -787,7 +702,7 @@ Add API keys to enable additional providers. Keys are stored
               </Button>
               <Button v-else size="sm" :loading="savingKeys[provider.id]" :disabled="!apiKeys[provider.id]?.trim()"
                 label="Save" @click="saveKey(provider)" />
-              <Button v-if="apiKeys[provider.id]" size="sm" variant="ghost" color="error" label="Clear"
+              <Button v-if="apiKeys[provider.id] || configuredProviders[provider.id]" size="sm" variant="ghost" color="error" label="Clear"
                 @click="clearKey(provider)" />
             </div>
           </div>
@@ -798,105 +713,11 @@ Add API keys to enable additional providers. Keys are stored
     <!-- Auth Tab -->
     <template v-else-if="activeTab === 'auth'">
       <div class="space-y-6">
-        <!-- Claude Max OAuth -->
+        <!-- OAuth Providers -->
         <div>
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Claude Code Authentication</h3>
-              <p class="text-xs text-[var(--app-muted)]">Use Claude Code CLI tokens for Anthropic models</p>
-            </div>
-            <span class="px-2 py-0.5 text-xs rounded-full"
-              :class="providerAuth.isAuthenticated.value ? 'bg-green-500/10 text-green-500' : 'bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]'">
-              {{ providerAuth.isAuthenticated.value ? 'Connected' : 'Not Connected' }}
-            </span>
-          </div>
-
-          <!-- Connected state -->
-          <div v-if="providerAuth.isAuthenticated.value"
-            class="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-                <div>
-                  <p class="text-sm font-medium text-[var(--app-foreground)]">Claude Code Connected</p>
-                  <p class="text-xs text-[var(--app-muted)]">Using tokens from Claude Code CLI</p>
-                </div>
-              </div>
-              <Button variant="ghost" color="error" size="sm" label="Disconnect" @click="logoutAnthropic" />
-            </div>
-          </div>
-
-          <!-- Login button -->
-          <div v-else class="p-4 rounded-lg border border-[var(--app-border)]">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm text-[var(--app-foreground)]">Connect your Claude Pro or Max subscription</p>
-                <p class="text-xs text-[var(--app-muted)] mt-1">
-Uses tokens from Claude Code (must be installed and
-                  authenticated)
-</p>
-              </div>
-              <Button :loading="providerAuth.isLoading.value" label="Use Claude Code" @click="useClaudeCodeTokens" />
-            </div>
-          </div>
-        </div>
-
-        <!-- OpenAI OAuth -->
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <h3 class="text-sm font-semibold text-[var(--app-foreground)]">Codex Authentication</h3>
-              <p class="text-xs text-[var(--app-muted)]">Authenticate with Codex CLI for OpenAI model access</p>
-            </div>
-            <span class="px-2 py-0.5 text-xs rounded-full"
-              :class="openAIAuthenticated ? 'bg-green-500/10 text-green-500' : 'bg-[color-mix(in_srgb,var(--app-muted)_15%,transparent)] text-[var(--app-muted)]'">
-              {{ openAIAuthenticated ? 'Connected' : 'Not Connected' }}
-            </span>
-          </div>
-
-          <!-- Connected -->
-          <div v-if="openAIAuthenticated" class="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-                <div>
-                  <p class="text-sm font-medium text-[var(--app-foreground)]">Codex Connected</p>
-                  <p class="text-xs text-[var(--app-muted)]">Using tokens from Codex CLI</p>
-                </div>
-              </div>
-              <Button variant="ghost" color="error" size="sm" label="Disconnect" :loading="openAIAuthLoading"
-                @click="logoutOpenAI" />
-            </div>
-          </div>
-
-          <!-- Login button -->
-          <div v-else class="p-4 rounded-lg border border-[var(--app-border)]">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm text-[var(--app-foreground)]">Connect via Codex CLI</p>
-                <p class="text-xs text-[var(--app-muted)] mt-1">
-Uses tokens from Codex CLI (must be installed and
-                  authenticated)
-</p>
-              </div>
-              <Button :loading="openAIAuthLoading" label="Use Codex" @click="useCodexTokens" />
-            </div>
-          </div>
-        </div>
-        <!-- Additional OAuth Providers -->
-        <div class="border-t border-[var(--app-border)] pt-6 mt-2">
-          <h3 class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">Direct OAuth Login</h3>
+          <h3 class="text-xs text-[var(--app-muted)] uppercase tracking-widest font-medium mb-4">OAuth Login</h3>
           <p class="text-xs text-[var(--app-muted)] mb-4">
-Login directly with your subscription — no CLI required. Opens
-            browser to authenticate.
+Login directly with your subscription. Opens browser to authenticate.
 </p>
 
           <!-- GitHub CLI detected prompt -->

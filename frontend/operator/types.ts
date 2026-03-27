@@ -5,6 +5,7 @@
 export interface ProviderModel {
   id: string
   label: string
+  capabilities?: string[] // e.g. "tools", "vision", "reasoning", "structured"
 }
 
 export interface AIProvider {
@@ -12,6 +13,7 @@ export interface AIProvider {
   label: string
   icon?: string
   authType?: 'oauth' | 'api' | 'local'
+  active?: boolean
   models: ProviderModel[]
 }
 
