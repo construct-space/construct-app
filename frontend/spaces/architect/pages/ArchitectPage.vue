@@ -109,18 +109,12 @@ function startVibe() {
   <div class="flex flex-col h-full bg-app">
     <!-- Header -->
     <div class="shrink-0 flex items-center justify-between px-4 py-2">
-<div v-if="docsWritten && !isLoading" class="flex items-center gap-2">
-        <button v-if="detectedProjectPath"
-          class="rounded-lg border border-app-border px-3 py-1.5 text-xs font-medium text-app transition hover:bg-white/5"
+<div v-if="docsWritten && !isLoading && detectedProjectPath" class="flex items-center gap-2">
+        <button
+          class="rounded-lg bg-app-accent px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-app-accent/80"
           @click="router.push({ path: '/app/projects', query: { open: detectedProjectPath } })">
           <Icon name="i-lucide-folder-open" class="size-3 inline mr-1" />
           Open Project
-        </button>
-        <button
-          class="rounded-lg bg-app-accent px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-app-accent/80"
-          @click="startVibe">
-          <Icon name="i-lucide-zap" class="size-3 inline mr-1" />
-          Start Vibe
         </button>
       </div>
     </div>
