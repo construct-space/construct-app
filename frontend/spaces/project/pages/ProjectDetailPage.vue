@@ -9,7 +9,7 @@ import { getSpace } from '@/config/spaces'
 import { routeParamString } from '@/utils/projectRoutes'
 import { useProjectSummary } from '../composables/useProjectSummary'
 import { useBasepodDeploy } from '@/composables/useBasepodDeploy'
-import { Rocket, Zap, ExternalLink, FolderTree, FileText, GitBranch, Globe, Calendar, Layers, Loader2 } from 'lucide-vue-next'
+import { Rocket, Zap, ExternalLink, FolderTree, FileText, GitBranch, Globe, Calendar, Layers, Loader2, Folder, File } from 'lucide-vue-next'
 import { useMarkdown } from '@/composables/useMarkdown'
 import ProjectDeployModal from '../components/ProjectDeployModal.vue'
 
@@ -191,8 +191,8 @@ function getExtLabel(ext: string): string {
                 :key="file.name"
                 class="flex items-center gap-2 py-0.5 text-xs"
               >
-                <span v-if="file.type === 'directory'" class="text-[var(--app-muted)]">📁</span>
-                <span v-else class="text-[var(--app-muted)]">📄</span>
+                <Folder v-if="file.type === 'directory'" class="size-3.5 text-amber-400 shrink-0" />
+                <File v-else class="size-3.5 text-[var(--app-muted)] shrink-0" />
                 <span :class="file.type === 'directory' ? 'text-[var(--app-foreground)] font-medium' : 'text-[var(--app-muted)]'">{{ file.name }}</span>
               </div>
             </div>

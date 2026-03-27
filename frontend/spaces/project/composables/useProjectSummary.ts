@@ -54,6 +54,19 @@ export function useProjectSummary(projectPath: Ref<string | undefined>) {
     }
   }
 
+  // Parse list_dir plain text output: "📁 dirname" or "  filename"
+  function parseListDir(content: string): FileEntry[] {
+    return content.split('\n')
+      .map(line => line.trimEnd())
+      .filter(line => line.length > 0)
+      .map(line => {
+        const isDir = line.startsWith('📁')
+        const name = line.replace(/^📁\s*/, '').replace(/^\s+/, '').trim()
+        return { name, type: isDir ? 'directory' as const : 'file' as const }
+      })
+      .filter(e => e.name.length > 0)
+  }
+
   async function loadDocs(path: string) {
     const content = await callOperatorTool('list_dir', { path: `${path}/docs` })
     if (!content) {
@@ -67,58 +80,34 @@ export function useProjectSummary(projectPath: Ref<string | undefined>) {
   }
 
   function parseDocs(content: string) {
-    try {
-      const parsed = JSON.parse(content)
-      const entries = parsed?.entries || parsed || []
-      if (!Array.isArray(entries)) return
-      const docs = entries.filter((e: { name?: string; type?: string }) =>
-        e.name?.endsWith('.md') && e.type !== 'directory'
-      )
-      summary.value.docs = {
-        count: docs.length,
-        items: docs.slice(0, 8).map((d: { name: string }) => ({
-          title: d.name.replace(/\.md$/, '').replace(/[-_]/g, ' '),
-          type: 'markdown',
-        })),
-      }
-    } catch { /* ignore */ }
+    const entries = parseListDir(content)
+    const docs = entries.filter(e => e.name.endsWith('.md') && e.type === 'file')
+    summary.value.docs = {
+      count: docs.length,
+      items: docs.slice(0, 8).map(d => ({
+        title: d.name.replace(/\.md$/, '').replace(/[-_]/g, ' '),
+        type: 'markdown',
+      })),
+    }
   }
 
   async function loadFiles(path: string) {
-    const content = await callOperatorTool('get_file_tree', { path, max_depth: 2 })
+    const content = await callOperatorTool('list_dir', { path })
     if (!content) return
-    try {
-      const parsed = JSON.parse(content)
-      const tree = parsed?.tree || parsed?.entries || []
-      if (!Array.isArray(tree)) return
-
-      // Count files and track extensions
-      const extCounts: Record<string, number> = {}
-      let totalFiles = 0
-
-      function walk(nodes: { name?: string; type?: string; children?: unknown[] }[]) {
-        for (const node of nodes) {
-          if (node.type === 'file' || (!node.children && node.name)) {
-            totalFiles++
-            const ext = (node.name || '').split('.').pop()?.toLowerCase() || ''
-            if (ext && ext !== node.name) {
-              extCounts[ext] = (extCounts[ext] || 0) + 1
-            }
-          }
-          if (node.children && Array.isArray(node.children)) {
-            walk(node.children as typeof nodes)
-          }
-        }
+    const entries = parseListDir(content)
+    const files = entries.filter(e => e.type === 'file')
+    const extCounts: Record<string, number> = {}
+    for (const f of files) {
+      const ext = f.name.split('.').pop()?.toLowerCase() || ''
+      if (ext && ext !== f.name) {
+        extCounts[ext] = (extCounts[ext] || 0) + 1
       }
-      walk(tree)
-
-      const languages = Object.entries(extCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6)
-        .map(([ext, count]) => ({ ext, count }))
-
-      summary.value.files = { count: totalFiles, languages }
-    } catch { /* ignore */ }
+    }
+    const languages = Object.entries(extCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([ext, count]) => ({ ext, count }))
+    summary.value.files = { count: entries.length, languages }
   }
 
   async function loadGit(path: string) {
@@ -150,22 +139,13 @@ export function useProjectSummary(projectPath: Ref<string | undefined>) {
   async function loadFileTree(path: string) {
     const content = await callOperatorTool('list_dir', { path })
     if (!content) return
-    try {
-      const parsed = JSON.parse(content)
-      const entries = parsed?.entries || parsed || []
-      if (!Array.isArray(entries)) return
-      const tree: FileEntry[] = entries
-        .filter((e: { name?: string }) => e.name && !e.name.startsWith('.'))
-        .map((e: { name: string; type?: string }) => ({
-          name: e.name,
-          type: (e.type === 'directory' || e.type === 'dir') ? 'directory' as const : 'file' as const,
-        }))
-        .sort((a: FileEntry, b: FileEntry) => {
-          if (a.type === b.type) return a.name.localeCompare(b.name)
-          return a.type === 'directory' ? -1 : 1
-        })
-      summary.value.fileTree = tree
-    } catch { /* ignore */ }
+    const entries = parseListDir(content)
+      .filter(e => !e.name.startsWith('.'))
+      .sort((a, b) => {
+        if (a.type === b.type) return a.name.localeCompare(b.name)
+        return a.type === 'directory' ? -1 : 1
+      })
+    summary.value.fileTree = entries
   }
 
   async function loadReadme(path: string) {
