@@ -27,7 +27,7 @@
 ### Task 1: Extract resolveAgent Into Testable Function
 
 **Files:**
-- Modify: `operator/cmd/operator/main.go`
+- Modify: `operator/main.go`
 
 The current `resolveAgent` is a closure local to `main()`. Extract it to a package-level function so it can be tested. Remove stale vibe references. Keep `resolveAgent("")` returning fallback (General).
 
@@ -35,7 +35,7 @@ The current `resolveAgent` is a closure local to `main()`. Extract it to a packa
 
 ```bash
 cd /Users/flakerim/Construct/construct-app/operator
-grep -n -A 25 'resolveAgent :=' cmd/operator/main.go
+grep -n -A 25 'resolveAgent :=' main.go
 ```
 
 - [ ] **Step 2: Create a package-level resolver function**
@@ -81,7 +81,7 @@ go build ./... && echo OK
 - [ ] **Step 6: Commit**
 
 ```bash
-git add cmd/operator/main.go
+git add main.go
 git commit -m "refactor: extract resolveAgent to testable findAgent function"
 ```
 
@@ -90,14 +90,14 @@ git commit -m "refactor: extract resolveAgent to testable findAgent function"
 ### Task 2: Upgrade General Agent — Smart Router with Placeholders
 
 **Files:**
-- Modify: `operator/cmd/operator/main.go` (fallbackAgent definition)
+- Modify: `operator/main.go` (fallbackAgent definition)
 
 General needs a system prompt that makes it a smart dispatcher. Use `{available_agents}` and `{priority_agent_context}` placeholders filled at request time. Use "PRIORITY AGENT" terminology, not "ACTIVE SPACE AGENT" — the priority agent may be the `project` agent on project routes, not a space.
 
 - [ ] **Step 1: Read the current fallback agent**
 
 ```bash
-grep -n -A 30 'fallbackAgent :=' cmd/operator/main.go
+grep -n -A 30 'fallbackAgent :=' main.go
 ```
 
 - [ ] **Step 2: Rewrite the General agent with placeholders**
@@ -144,7 +144,7 @@ go build ./... && echo OK
 - [ ] **Step 4: Commit**
 
 ```bash
-git add cmd/operator/main.go
+git add main.go
 git commit -m "feat: upgrade General agent to smart router with placeholders"
 ```
 
@@ -153,7 +153,7 @@ git commit -m "feat: upgrade General agent to smart router with placeholders"
 ### Task 3: Fill Placeholders at Request Time
 
 **Files:**
-- Modify: `operator/cmd/operator/main.go` (both dispatch handlers)
+- Modify: `operator/main.go` (both dispatch handlers)
 
 Add `ActiveContext` to the dispatch payload. When the resolved agent is General, fill both `{available_agents}` and `{priority_agent_context}` placeholders by cloning the config.
 
@@ -237,7 +237,7 @@ go build ./... && echo OK
 - [ ] **Step 6: Commit**
 
 ```bash
-git add cmd/operator/main.go
+git add main.go
 git commit -m "feat: fill General agent placeholders with available agents and priority context"
 ```
 
@@ -491,7 +491,7 @@ git commit -m "feat: AssistantPanel always uses General, passes active_context f
 ### Task 6: Backend Tests
 
 **Files:**
-- Create: `operator/cmd/operator/agent_routing_test.go`
+- Create: `operator/agent_routing_test.go`
 
 - [ ] **Step 1: Write test for findAgent**
 
@@ -642,15 +642,15 @@ func isSpawnAllowed(allowlist []string, agentID string) bool {
 
 ```bash
 cd /Users/flakerim/Construct/construct-app/operator
-go test ./cmd/operator/ -run TestFindAgent -v
-go test ./cmd/operator/ -run TestPrepareGeneral -v
+go test ./ -run TestFindAgent -v
+go test ./ -run TestPrepareGeneral -v
 go test ./internal/runner/ -run TestSpawnAllowlist -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add cmd/operator/agent_routing_test.go internal/runner/spawn_test.go
+git add agent_routing_test.go internal/runner/spawn_test.go
 git commit -m "test: add findAgent, prepareGeneralAgent, and spawn prefix matching tests"
 ```
 

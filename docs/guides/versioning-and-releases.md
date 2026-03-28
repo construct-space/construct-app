@@ -26,7 +26,7 @@ cd releases/
 ```
 
 The script:
-1. Bumps operator (`cmd/operator/main.go`)
+1. Bumps operator (`operator/main.go`)
 2. Bumps construct (`package.json`, `tauri.conf.json`, `Cargo.toml`)
 3. Commits + pushes both repos
 4. Triggers CI → builds macOS/Windows/Linux → creates GitHub release
@@ -88,7 +88,7 @@ Users choose their channel in Settings → Updates.
 
 | File | Location | Updated by |
 |------|----------|------------|
-| `const Version` | `construct-operator/cmd/operator/main.go` | `release.sh` |
+| `const Version` | `construct-operator/main.go` | `release.sh` |
 | `"version"` | `construct/package.json` | `release.sh` |
 | `"version"` | `construct/src-tauri/tauri.conf.json` | `release.sh` |
 | `version =` | `construct/src-tauri/Cargo.toml` | `release.sh` |

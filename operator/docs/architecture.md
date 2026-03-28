@@ -13,7 +13,7 @@ Construct / Tauri
 TCP transport (127.0.0.1:60100)
     |
     v
-Request router in cmd/operator/main.go
+Request router in main.go
     |
     +--> direct RPC handlers
     |    system.* context.* sessions.* storage.* mcp.* skills.* hooks.* ...
@@ -33,9 +33,10 @@ When Construct spawns operator with `CONSTRUCT_BRIDGE_TOKEN`, the tool registry 
 
 ```text
 construct-operator/
-|- cmd/
-|  |- operator/main.go        # shipped server binary
-|  `- tui/main.go             # interactive local client
+|- main.go                    # shipped server binary entrypoint
+|- agent_*.go                 # built-in agent definitions
+|- request_*.go               # request routing and handlers
+|- runtime*.go                # bootstrap and lifecycle assembly
 |- internal/
 |  |- agent/                  # agent config and run result types
 |  |- appdir/                 # OS-native data directory

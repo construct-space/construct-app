@@ -1,6 +1,7 @@
 bin/
 /operator
 /tui
+/logs/
 *.exe
 .DS_Store
 .gocache/

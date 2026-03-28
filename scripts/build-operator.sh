@@ -59,6 +59,6 @@ echo "  Output: $BIN_DIR/$BINARY_NAME"
 mkdir -p "$BIN_DIR"
 
 cd "$OPERATOR_DIR"
-GOOS=$GOOS GOARCH=$GOARCH go build -o "$BIN_DIR/$BINARY_NAME" ./cmd/operator/
+GOOS=$GOOS GOARCH=$GOARCH go build -o "$BIN_DIR/$BINARY_NAME" .
 
 echo "Operator built: $BINARY_NAME"

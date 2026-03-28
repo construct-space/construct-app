@@ -4,19 +4,19 @@
 
 **Goal:** Refactor the shipped operator runtime into smaller, testable units without changing request/stream contracts, tool names, agent IDs, state file formats, or desktop bridge behavior.
 
-**Architecture:** Keep behavior stable by extracting orchestration out of `cmd/operator/main.go` into same-package modules first, then split oversized internal packages by responsibility while preserving their public APIs. Every structural move is gated by characterization tests so the refactor stays observationally equivalent to today’s runtime.
+**Architecture:** Keep behavior stable by extracting orchestration out of `main.go` into same-package modules first, then split oversized internal packages by responsibility while preserving their public APIs. Every structural move is gated by characterization tests so the refactor stays observationally equivalent to today’s runtime.
 
 **Tech Stack:** Go, local TCP transport, JSON file-backed state, Tauri desktop bridge, table-driven Go tests
 
 **Current State:**
-- `operator/cmd/operator/main.go` is 3062 lines and currently owns startup, dependency wiring, per-client context, provider boot, tool/space/plugin/MCP loading, stream routing, and sync request routing.
+- `operator/main.go` is 3062 lines and currently owns startup, dependency wiring, per-client context, provider boot, tool/space/plugin/MCP loading, stream routing, and sync request routing.
 - `operator/internal/runner/runner.go` is 1993 lines and mixes run-loop orchestration, system-prompt assembly, provider fallback, tool execution, spawn behavior, plaintext tool parsing, and logging.
 - `operator/internal/state/store.go` is 1191 lines and combines nine persisted data domains plus JSON load/save helpers in one file.
 - `operator/internal/tool` and `operator/internal/space/space.go` still bundle multiple responsibilities into large files with limited test seams.
 - `operator/internal/provider` is large in total, but it is already split across multiple focused files with decent tests; it is not a first-wave refactor target.
 - `operator/internal/router/router.go` is currently unused by the shipped runtime.
 - `operator/internal/transport/http.go` and `operator/internal/transport/ws.go` are implemented and tested, but the shipped binary only starts TCP today.
-- Baseline verification is not green yet: `go test ./...` currently fails in `operator/cmd/operator` because of a stale coder prompt assertion and in `operator/internal/transport` because stream panic recovery is not implemented.
+- Baseline verification is not green yet: `go test ./...` currently fails in `operator` because of a stale coder prompt assertion and in `operator/internal/transport` because stream panic recovery is not implemented.
 - The worktree is already dirty outside the operator, so this refactor must avoid unrelated frontend files and keep changes package-local wherever possible.
 
 **Refactor Rules:**
@@ -27,43 +27,43 @@
 - Treat dormant code (`internal/router`, HTTP, WS) as cleanup candidates only after live runtime parity is locked down.
 
 **Target File Structure:**
-- Modify: `operator/cmd/operator/main.go`
+- Modify: `operator/main.go`
   Purpose: shrink to flags, startup, runtime construction, and server launch only.
-- Create: `operator/cmd/operator/runtime.go`
+- Create: `operator/runtime.go`
   Purpose: own the assembled runtime state (`runner`, stores, registries, bridge, MCP client, client context maps, pending OAuth flows, agent list).
-- Create: `operator/cmd/operator/runtime_helpers.go`
+- Create: `operator/runtime_helpers.go`
   Purpose: pure helper functions for agent lookup, client keying, project lookup, and runner-context shaping.
-- Create: `operator/cmd/operator/bootstrap_providers.go`
+- Create: `operator/bootstrap_providers.go`
   Purpose: provider and OAuth runtime assembly.
-- Create: `operator/cmd/operator/bootstrap_tools_spaces.go`
+- Create: `operator/bootstrap_tools_spaces.go`
   Purpose: tool registry, space loading, hooks, skills, plugins, and bridge-backed registrations.
-- Create: `operator/cmd/operator/bootstrap_mcp.go`
+- Create: `operator/bootstrap_mcp.go`
   Purpose: MCP config load/enable/register/list/persist behavior.
-- Create: `operator/cmd/operator/stream_handlers.go`
+- Create: `operator/stream_handlers.go`
   Purpose: all `_stream` request handling and shared streaming helpers.
-- Create: `operator/cmd/operator/request_router.go`
+- Create: `operator/request_router.go`
   Purpose: ordered sync request dispatch that preserves prefix and fallback behavior.
-- Create: `operator/cmd/operator/request_handlers_system.go`
+- Create: `operator/request_handlers_system.go`
   Purpose: `system.*`, `providers.*`, `agents.list`, `tools.list`, `stream.cancel`.
-- Create: `operator/cmd/operator/request_handlers_ai_agents.go`
+- Create: `operator/request_handlers_ai_agents.go`
   Purpose: `agents.dispatch`, `ai.chat`, and related request-to-runner bridging.
-- Create: `operator/cmd/operator/request_handlers_oauth.go`
+- Create: `operator/request_handlers_oauth.go`
   Purpose: `oauth.*` and `auth.*` endpoints.
-- Create: `operator/cmd/operator/request_handlers_context.go`
+- Create: `operator/request_handlers_context.go`
   Purpose: `context.*` endpoints and per-client state mutations.
-- Create: `operator/cmd/operator/request_handlers_state.go`
+- Create: `operator/request_handlers_state.go`
   Purpose: `storage.*`, `kv.*`, `settings.*`, `project_settings.*`, `pinned.*`, `designs.*`.
-- Create: `operator/cmd/operator/request_handlers_tools.go`
+- Create: `operator/request_handlers_tools.go`
   Purpose: `tool.*` and `tools.call`.
-- Create: `operator/cmd/operator/request_handlers_mcp.go`
+- Create: `operator/request_handlers_mcp.go`
   Purpose: `mcp.*`.
-- Create: `operator/cmd/operator/request_handlers_skills_hooks.go`
+- Create: `operator/request_handlers_skills_hooks.go`
   Purpose: `skills.*` and `hooks.*`.
-- Create: `operator/cmd/operator/request_handlers_sessions.go`
+- Create: `operator/request_handlers_sessions.go`
   Purpose: `sessions.*` and `ai.conversations.*`.
-- Create: `operator/cmd/operator/runtime_test.go`
+- Create: `operator/runtime_test.go`
   Purpose: characterization tests for live operator helper behavior.
-- Create: `operator/cmd/operator/request_handlers_test.go`
+- Create: `operator/request_handlers_test.go`
   Purpose: handler-level parity tests without booting the entire binary.
 - Modify: `operator/internal/transport/tcp.go`
   Purpose: shared panic recovery and stable cancel semantics for active streams.
@@ -131,7 +131,7 @@
 ### Task 1: Stabilize the Baseline Before Refactoring
 
 **Files:**
-- Modify: `operator/cmd/operator/agent_coder_test.go`
+- Modify: `operator/agent_coder_test.go`
 - Modify: `operator/internal/transport/tcp.go`
 - Modify: `operator/internal/transport/tcp_test.go`
 - Create: `operator/internal/transport/recover.go`
@@ -142,13 +142,13 @@ The refactor should not start from a red baseline. Fix the pre-existing failures
 
 Run: `cd /Users/flakerim/Construct/construct-app/operator && go test ./...`
 
-Expected: failures in `cmd/operator` and `internal/transport`, matching the current baseline.
+Expected: failures in the root `operator` package and `internal/transport`, matching the current baseline.
 
 - [ ] **Step 2: Repair the stale coder-agent expectation**
 
 Read:
-- `operator/cmd/operator/agent_coder.go`
-- `operator/cmd/operator/agent_coder_test.go`
+- `operator/agent_coder.go`
+- `operator/agent_coder_test.go`
 
 Update the test to assert the actual stable space-workflow guidance that the shipped prompt intends to guarantee. Do not change the prompt unless the test is proving a real requirement that was accidentally removed.
 
@@ -166,7 +166,7 @@ While touching `tcp.go`, verify that panic recovery does not bypass:
 - [ ] **Step 5: Re-run the touched package tests**
 
 Run:
-- `go test ./cmd/operator`
+- `go test .`
 - `go test ./internal/transport`
 
 Expected: PASS.
@@ -182,9 +182,9 @@ Expected: PASS across `operator/...`.
 ### Task 2: Extract Pure Runtime Helpers From `main.go`
 
 **Files:**
-- Modify: `operator/cmd/operator/main.go`
-- Create: `operator/cmd/operator/runtime_helpers.go`
-- Create: `operator/cmd/operator/runtime_test.go`
+- Modify: `operator/main.go`
+- Create: `operator/runtime_helpers.go`
+- Create: `operator/runtime_test.go`
 
 Pull pure logic out of `main()` first. This creates test seams without changing wiring or package boundaries.
 
@@ -221,7 +221,7 @@ Update `main.go` to use the extracted helpers while keeping behavior identical.
 - [ ] **Step 5: Verify helper extraction did not change runtime behavior**
 
 Run:
-- `go test ./cmd/operator`
+- `go test .`
 - `go test ./...`
 
 Expected: PASS.
@@ -231,8 +231,8 @@ Expected: PASS.
 ### Task 3: Introduce an `operatorRuntime` Struct and Shrink `main()`
 
 **Files:**
-- Modify: `operator/cmd/operator/main.go`
-- Create: `operator/cmd/operator/runtime.go`
+- Modify: `operator/main.go`
+- Create: `operator/runtime.go`
 
 `main()` should stop owning all mutable runtime state. Create a struct that holds assembled dependencies and per-client maps, but keep it in `package main` for now.
 
@@ -274,7 +274,7 @@ Test the new struct methods directly without needing to boot the full TCP server
 - [ ] **Step 5: Verify no request behavior changed**
 
 Run:
-- `go test ./cmd/operator`
+- `go test .`
 - `go test ./...`
 
 Expected: PASS.
@@ -284,12 +284,12 @@ Expected: PASS.
 ### Task 4: Extract Provider, Tool, Space, Plugin, and MCP Bootstrap
 
 **Files:**
-- Modify: `operator/cmd/operator/main.go`
-- Modify: `operator/cmd/operator/oauth_runtime.go`
-- Create: `operator/cmd/operator/bootstrap_providers.go`
-- Create: `operator/cmd/operator/bootstrap_tools_spaces.go`
-- Create: `operator/cmd/operator/bootstrap_mcp.go`
-- Create: `operator/cmd/operator/bootstrap_test.go`
+- Modify: `operator/main.go`
+- Modify: `operator/oauth_runtime.go`
+- Create: `operator/bootstrap_providers.go`
+- Create: `operator/bootstrap_tools_spaces.go`
+- Create: `operator/bootstrap_mcp.go`
+- Create: `operator/bootstrap_test.go`
 
 The largest block in `main.go` today is bootstrapping. Extract it next, but keep it in `package main` and preserve the exact runtime order.
 
@@ -346,9 +346,9 @@ Expected: PASS.
 ### Task 5: Extract Streaming Request Handling
 
 **Files:**
-- Modify: `operator/cmd/operator/main.go`
-- Create: `operator/cmd/operator/stream_handlers.go`
-- Create: `operator/cmd/operator/stream_handlers_test.go`
+- Modify: `operator/main.go`
+- Create: `operator/stream_handlers.go`
+- Create: `operator/stream_handlers_test.go`
 
 The stream switch in `srv.OnStream` is a distinct subsystem and should be extracted before the much larger sync request switch.
 
@@ -384,7 +384,7 @@ Cover:
 - [ ] **Step 5: Verify targeted packages**
 
 Run:
-- `go test ./cmd/operator`
+- `go test .`
 - `go test ./internal/transport`
 - `go test ./...`
 
@@ -395,18 +395,18 @@ Expected: PASS.
 ### Task 6: Replace the Giant Sync `switch` With Ordered Domain Handlers
 
 **Files:**
-- Modify: `operator/cmd/operator/main.go`
-- Create: `operator/cmd/operator/request_router.go`
-- Create: `operator/cmd/operator/request_handlers_system.go`
-- Create: `operator/cmd/operator/request_handlers_ai_agents.go`
-- Create: `operator/cmd/operator/request_handlers_oauth.go`
-- Create: `operator/cmd/operator/request_handlers_context.go`
-- Create: `operator/cmd/operator/request_handlers_state.go`
-- Create: `operator/cmd/operator/request_handlers_tools.go`
-- Create: `operator/cmd/operator/request_handlers_mcp.go`
-- Create: `operator/cmd/operator/request_handlers_skills_hooks.go`
-- Create: `operator/cmd/operator/request_handlers_sessions.go`
-- Create: `operator/cmd/operator/request_handlers_test.go`
+- Modify: `operator/main.go`
+- Create: `operator/request_router.go`
+- Create: `operator/request_handlers_system.go`
+- Create: `operator/request_handlers_ai_agents.go`
+- Create: `operator/request_handlers_oauth.go`
+- Create: `operator/request_handlers_context.go`
+- Create: `operator/request_handlers_state.go`
+- Create: `operator/request_handlers_tools.go`
+- Create: `operator/request_handlers_mcp.go`
+- Create: `operator/request_handlers_skills_hooks.go`
+- Create: `operator/request_handlers_sessions.go`
+- Create: `operator/request_handlers_test.go`
 
 This is the highest-value structural change. Do it only after the runtime object and stream handlers exist.
 
@@ -550,7 +550,7 @@ Expected: PASS.
 - Create: `operator/internal/runner/system_prompt_test.go`
 - Create: `operator/internal/runner/spawn_test.go`
 
-`internal/runner` is the second-biggest single file and a major risk surface. Split it only after `cmd/operator` is already decomposed.
+`internal/runner` is the second-biggest single file and a major risk surface. Split it only after the root `operator` package is already decomposed.
 
 - [ ] **Step 1: Keep the public entrypoints stable**
 
@@ -626,7 +626,7 @@ Expected: PASS.
 - Create: `operator/internal/space/executors.go`
 - Create: `operator/internal/space/space_test.go`
 
-The tool and space packages are core runtime surfaces, but they need a lighter touch than `cmd/operator` and `runner`.
+The tool and space packages are core runtime surfaces, but they need a lighter touch than the root `operator` package and `runner`.
 
 - [ ] **Step 1: Split builtin tools by concern**
 
@@ -704,7 +704,7 @@ Expected: PASS.
 - [ ] **Step 5: Manual smoke test the shipped binary path**
 
 Run:
-- `go run ./cmd/operator --dev`
+- `go run . --dev`
 
 Then verify at least:
 - `system.ping`
@@ -717,7 +717,7 @@ using the existing local TCP request path or a small test helper.
 
 ## Acceptance Criteria
 
-- `operator/cmd/operator/main.go` is reduced to startup and wiring, not request-domain implementation.
+- `operator/main.go` is reduced to startup and wiring, not request-domain implementation.
 - Sync and stream request handling are split into focused files with parity tests.
 - `internal/state` and `internal/runner` are decomposed without API or file-format changes.
 - `internal/space` has real tests for the first time.

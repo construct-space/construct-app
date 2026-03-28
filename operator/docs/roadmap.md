@@ -35,7 +35,7 @@ Current runtime docs:
 - [x] MCP runtime client startup plus live MCP tool registration/unregistration
 - [x] Reverse desktop bridge for `space.*` / `browser.*` tools
 
-### Implemented But Not Wired Into `cmd/operator`
+### Implemented But Not Wired Into The Shipped Runtime
 
 - [ ] HTTP/SSE transport package
 - [ ] WebSocket transport package

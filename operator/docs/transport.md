@@ -2,7 +2,7 @@
 
 The shipped operator binary currently exposes one live transport: local TCP on `127.0.0.1:60100`.
 
-The repo contains HTTP/SSE and WebSocket packages, but `cmd/operator` does not start them yet. Treat TCP as the only supported runtime transport today.
+The repo contains HTTP/SSE and WebSocket packages, but the shipped runtime does not start them yet. Treat TCP as the only supported runtime transport today.
 
 ## Connection
 
@@ -75,7 +75,7 @@ If a `_stream` request falls through to the normal request handler, the transpor
 
 ## Active Request Families
 
-The live request surface in `cmd/operator` includes:
+The live request surface in the shipped runtime includes:
 
 - `system.*`
 - `ai.*`

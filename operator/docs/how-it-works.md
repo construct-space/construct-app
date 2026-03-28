@@ -1,6 +1,6 @@
 # Construct Operator: How It Works
 
-`cmd/operator/main.go` is the shipped runtime. Operator runs as a local sidecar process for Construct and owns the agent loop, tool execution, MCP integration, local persistence, and the reverse desktop bridge used for `space.*` and `browser.*` tools.
+`main.go` is the shipped runtime entrypoint. Operator runs as a local sidecar process for Construct and owns the agent loop, tool execution, MCP integration, local persistence, and the reverse desktop bridge used for `space.*` and `browser.*` tools.
 
 ## Startup Sequence
 
@@ -28,7 +28,7 @@ Operator currently ships one live transport: newline-delimited JSON over local T
 Construct/Tauri
 -> `send_context_request` or `operator_stream`
 -> `internal/transport.TCPServer`
--> request router in `cmd/operator/main.go`
+-> request router in `main.go`
 -> either a direct handler or `runner.Run()`
 
 Two paths matter:
@@ -185,7 +185,7 @@ Without that token those tools are not registered. The full bridge contract and 
 
 ## Current Transport Reality
 
-`cmd/operator` only starts the TCP server today.
+The shipped runtime only starts the TCP server today.
 
 The repo also contains HTTP/SSE and WebSocket transport packages plus middleware/logging/routing helpers, but they are not activated by the shipped binary yet. Treat them as dormant implementation, not live runtime behavior.
 

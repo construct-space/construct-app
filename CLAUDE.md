@@ -45,7 +45,7 @@ bun run release          # Local dev release (signed app)
 - `frontend/lib/appPaths.ts` — data directory paths
 - `desktop/src/lib.rs` — Tauri runtime, operator spawn, bridge
 - `desktop/tauri.conf.json` — window config, permissions
-- `operator/cmd/operator/main.go` — operator entry point
+- `operator/main.go` — operator entry point
 
 ## Versioning
 
