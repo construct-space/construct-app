@@ -333,12 +333,6 @@ func main() {
 	activeProjects := make(map[string]*runner.ProjectContext)
 	clientContexts := make(map[string]*clientContextState)
 	var projectMu sync.RWMutex
-	clientKey := func(clientID string) string {
-		if clientID == "" {
-			return "default"
-		}
-		return clientID
-	}
 
 	getProjectDir := func(reqCtx context.Context) string {
 		if override := projectOverrideFromContext(reqCtx); override != nil && override.RootPath != "" {
@@ -368,27 +362,6 @@ func main() {
 		projectMu.RLock()
 		defer projectMu.RUnlock()
 		return clientContexts[clientID]
-	}
-
-	getRunnerContext := func(reqCtx context.Context) map[string]any {
-		state := getClientContext(reqCtx)
-		if state == nil {
-			return nil
-		}
-		result := map[string]any{}
-		if state.Mode != "" {
-			result["mode"] = state.Mode
-		}
-		if len(state.Component) > 0 {
-			result["component"] = cloneMap(state.Component)
-		}
-		if len(state.Selection) > 0 {
-			result["selection"] = cloneMap(state.Selection)
-		}
-		if len(result) == 0 {
-			return nil
-		}
-		return result
 	}
 
 	// Initialize providers (LLM-agnostic — add as many as you want)
@@ -801,31 +774,10 @@ When the user asks to create, build, or manage a Construct space, use these tool
 	opts = append(opts, runner.WithSkills(skillReg))
 
 	// Resolve agent by ID — searches all loaded space agents, falls back to general
-	resolveAgent := func(id string) *agent.Config {
-		if id == "" {
-			// Default: use vibe if loaded, else fallback
-			for index := len(allAgents) - 1; index >= 0; index-- {
-				a := allAgents[index]
-				if a.ID == "space:vibe" || a.ID == "vibe" {
-					return a
-				}
-			}
-			return fallbackAgent
-		}
-		for index := len(allAgents) - 1; index >= 0; index-- {
-			a := allAgents[index]
-			if a.ID == id || a.ID == "space:"+id {
-				return a
-			}
-		}
-		if id == "general" {
-			return fallbackAgent
-		}
-		return nil // Unknown agent — fail fast
-	}
-
 	// Wire agent resolver and spawn tool into runner
-	opts = append(opts, runner.WithAgentResolver(resolveAgent))
+	opts = append(opts, runner.WithAgentResolver(func(id string) *agent.Config {
+		return resolveAgent(allAgents, fallbackAgent, id)
+	}))
 	run := runner.New(opts...)
 
 	// Register spawn_agent tool so agents with canSpawn can use it
@@ -871,7 +823,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				}
 			}
 
-			agentCfg := resolveAgent(payload.AgentID)
+			agentCfg := resolveAgent(allAgents, fallbackAgent, payload.AgentID)
 			if agentCfg == nil {
 				emit(transport.StreamChunk{ID: req.ID, Type: "error", Data: map[string]any{"error": "unknown agent: " + payload.AgentID}, Done: true})
 				return
@@ -909,7 +861,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				Task:     payload.Task,
 				Model:    payload.Model,
 				Messages: payload.Messages,
-				Context:  getRunnerContext(reqCtx),
+				Context:  runnerContextFromClientState(getClientContext(reqCtx)),
 				Stream:   emitter,
 				Project:  projectCtx,
 			})
@@ -964,11 +916,11 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			}()
 
 			result, err := run.Run(reqCtx, &runner.RunRequest{
-				Agent:    resolveAgent(""),
+				Agent:    resolveAgent(allAgents, fallbackAgent, ""),
 				Task:     payload.Message,
 				Model:    payload.Model,
 				Messages: payload.Messages,
-				Context:  getRunnerContext(reqCtx),
+				Context:  runnerContextFromClientState(getClientContext(reqCtx)),
 				Stream:   emitter,
 				Project:  getProjectContext(reqCtx),
 			})
@@ -1111,7 +1063,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				}
 			}
 
-			agentCfg := resolveAgent(payload.AgentID)
+			agentCfg := resolveAgent(allAgents, fallbackAgent, payload.AgentID)
 			if agentCfg == nil {
 				return transport.Response{ID: req.ID, Success: false, Error: "unknown agent: " + payload.AgentID}
 			}
@@ -1120,7 +1072,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				Task:     payload.Task,
 				Model:    payload.Model,
 				Messages: payload.Messages,
-				Context:  getRunnerContext(reqCtx),
+				Context:  runnerContextFromClientState(getClientContext(reqCtx)),
 				Project:  getProjectContext(reqCtx),
 			})
 			if err != nil {
@@ -1160,11 +1112,11 @@ When the user asks to create, build, or manage a Construct space, use these tool
 
 			// Use general agent for chat
 			result, err := run.Run(reqCtx, &runner.RunRequest{
-				Agent:    resolveAgent(""),
+				Agent:    resolveAgent(allAgents, fallbackAgent, ""),
 				Task:     payload.Message,
 				Model:    payload.Model,
 				Messages: payload.Messages,
-				Context:  getRunnerContext(reqCtx),
+				Context:  runnerContextFromClientState(getClientContext(reqCtx)),
 				Project:  getProjectContext(reqCtx),
 			})
 			if err != nil {
@@ -1762,14 +1714,8 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				data["project"] = proj
 			}
 			if clientCtx != nil {
-				if clientCtx.Mode != "" {
-					data["mode"] = clientCtx.Mode
-				}
-				if len(clientCtx.Component) > 0 {
-					data["component"] = cloneMap(clientCtx.Component)
-				}
-				if len(clientCtx.Selection) > 0 {
-					data["selection"] = cloneMap(clientCtx.Selection)
+				for key, value := range runnerContextFromClientState(clientCtx) {
+					data[key] = value
 				}
 				if clientCtx.Timestamp != "" {
 					data["timestamp"] = clientCtx.Timestamp
