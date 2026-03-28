@@ -17,6 +17,7 @@ import (
 	"construct-operator/internal/provider"
 	"construct-operator/internal/runner"
 	"construct-operator/internal/session"
+	"construct-operator/internal/skill"
 	"construct-operator/internal/state"
 	"construct-operator/internal/tool"
 	"construct-operator/internal/transport"
@@ -291,6 +292,417 @@ func TestDispatchFrontRequestsToolBlockedByHook(t *testing.T) {
 	}
 	if resp.Error != "blocked by hook: blocked in test" {
 		t.Fatalf("error = %q, want blocked error", resp.Error)
+	}
+}
+
+func TestDispatchRequestOAuthRoutes(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	statusResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-oauth-status",
+		Type: "auth.oauth.status",
+	}, requestDispatchDeps{})
+	if !statusResp.Success {
+		t.Fatalf("auth.oauth.status response = %#v", statusResp)
+	}
+	if got := mustResponseDataMap(t, statusResp)["authenticated"]; got != false {
+		t.Fatalf("auth.oauth.status authenticated = %#v, want false", got)
+	}
+
+	startResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-oauth-start",
+		Type: "auth.oauth.start",
+	}, requestDispatchDeps{})
+	if !startResp.Success {
+		t.Fatalf("auth.oauth.start response = %#v", startResp)
+	}
+	startData := mustResponseDataMap(t, startResp)
+	assertExactKeys(t, startData, "challenge", "state", "url", "verifier")
+	for _, key := range []string{"url", "state", "verifier", "challenge"} {
+		if value, _ := startData[key].(string); value == "" {
+			t.Fatalf("auth.oauth.start %s = %#v, want non-empty string", key, startData[key])
+		}
+	}
+
+	setOpenAIResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-openai-set",
+		Type: "auth.openai.set_tokens",
+		Payload: mustJSON(t, map[string]any{
+			"access_token":  "token-openai",
+			"refresh_token": "refresh-openai",
+			"account_id":    "acct-1",
+		}),
+	}, requestDispatchDeps{})
+	if !setOpenAIResp.Success {
+		t.Fatalf("auth.openai.set_tokens response = %#v", setOpenAIResp)
+	}
+
+	openAIStatusResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-openai-status",
+		Type: "auth.openai.status",
+	}, requestDispatchDeps{})
+	if !openAIStatusResp.Success {
+		t.Fatalf("auth.openai.status response = %#v", openAIStatusResp)
+	}
+	if got := mustResponseDataMap(t, openAIStatusResp)["authenticated"]; got != true {
+		t.Fatalf("auth.openai.status authenticated = %#v, want true", got)
+	}
+
+	openAIClearResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-openai-clear",
+		Type: "auth.openai.clear",
+	}, requestDispatchDeps{})
+	if !openAIClearResp.Success {
+		t.Fatalf("auth.openai.clear response = %#v", openAIClearResp)
+	}
+
+	openAIStatusAfterClear := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-openai-status-after-clear",
+		Type: "auth.openai.status",
+	}, requestDispatchDeps{})
+	if !openAIStatusAfterClear.Success {
+		t.Fatalf("auth.openai.status after clear response = %#v", openAIStatusAfterClear)
+	}
+	if got := mustResponseDataMap(t, openAIStatusAfterClear)["authenticated"]; got != false {
+		t.Fatalf("auth.openai.status after clear authenticated = %#v, want false", got)
+	}
+
+	setAnthropicResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-anthropic-set",
+		Type: "auth.anthropic.set_tokens",
+		Payload: mustJSON(t, map[string]any{
+			"access_token":  "token-anthropic",
+			"refresh_token": "refresh-anthropic",
+			"expires_in":    3600,
+		}),
+	}, requestDispatchDeps{})
+	if !setAnthropicResp.Success {
+		t.Fatalf("auth.anthropic.set_tokens response = %#v", setAnthropicResp)
+	}
+
+	statusAfterAnthropic := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-oauth-status-after-set",
+		Type: "auth.oauth.status",
+	}, requestDispatchDeps{})
+	if !statusAfterAnthropic.Success {
+		t.Fatalf("auth.oauth.status after set response = %#v", statusAfterAnthropic)
+	}
+	if got := mustResponseDataMap(t, statusAfterAnthropic)["authenticated"]; got != true {
+		t.Fatalf("auth.oauth.status after set authenticated = %#v, want true", got)
+	}
+
+	clearAnthropicResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-oauth-clear",
+		Type: "auth.oauth.clear",
+	}, requestDispatchDeps{})
+	if !clearAnthropicResp.Success {
+		t.Fatalf("auth.oauth.clear response = %#v", clearAnthropicResp)
+	}
+
+	statusAfterClear := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-auth-oauth-status-after-clear",
+		Type: "auth.oauth.status",
+	}, requestDispatchDeps{})
+	if !statusAfterClear.Success {
+		t.Fatalf("auth.oauth.status after clear response = %#v", statusAfterClear)
+	}
+	if got := mustResponseDataMap(t, statusAfterClear)["authenticated"]; got != false {
+		t.Fatalf("auth.oauth.status after clear authenticated = %#v, want false", got)
+	}
+
+	if err := rt.oauthStorage.SetOAuth("openai-codex", &oauth.Credentials{Access: "stored", Refresh: "stored-refresh", Expires: 4102444800000}); err != nil {
+		t.Fatalf("set oauth storage: %v", err)
+	}
+	providersResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-oauth-providers",
+		Type: "oauth.providers",
+	}, requestDispatchDeps{})
+	if !providersResp.Success {
+		t.Fatalf("oauth.providers response = %#v", providersResp)
+	}
+	providersData := mustResponseDataMap(t, providersResp)
+	providersList, ok := providersData["providers"].([]map[string]any)
+	if !ok {
+		t.Fatalf("oauth.providers type = %T, want []map[string]any", providersData["providers"])
+	}
+	foundOpenAI := false
+	for _, entry := range providersList {
+		if entry["id"] == "openai-codex" {
+			foundOpenAI = true
+			if entry["connected"] != true {
+				t.Fatalf("oauth.providers openai-codex connected = %#v, want true", entry["connected"])
+			}
+		}
+	}
+	if !foundOpenAI {
+		t.Fatalf("oauth.providers entries = %#v, want openai-codex", providersList)
+	}
+
+	loginMissingResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-oauth-login-missing",
+		Type: "oauth.login",
+	}, requestDispatchDeps{})
+	if loginMissingResp.Success || loginMissingResp.Error != "provider is required" {
+		t.Fatalf("oauth.login missing provider = %#v", loginMissingResp)
+	}
+
+	loginUnknownResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-oauth-login-unknown",
+		Type: "oauth.login",
+		Payload: mustJSON(t, map[string]any{
+			"provider": "missing-provider",
+		}),
+	}, requestDispatchDeps{})
+	if loginUnknownResp.Success || !strings.Contains(loginUnknownResp.Error, "unknown OAuth provider") {
+		t.Fatalf("oauth.login unknown provider = %#v", loginUnknownResp)
+	}
+
+	devicePollResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-oauth-device-poll",
+		Type: "oauth.device-poll",
+		Payload: mustJSON(t, map[string]any{
+			"provider": "github-copilot",
+		}),
+	}, requestDispatchDeps{})
+	if devicePollResp.Success || !strings.Contains(devicePollResp.Error, "no pending device flow") {
+		t.Fatalf("oauth.device-poll missing flow = %#v", devicePollResp)
+	}
+
+	pollResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-oauth-poll",
+		Type: "oauth.poll",
+		Payload: mustJSON(t, map[string]any{
+			"provider": "anthropic",
+		}),
+	}, requestDispatchDeps{})
+	if pollResp.Success || !strings.Contains(pollResp.Error, "no pending OAuth flow") {
+		t.Fatalf("oauth.poll missing flow = %#v", pollResp)
+	}
+}
+
+func TestDispatchRequestSkillsAndHooksRoutes(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+	rt.skills.Register(&skill.Skill{
+		ID:          "review",
+		Name:        "Review",
+		Description: "Review code changes",
+		Category:    "quality",
+		Trigger:     "review,pr",
+		Prompt:      "Review the changes carefully.",
+		Tools:       []string{"test.tool"},
+	})
+	rt.hooks.Register(hook.Hook{
+		ID:          "guard",
+		Name:        "Guard",
+		Type:        hook.PreTool,
+		Priority:    10,
+		SkillID:     "review",
+		Description: "Guards tool usage",
+	})
+
+	listResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-skills-list",
+		Type: "skills.list",
+	}, requestDispatchDeps{})
+	if !listResp.Success {
+		t.Fatalf("skills.list response = %#v", listResp)
+	}
+	listData := mustResponseDataMap(t, listResp)
+	skillsList, ok := listData["skills"].([]map[string]any)
+	if !ok || len(skillsList) != 1 {
+		t.Fatalf("skills.list skills = %#v, want one skill", listData["skills"])
+	}
+	if skillsList[0]["state"] != "active" || skillsList[0]["hooksCount"] != 1 {
+		t.Fatalf("skills.list first item = %#v, want active with one hook", skillsList[0])
+	}
+
+	searchResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-skills-search",
+		Type: "skills.search",
+		Payload: mustJSON(t, map[string]any{
+			"query": "review",
+			"limit": 5,
+		}),
+	}, requestDispatchDeps{})
+	if !searchResp.Success {
+		t.Fatalf("skills.search response = %#v", searchResp)
+	}
+	searchData := mustResponseDataMap(t, searchResp)
+	matches, ok := searchData["matches"].([]map[string]any)
+	if !ok || len(matches) != 1 {
+		t.Fatalf("skills.search matches = %#v, want one match", searchData["matches"])
+	}
+
+	contentResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-skills-content",
+		Type: "skills.content",
+		Payload: mustJSON(t, map[string]any{
+			"skillId": "review",
+		}),
+	}, requestDispatchDeps{})
+	if !contentResp.Success {
+		t.Fatalf("skills.content response = %#v", contentResp)
+	}
+	contentData := mustResponseDataMap(t, contentResp)
+	content, ok := contentData["content"].(map[string]any)
+	if !ok {
+		t.Fatalf("skills.content type = %T, want map[string]any", contentData["content"])
+	}
+	toolDefs, ok := content["tools"].([]map[string]any)
+	if !ok || len(toolDefs) != 1 {
+		t.Fatalf("skills.content tools = %#v, want one tool def", content["tools"])
+	}
+	if toolDefs[0]["name"] != "test.tool" {
+		t.Fatalf("skills.content tool name = %#v, want test.tool", toolDefs[0]["name"])
+	}
+
+	instructionsResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-skills-instructions",
+		Type: "skills.instructions",
+		Payload: mustJSON(t, map[string]any{
+			"skillId": "review",
+		}),
+	}, requestDispatchDeps{})
+	if !instructionsResp.Success {
+		t.Fatalf("skills.instructions response = %#v", instructionsResp)
+	}
+	if got := mustResponseDataMap(t, instructionsResp)["instructions"]; got != "Review the changes carefully." {
+		t.Fatalf("skills.instructions = %#v, want prompt", got)
+	}
+
+	formatResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-skills-format",
+		Type: "skills.format_for_ai",
+		Payload: mustJSON(t, map[string]any{
+			"skillId": "review",
+		}),
+	}, requestDispatchDeps{})
+	if !formatResp.Success {
+		t.Fatalf("skills.format_for_ai response = %#v", formatResp)
+	}
+	formatted, _ := mustResponseDataMap(t, formatResp)["formatted"].(string)
+	if !strings.Contains(formatted, "Skill: Review") || !strings.Contains(formatted, "test.tool") {
+		t.Fatalf("skills.format_for_ai = %q, want formatted skill details", formatted)
+	}
+
+	disableSkillResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-skills-disable",
+		Type: "skills.disable",
+		Payload: mustJSON(t, map[string]any{
+			"id": "review",
+		}),
+	}, requestDispatchDeps{})
+	if !disableSkillResp.Success {
+		t.Fatalf("skills.disable response = %#v", disableSkillResp)
+	}
+	if got := rt.stateStore.SkillStates()["review"].Enabled; got != false {
+		t.Fatalf("stateStore skill enabled = %v, want false", got)
+	}
+
+	enableSkillResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-skills-enable",
+		Type: "skills.enable",
+		Payload: mustJSON(t, map[string]any{
+			"id": "review",
+		}),
+	}, requestDispatchDeps{})
+	if !enableSkillResp.Success {
+		t.Fatalf("skills.enable response = %#v", enableSkillResp)
+	}
+	if got := rt.stateStore.SkillStates()["review"].Enabled; got != true {
+		t.Fatalf("stateStore skill enabled = %v, want true", got)
+	}
+
+	hooksListResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-hooks-list",
+		Type: "hooks.list",
+	}, requestDispatchDeps{})
+	if !hooksListResp.Success {
+		t.Fatalf("hooks.list response = %#v", hooksListResp)
+	}
+	hooksData := mustResponseDataMap(t, hooksListResp)
+	hooksList, ok := hooksData["hooks"].([]map[string]any)
+	if !ok || len(hooksList) != 1 {
+		t.Fatalf("hooks.list hooks = %#v, want one hook", hooksData["hooks"])
+	}
+	if hooksList[0]["type"] != "tool.pre" {
+		t.Fatalf("hooks.list type = %#v, want tool.pre", hooksList[0]["type"])
+	}
+
+	hooksByTypeResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-hooks-by-type",
+		Type: "hooks.by_type",
+		Payload: mustJSON(t, map[string]any{
+			"type": "tool.pre",
+		}),
+	}, requestDispatchDeps{})
+	if !hooksByTypeResp.Success {
+		t.Fatalf("hooks.by_type response = %#v", hooksByTypeResp)
+	}
+	filteredHooks, ok := mustResponseDataMap(t, hooksByTypeResp)["hooks"].([]map[string]any)
+	if !ok || len(filteredHooks) != 1 {
+		t.Fatalf("hooks.by_type hooks = %#v, want one hook", mustResponseDataMap(t, hooksByTypeResp)["hooks"])
+	}
+
+	disableHookResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-hooks-disable",
+		Type: "hooks.disable",
+		Payload: mustJSON(t, map[string]any{
+			"id": "guard",
+		}),
+	}, requestDispatchDeps{})
+	if !disableHookResp.Success {
+		t.Fatalf("hooks.disable response = %#v", disableHookResp)
+	}
+	if got := rt.stateStore.HookStates()["guard"].Enabled; got != false {
+		t.Fatalf("stateStore hook enabled = %v, want false", got)
+	}
+
+	enableHookResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-hooks-enable",
+		Type: "hooks.enable",
+		Payload: mustJSON(t, map[string]any{
+			"id": "guard",
+		}),
+	}, requestDispatchDeps{})
+	if !enableHookResp.Success {
+		t.Fatalf("hooks.enable response = %#v", enableHookResp)
+	}
+	if got := rt.stateStore.HookStates()["guard"].Enabled; got != true {
+		t.Fatalf("stateStore hook enabled = %v, want true", got)
+	}
+
+	metricsResp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-hooks-metrics",
+		Type: "hooks.metrics",
+	}, requestDispatchDeps{})
+	if !metricsResp.Success {
+		t.Fatalf("hooks.metrics response = %#v", metricsResp)
+	}
+	metrics, ok := mustResponseDataMap(t, metricsResp)["metrics"].([]map[string]any)
+	if !ok || len(metrics) != 1 {
+		t.Fatalf("hooks.metrics = %#v, want one metric", mustResponseDataMap(t, metricsResp)["metrics"])
+	}
+}
+
+func TestDispatchRequestUnknownType(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	resp := rt.dispatchRequest(context.Background(), transport.Request{
+		ID:   "req-unknown",
+		Type: "not.a.real.request",
+	}, requestDispatchDeps{})
+	if resp.Success || !strings.Contains(resp.Error, "unknown request type") {
+		t.Fatalf("unknown request response = %#v", resp)
 	}
 }
 
@@ -1471,6 +1883,7 @@ func newRequestHandlerTestRuntime(t *testing.T, prov provider.Provider) *operato
 	rt.stateStore = state.NewStore(tempDir)
 	rt.chatSessionStore = chatsession.NewStore(tempDir)
 	rt.oauthStorage = oauth.NewStorage(filepath.Join(tempDir, "auth.json"))
+	rt.oauthRegistry = oauth.NewRegistry()
 	rt.mcp = mcp.NewClient()
 	rt.userMCPConfigPath = filepath.Join(tempDir, "mcp.json")
 	rt.tools = tool.NewRegistry()
@@ -1482,6 +1895,7 @@ func newRequestHandlerTestRuntime(t *testing.T, prov provider.Provider) *operato
 		Executor: stubToolExecutor{},
 	})
 	rt.hooks = hook.NewRegistry()
+	rt.skills = skill.NewRegistry()
 	rt.runner = runner.New(
 		runner.WithProvider(prov),
 		runner.WithSessionStore(rt.sessionStore),

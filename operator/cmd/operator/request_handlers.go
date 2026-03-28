@@ -25,9 +25,8 @@ type requestDispatchDeps struct {
 	bridge  bridgePinger
 }
 
-// dispatchFrontRequests handles the low-risk front-of-switch routes that were
-// extracted from main.go. The remaining request switch stays in main.go in the
-// original order.
+// dispatchFrontRequests handles the stable front-of-router routes that should
+// resolve before the more specialized OAuth and skills/hooks domains.
 func (rt *operatorRuntime) dispatchFrontRequests(reqCtx context.Context, req transport.Request, deps requestDispatchDeps) (transport.Response, bool) {
 	switch {
 	case req.Type == "system.ping":
