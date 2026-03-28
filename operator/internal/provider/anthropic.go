@@ -157,6 +157,9 @@ func (p *AnthropicProvider) buildBody(req *Request) map[string]any {
 			}
 		}
 		body["tools"] = tools
+		if strings.EqualFold(strings.TrimSpace(req.ToolChoice), "required") {
+			body["tool_choice"] = map[string]any{"type": "any"}
+		}
 	}
 	if req.Temperature != nil {
 		body["temperature"] = *req.Temperature

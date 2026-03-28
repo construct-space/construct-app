@@ -41,6 +41,7 @@ export const useAuthStore = defineStore('auth', {
         const { useOperator } = await import('@/operator')
         const operator = useOperator()
         if (!operator.isTauri.value) return
+        if (!operator.connected.value) return
 
         const apiBaseUrl = appConfig.apiBase
         const baseUrl = apiBaseUrl.replace(/\/api$/, '')
@@ -48,7 +49,6 @@ export const useAuthStore = defineStore('auth', {
         let lastError: unknown = null
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            await operator.connect()
             await operator.send('auth.set_api_base', { baseUrl })
             await operator.send('auth.sync_token', {
               token: syncToken,

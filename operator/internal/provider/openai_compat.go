@@ -297,6 +297,9 @@ func (p *OpenAICompatProvider) buildBody(req *Request) map[string]any {
 			}
 		}
 		body["tools"] = tools
+		if strings.TrimSpace(req.ToolChoice) != "" {
+			body["tool_choice"] = strings.TrimSpace(req.ToolChoice)
+		}
 	}
 
 	return body

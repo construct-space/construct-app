@@ -9,7 +9,6 @@
 
 import { useProjectDirectory } from '@/composables/useProjectDirectory'
 import { useAuthStore } from '@/stores/auth'
-import { useProviderAuth } from '@/composables/useProviderAuth'
 import { useOperator } from '@/operator'
 import { ArrowRight, Sparkles, Check, Loader2 } from 'lucide-vue-next'
 
@@ -17,7 +16,6 @@ const router = useRouter()
 const toast = useNotification()
 const projectDir = useProjectDirectory()
 const authStore = useAuthStore()
-const providerAuth = useProviderAuth()
 const operator = useOperator()
 
 // Per-user onboarding key
@@ -59,15 +57,6 @@ async function refreshProviderStatus() {
       p.connected = !!byId.get(p.id)?.connected
     }
   } catch { /* ignore */ }
-
-  // Also check Claude Code keychain
-  try {
-    await providerAuth.checkStatus()
-    const anthropic = oauthProviders.find(p => p.id === 'anthropic')
-    if (anthropic && providerAuth.isAuthenticated.value) {
-      anthropic.connected = true
-    }
-  } catch { /* ignore */ }
 }
 
 async function connectProvider(providerId: string) {
@@ -76,15 +65,7 @@ async function connectProvider(providerId: string) {
 
   provider.loading = true
   try {
-    // Claude: try keychain first
-    if (providerId === 'anthropic') {
-      await providerAuth.loginFromKeychain()
-      if (providerAuth.isAuthenticated.value) {
-        provider.connected = true
-        toast.add({ title: 'Claude connected', color: 'success' })
-        return
-      }
-    }
+    await operator.connect()
 
     // OAuth flow
     const result = await operator.send('oauth.login', { provider: providerId })

@@ -23,13 +23,32 @@ type TCPServer struct {
 	idleTimer *time.Timer
 	idleAfter time.Duration
 	onIdle    func()
+
+	// Active stream cancellation — keyed by request ID
+	activeStreams   map[string]context.CancelFunc
+	activeStreamMu sync.Mutex
 }
 
 func NewTCPServer(addr string) *TCPServer {
 	return &TCPServer{
-		addr:    addr,
-		clients: make(map[net.Conn]bool),
+		addr:         addr,
+		clients:      make(map[net.Conn]bool),
+		activeStreams: make(map[string]context.CancelFunc),
 	}
+}
+
+// CancelStream cancels an active streaming request by ID.
+func (s *TCPServer) CancelStream(requestID string) bool {
+	s.activeStreamMu.Lock()
+	cancel, ok := s.activeStreams[requestID]
+	if ok {
+		delete(s.activeStreams, requestID)
+	}
+	s.activeStreamMu.Unlock()
+	if ok {
+		cancel()
+	}
+	return ok
 }
 
 func (s *TCPServer) OnRequest(h Handler)      { s.handler = h }
@@ -120,11 +139,23 @@ func (s *TCPServer) handleConn(ctx context.Context, conn net.Conn) {
 
 		// Check if this is a streaming request
 		if s.isStreamRequest(req.Type) && s.streamH != nil {
-			reqCtx := WithClientID(ctx, req.ClientID)
+			reqCtx, cancel := context.WithCancel(WithClientID(ctx, req.ClientID))
+
+			// Track for cancellation via stream.cancel
+			s.activeStreamMu.Lock()
+			s.activeStreams[req.ID] = cancel
+			s.activeStreamMu.Unlock()
+
 			s.streamH(reqCtx, req, func(chunk StreamChunk) {
 				chunk.ID = req.ID
 				s.sendJSON(conn, chunk)
 			})
+
+			// Cleanup after stream completes
+			s.activeStreamMu.Lock()
+			delete(s.activeStreams, req.ID)
+			s.activeStreamMu.Unlock()
+			cancel()
 			continue
 		}
 

@@ -1001,6 +1001,23 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				Data: map[string]any{"status": "ok", "version": Version},
 			}
 
+		case req.Type == "stream.cancel":
+			var payload struct {
+				RequestID string `json:"request_id"`
+			}
+			if req.Payload != nil {
+				json.Unmarshal(req.Payload, &payload)
+			}
+			if payload.RequestID == "" {
+				return transport.Response{ID: req.ID, Success: false, Error: "request_id required"}
+			}
+			cancelled := srv.CancelStream(payload.RequestID)
+			fmt.Fprintf(os.Stderr, "[operator] stream.cancel: %s (found=%v)\n", payload.RequestID, cancelled)
+			return transport.Response{
+				ID: req.ID, Success: true,
+				Data: map[string]any{"cancelled": cancelled},
+			}
+
 		case req.Type == "system.info":
 			bridgeStatus := "disabled"
 			if bridge != nil {

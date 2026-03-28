@@ -13,6 +13,49 @@ import type { AIProvider } from '@/operator/types'
 const MODEL_STORAGE_KEY = 'cp_default_ai_model'
 const DEFAULT_MODEL = 'anthropic:claude-sonnet-4-6' // Claude Sonnet 4.6 default
 const AUTO_MODEL_SENTINELS = new Set(['auto', 'conductor'])
+const PROVIDER_FAMILY_DEFAULTS: Record<string, string[]> = {
+  anthropic: [
+    'claude-haiku-4-5-20251001',
+    'claude-haiku-4-5',
+    'claude-sonnet-4-6',
+    'claude-sonnet-4-5',
+    'claude-opus-4-6',
+  ],
+  openai: [
+    'gpt-5.4-mini',
+    'gpt-5.1-codex-mini',
+    'gpt-5-mini',
+    'gpt-4.1-mini',
+    'gpt-4.1-nano',
+    'gpt-5.4',
+    'gpt-5.3-codex',
+    'gpt-5.3-codex-spark',
+    'gpt-5.2-codex',
+    'gpt-5.2',
+    'gpt-5.1-codex-max',
+  ],
+  deepseek: [
+    'deepseek-chat',
+    'deepseek-reasoner',
+  ],
+  xai: [
+    'grok-code-fast-1',
+    'grok-4-1-fast-reasoning',
+  ],
+  mimo: [
+    'MiMo-V2-Flash',
+    'MiMo-V2-Pro',
+    'MiMo-V2-Omni',
+  ],
+  openrouter: [
+    'openrouter/free',
+    'openai/gpt-oss-20b:free',
+    'openai/gpt-oss-120b:free',
+    'qwen/qwen3-coder:free',
+    'qwen/qwen3-next-80b-a3b-instruct:free',
+    'mistralai/mistral-small-3.1-24b-instruct:free',
+  ],
+}
 
 export type AuthType = 'oauth' | 'api' | 'local'
 
@@ -32,6 +75,7 @@ const DEFAULT_PROVIDERS: AIProvider[] = [
     id: 'anthropic',
     label: 'Anthropic',
     authType: 'api',
+    active: false,
     models: [
       { id: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
       { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
@@ -42,23 +86,23 @@ const DEFAULT_PROVIDERS: AIProvider[] = [
     id: 'openai',
     label: 'OpenAI',
     authType: 'api',
+    active: false,
     models: [
       { id: 'gpt-5.4', label: 'GPT-5.4' },
       { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
       { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
       { id: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark' },
-      { id: 'gpt-4.1', label: 'GPT-4.1' },
-      { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
-      { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
-      { id: 'o3', label: 'o3' },
-      { id: 'o3-mini', label: 'o3 Mini' },
-      { id: 'o4-mini', label: 'o4 Mini' },
+      { id: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
+      { id: 'gpt-5.2', label: 'GPT-5.2' },
+      { id: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max' },
+      { id: 'gpt-5.1-codex-mini', label: 'GPT-5.1 Codex Mini' },
     ],
   },
   {
     id: 'deepseek',
     label: 'DeepSeek',
     authType: 'api',
+    active: false,
     models: [
       { id: 'deepseek-chat', label: 'DeepSeek V3' },
       { id: 'deepseek-reasoner', label: 'DeepSeek R1' },
@@ -68,6 +112,7 @@ const DEFAULT_PROVIDERS: AIProvider[] = [
     id: 'xai',
     label: 'xAI',
     authType: 'api',
+    active: false,
     models: [
       { id: 'grok-code-fast-1', label: 'Grok Code' },
       { id: 'grok-4-1-fast-reasoning', label: 'Grok 4.1 Fast' },
@@ -77,6 +122,7 @@ const DEFAULT_PROVIDERS: AIProvider[] = [
     id: 'mimo',
     label: 'MiMo',
     authType: 'api',
+    active: false,
     models: [
       { id: 'MiMo-V2-Pro', label: 'MiMo V2 Pro' },
       { id: 'MiMo-V2-Omni', label: 'MiMo V2 Omni' },
@@ -87,6 +133,7 @@ const DEFAULT_PROVIDERS: AIProvider[] = [
     id: 'openrouter',
     label: 'OpenRouter',
     authType: 'api',
+    active: false,
     models: [],
   },
 ]
@@ -95,8 +142,8 @@ const DEFAULT_PROVIDERS: AIProvider[] = [
 const providers = ref<AIProvider[]>(DEFAULT_PROVIDERS)
 const loading = ref(false)
 const initialized = ref(false)
-const defaultModelId = ref<string>(DEFAULT_MODEL)
-const providerDefaultModelId = ref<string>(DEFAULT_MODEL)
+const defaultModelId = ref<string>('')
+const providerDefaultModelId = ref<string>('')
 let initPromise: Promise<void> | null = null
 
 const isAutoModelId = (modelId?: string | null): boolean => {
@@ -105,6 +152,22 @@ const isAutoModelId = (modelId?: string | null): boolean => {
 }
 
 const toCompositeModelId = (providerId: string, modelId: string): string => `${providerId}:${modelId}`
+const splitCompositeModelId = (modelId: string): { providerId: string, modelId: string } => {
+  const separatorIndex = modelId.indexOf(':')
+  if (separatorIndex === -1) {
+    return { providerId: '', modelId }
+  }
+  return {
+    providerId: modelId.slice(0, separatorIndex),
+    modelId: modelId.slice(separatorIndex + 1),
+  }
+}
+const providerFamily = (providerId: string): string => {
+  const normalized = providerId.trim().toLowerCase()
+  if (normalized.includes('anthropic')) return 'anthropic'
+  if (normalized.includes('openai') || normalized.includes('codex')) return 'openai'
+  return normalized
+}
 const isNotConnectedError = (error: unknown): boolean =>
   String(error).toLowerCase().includes('not connected')
 
@@ -124,7 +187,7 @@ const loadFromStorage = () => {
 // Handles both plain model IDs and composite IDs (provider:model)
 export const isVisionModel = (modelId: string): boolean => {
   // Extract model part from composite ID if present
-  const model = modelId.includes(':') ? modelId.split(':')[1] || modelId : modelId
+  const model = splitCompositeModelId(modelId).modelId
 
   return model.includes('vision') ||
          model.includes('4.6v') ||
@@ -161,6 +224,7 @@ export const useAIModel = () => {
     }
     return models
   })
+  const activeModels = computed(() => allModels.value.filter(model => model.active))
 
   // Models grouped by provider for UI (with composite IDs)
   const modelsByProvider = computed(() => {
@@ -186,15 +250,13 @@ export const useAIModel = () => {
   // Get the raw model ID (without provider prefix) for API calls
   const getModelId = (compositeId: string): string => {
     const resolved = resolveModelId(compositeId, { allowAuto: false })
-    const parts = resolved.split(':')
-    return parts.length > 1 ? (parts[1] ?? resolved) : resolved
+    return splitCompositeModelId(resolved).modelId
   }
 
   // Get the provider ID from composite ID
   const getProviderId = (compositeId: string): string => {
     const resolved = resolveModelId(compositeId, { allowAuto: false })
-    const parts = resolved.split(':')
-    return parts.length > 1 ? (parts[0] ?? '') : ''
+    return splitCompositeModelId(resolved).providerId
   }
 
   // Set default model (accepts composite ID "providerId:modelId")
@@ -211,15 +273,67 @@ export const useAIModel = () => {
     }
   }
 
+  const pickActiveModelForFamily = (providerId?: string | null): string | null => {
+    const family = providerFamily(providerId || '')
+    if (!family) return null
+
+    const matches = activeModels.value.filter(model => providerFamily(model.providerId) === family)
+    if (matches.length === 0) return null
+
+    const preferences = PROVIDER_FAMILY_DEFAULTS[family] || []
+    for (const preferredModelId of preferences) {
+      const preferred = matches.find(model => splitCompositeModelId(model.id).modelId === preferredModelId)
+      if (preferred) return preferred.id
+    }
+
+    if (family === 'openrouter') {
+      const freeTier = matches.find(model => {
+        const modelId = splitCompositeModelId(model.id).modelId.toLowerCase()
+        return modelId.includes(':free') || modelId.includes('/free')
+      })
+      if (freeTier) return freeTier.id
+    }
+
+    return matches[0]?.id || null
+  }
+
+  const pickGlobalDefaultModel = (): string | null => {
+    const seenFamilies = new Set<string>()
+
+    for (const model of activeModels.value) {
+      const family = providerFamily(model.providerId)
+      if (!family || seenFamilies.has(family)) continue
+      seenFamilies.add(family)
+      const familyDefault = pickActiveModelForFamily(model.providerId)
+      if (familyDefault) return familyDefault
+    }
+
+    return activeModels.value[0]?.id || null
+  }
+
   const normalizeToAvailableModel = (candidate: string): string | null => {
     const trimmed = candidate.trim()
     if (!trimmed) return null
     if (isAutoModelId(trimmed)) return null
-    if (allModels.value.some(m => m.id === trimmed)) return trimmed
+    const exactActive = activeModels.value.find(model => model.id === trimmed)
+    if (exactActive) return exactActive.id
+
+    if (trimmed.includes(':')) {
+      const { providerId, modelId } = splitCompositeModelId(trimmed)
+      const preferredFamily = providerFamily(providerId)
+      const sameModelMatches = activeModels.value.filter(m => splitCompositeModelId(m.id).modelId === modelId)
+      if (sameModelMatches.length > 0) {
+        return sameModelMatches.find(m => providerFamily(m.providerId) === preferredFamily)?.id
+          || sameModelMatches[0]?.id
+          || null
+      }
+
+      return pickActiveModelForFamily(providerId)
+    }
 
     // Backward compatibility for old storage format that only kept raw model ID.
     if (!trimmed.includes(':')) {
-      const legacyMatch = allModels.value.find(m => m.id.endsWith(`:${trimmed}`))
+      const legacyMatch = activeModels.value.find(m => splitCompositeModelId(m.id).modelId === trimmed)
       if (legacyMatch) return legacyMatch.id
     }
     return null
@@ -258,10 +372,22 @@ export const useAIModel = () => {
       return exact
     }
 
+    const preferredProviderId = normalizedPreferred.includes(':')
+      ? splitCompositeModelId(normalizedPreferred).providerId
+      : ''
+    const fromPreferredProvider = pickActiveModelForFamily(preferredProviderId)
+    if (normalizedPreferred) {
+      if (options?.persist && (fromPreferredProvider || '') !== defaultModelId.value) {
+        setDefaultModel(fromPreferredProvider || '')
+      }
+      return fromPreferredProvider || ''
+    }
+
     const fromServerDefault = normalizeToAvailableModel(providerDefaultModelId.value)
     const fromConfiguredFallback = normalizeToAvailableModel(fallbackModelId)
-    const firstAvailable = allModels.value[0]?.id
-    const resolved = fromServerDefault || fromConfiguredFallback || firstAvailable || DEFAULT_MODEL
+      || pickActiveModelForFamily(splitCompositeModelId(fallbackModelId).providerId)
+    const firstAvailable = pickGlobalDefaultModel()
+    const resolved = fromServerDefault || fromConfiguredFallback || firstAvailable || ''
 
     if (options?.persist && resolved !== defaultModelId.value) {
       setDefaultModel(resolved)
@@ -270,25 +396,18 @@ export const useAIModel = () => {
   }
 
   // Load providers from context service (single source of truth)
-  const loadProviders = async (retries = 5) => {
+  const loadProviders = async (retries = 5, preferredProviderId?: string | null) => {
     if (loading.value) return
     loading.value = true
+    let shouldMarkInitialized = true
     try {
       const { useOperator } = await import('@/operator')
       const operator = useOperator()
 
-      // In Tauri, ensure operator is connected before requesting providers.
+      // Do not auto-start the operator just to populate model settings.
       if (operator.isTauri.value && !operator.connected.value) {
-        try {
-          await operator.connect()
-        } catch (error) {
-          if (retries > 0) {
-            loading.value = false
-            await new Promise(resolve => setTimeout(resolve, 500))
-            return loadProviders(retries - 1)
-          }
-          throw error
-        }
+        shouldMarkInitialized = false
+        return
       }
 
       const response = await operator.listProviders()
@@ -310,54 +429,50 @@ export const useAIModel = () => {
       if (defaultModelFromServer) {
         providerDefaultModelId.value = defaultModelFromServer
       }
+      const stored = typeof window !== 'undefined'
+        ? localStorage.getItem(MODEL_STORAGE_KEY)?.trim() || ''
+        : ''
+      const currentSelection = stored || defaultModelId.value.trim()
+      const preferredFamilyDefault = pickActiveModelForFamily(preferredProviderId)
 
-      // If model is not explicitly set on this device yet, use backend default model.
-      if (defaultModelFromServer && typeof window !== 'undefined' && !localStorage.getItem(MODEL_STORAGE_KEY)) {
-        defaultModelId.value = defaultModelFromServer
-      }
-
-      const stored = typeof window !== 'undefined' ? localStorage.getItem(MODEL_STORAGE_KEY) : null
-      if (stored && stored.includes(':')) {
-        const normalizedStored = normalizeToAvailableModel(stored)
-        if (normalizedStored) {
-          defaultModelId.value = normalizedStored
+      if (currentSelection.includes(':')) {
+        const normalizedCurrent = normalizeToAvailableModel(currentSelection)
+        if (normalizedCurrent) {
+          setDefaultModel(normalizedCurrent)
         } else {
-          const resolved = resolveModelId(defaultModelId.value, {
+          const resolved = preferredFamilyDefault || resolveModelId(currentSelection, {
             allowAuto: false,
             fallbackModelId: providerDefaultModelId.value || DEFAULT_MODEL,
             persist: false,
           })
-          defaultModelId.value = resolved
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(MODEL_STORAGE_KEY, resolved)
-          }
+          setDefaultModel(resolved)
         }
-      } else if (!stored || !stored.trim()) {
-        // No user selection — resolve from server default or fallback
-        const resolved = resolveModelId(defaultModelId.value, {
+      } else if (!currentSelection) {
+        const resolved = preferredFamilyDefault || resolveModelId('', {
           allowAuto: false,
           fallbackModelId: providerDefaultModelId.value || DEFAULT_MODEL,
           persist: false,
         })
-        defaultModelId.value = resolved
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(MODEL_STORAGE_KEY, resolved)
-        }
+        setDefaultModel(resolved)
       }
     } catch (err) {
       // Retry on transient startup race (context service not connected yet)
       if (retries > 0 && isNotConnectedError(err)) {
+        shouldMarkInitialized = false
         loading.value = false
         await new Promise(resolve => setTimeout(resolve, 500))
-        return loadProviders(retries - 1)
+        return loadProviders(retries - 1, preferredProviderId)
       }
       if (isNotConnectedError(err)) {
+        shouldMarkInitialized = false
         return
       }
       console.error('[useAIModel] Failed to load providers:', err)
     } finally {
       loading.value = false
-      initialized.value = true
+      if (shouldMarkInitialized) {
+        initialized.value = true
+      }
     }
   }
 

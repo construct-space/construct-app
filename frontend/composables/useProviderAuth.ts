@@ -1,6 +1,5 @@
 /**
- * useProviderAuth - LLM provider authentication
- * Reads tokens from Claude Code keychain or Codex CLI and forwards to operator.
+ * useProviderAuth - explicit runtime provider authentication helpers.
  */
 import { ref, readonly } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
@@ -43,36 +42,6 @@ export function useProviderAuth() {
       } catch {
         throw new Error('Operator not available')
       }
-    }
-  }
-
-  /**
-   * Login using Claude Code's keychain tokens
-   */
-  const loginFromKeychain = async (): Promise<boolean> => {
-    if (!isTauri) return false
-    error.value = null
-    isLoading.value = true
-
-    try {
-      const result = await invoke<{ access_token: string, refresh_token?: string, expires_in?: number }>('oauth_read_keychain')
-      await ensureOperator()
-      await invoke('send_context_request', {
-        requestType: 'auth.anthropic.set_tokens',
-        payload: {
-          access_token: result.access_token,
-          refresh_token: result.refresh_token || '',
-          expires_in: result.expires_in || 3600,
-        },
-      })
-
-      isAuthenticated.value = true
-      return true
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to read keychain'
-      return false
-    } finally {
-      isLoading.value = false
     }
   }
 
@@ -134,7 +103,6 @@ export function useProviderAuth() {
     isLoading: readonly(isLoading),
     error: readonly(error),
     expiresAt: readonly(expiresAt),
-    loginFromKeychain,
     loginFromCodex,
     checkStatus,
     logout,

@@ -27,7 +27,7 @@ var oauthProviderDescriptors = map[string]oauthProviderDescriptor{
 	"openai-codex": {
 		ID:        "openai-codex",
 		Name:      "ChatGPT Plus/Pro",
-		Models:    []string{"gpt-5.4", "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.1-codex", "gpt-5.1-codex-mini"},
+		Models:    []string{"gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-codex-spark", "gpt-5.2-codex", "gpt-5.2", "gpt-5.1-codex-max", "gpt-5.1-codex-mini"},
 		RuntimeID: "openai-oauth",
 	},
 	"github-copilot": {
@@ -78,6 +78,7 @@ func providerFromOAuthCredentials(providerID string, creds *oauth.Credentials) p
 			AccessToken:  creds.Access,
 			RefreshToken: creds.Refresh,
 			AccountID:    accountID,
+			Models:       desc.Models,
 		})
 	case "github-copilot":
 		enterpriseDomain, _ := creds.Extra["enterpriseUrl"].(string)

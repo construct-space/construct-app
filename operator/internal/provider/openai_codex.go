@@ -63,7 +63,7 @@ func NewCodexOAuthFromFile() *CodexOAuthProvider {
 
 func NewCodexOAuth(cfg CodexOAuthConfig) *CodexOAuthProvider {
 	if len(cfg.Models) == 0 {
-		cfg.Models = []string{"gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.1-codex", "gpt-5.1-codex-mini", "gpt-5.4"}
+		cfg.Models = []string{"gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-codex-spark", "gpt-5.2-codex", "gpt-5.2", "gpt-5.1-codex-max", "gpt-5.1-codex-mini"}
 	}
 	return &CodexOAuthProvider{config: cfg}
 }
@@ -234,7 +234,11 @@ func (p *CodexOAuthProvider) buildPayload(req *Request) map[string]any {
 		}
 		if len(tools) > 0 {
 			payload["tools"] = tools
-			payload["tool_choice"] = "auto"
+			toolChoice := strings.TrimSpace(req.ToolChoice)
+			if toolChoice == "" {
+				toolChoice = "auto"
+			}
+			payload["tool_choice"] = toolChoice
 		}
 	}
 
@@ -248,6 +252,8 @@ func (p *CodexOAuthProvider) readCodexSSE(body io.ReadCloser, ch chan<- StreamEv
 	defer close(ch)
 
 	var textContent string
+	var toolCalls []ToolCall
+	textPartsWithDelta := make(map[string]bool)
 	currentEvent := ""
 
 	scanner := bufio.NewScanner(body)
@@ -273,11 +279,30 @@ func (p *CodexOAuthProvider) readCodexSSE(body io.ReadCloser, ch chan<- StreamEv
 		switch currentEvent {
 		case "response.output_text.delta":
 			var payload struct {
-				Delta string `json:"delta"`
+				Delta        string `json:"delta"`
+				ItemID       string `json:"item_id"`
+				ContentIndex int    `json:"content_index"`
 			}
 			if err := json.Unmarshal([]byte(data), &payload); err == nil && payload.Delta != "" {
+				key := fmt.Sprintf("%s:%d", payload.ItemID, payload.ContentIndex)
+				textPartsWithDelta[key] = true
 				textContent += payload.Delta
 				ch <- StreamEvent{Type: "text_delta", Text: payload.Delta}
+			}
+
+		case "response.output_text.done":
+			var payload struct {
+				Text         string `json:"text"`
+				ItemID       string `json:"item_id"`
+				ContentIndex int    `json:"content_index"`
+			}
+			if err := json.Unmarshal([]byte(data), &payload); err == nil && payload.Text != "" {
+				key := fmt.Sprintf("%s:%d", payload.ItemID, payload.ContentIndex)
+				if !textPartsWithDelta[key] {
+					textPartsWithDelta[key] = true
+					textContent += payload.Text
+					ch <- StreamEvent{Type: "text_delta", Text: payload.Text}
+				}
 			}
 
 		case "response.output_item.done":
@@ -295,13 +320,15 @@ func (p *CodexOAuthProvider) readCodexSSE(body io.ReadCloser, ch chan<- StreamEv
 				if callID == "" {
 					callID = payload.Item.ID
 				}
+				toolCall := ToolCall{
+					ID:    callID,
+					Name:  UnsanitizeToolName(payload.Item.Name),
+					Input: payload.Item.Arguments,
+				}
+				toolCalls = append(toolCalls, toolCall)
 				ch <- StreamEvent{
-					Type: "tool_call_done",
-					ToolCall: &ToolCall{
-						ID:    callID,
-						Name:  UnsanitizeToolName(payload.Item.Name),
-						Input: payload.Item.Arguments,
-					},
+					Type:     "tool_call_done",
+					ToolCall: &toolCall,
 				}
 			}
 
@@ -319,11 +346,16 @@ func (p *CodexOAuthProvider) readCodexSSE(body io.ReadCloser, ch chan<- StreamEv
 			return
 
 		case "response.completed":
+			stopReason := "end_turn"
+			if len(toolCalls) > 0 {
+				stopReason = "tool_use"
+			}
 			ch <- StreamEvent{
 				Type: "done",
 				Response: &Response{
 					Content:    textContent,
-					StopReason: "end_turn",
+					ToolCalls:  append([]ToolCall(nil), toolCalls...),
+					StopReason: stopReason,
 				},
 			}
 			return
@@ -331,11 +363,16 @@ func (p *CodexOAuthProvider) readCodexSSE(body io.ReadCloser, ch chan<- StreamEv
 	}
 
 	// EOF without explicit completion
+	stopReason := "end_turn"
+	if len(toolCalls) > 0 {
+		stopReason = "tool_use"
+	}
 	ch <- StreamEvent{
 		Type: "done",
 		Response: &Response{
 			Content:    textContent,
-			StopReason: "end_turn",
+			ToolCalls:  append([]ToolCall(nil), toolCalls...),
+			StopReason: stopReason,
 		},
 	}
 }

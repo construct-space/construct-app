@@ -221,7 +221,7 @@ export function useAssistant() {
   const messages = computed(() => getAgentMessages(selectedAgentState.value))
   const isLoading = assistantLoadingState
   const error = assistantErrorState
-  const { defaultModelId, resolveModelId } = useAIModel()
+  const { defaultModelId, resolveModelId, loadProviders } = useAIModel()
 
   const hasMessages = computed(() => messages.value.length > 0)
   const effectiveModel = computed(() => {
@@ -265,7 +265,11 @@ export function useAssistant() {
       task = `<conversation_history>\n${historyStr}\n</conversation_history>\n\nUser: ${text.trim()}`
     }
 
+    let resolvedModel = effectiveModel.value
+
     try {
+      await loadProviders()
+      resolvedModel = resolveModelId(selectedModelState.value?.trim() || defaultModelId.value, { allowAuto: false })
       streamStatus.reset()
       // Try streaming first
       activeStreamUnlisten = await operator.dispatchStream(
@@ -327,7 +331,7 @@ export function useAssistant() {
           if (activeStreamUnlisten) activeStreamUnlisten()
           activeStreamUnlisten = null
         },
-        effectiveModel.value,
+        resolvedModel,
         undefined,
         (requestId) => {
           activeStreamRequestIdState.value = requestId
@@ -340,7 +344,7 @@ export function useAssistant() {
         const result: DispatchResult = await operator.dispatch(
           agentId,
           task,
-          effectiveModel.value,
+          resolvedModel,
         )
         updateAgentMessage(agentId, assistantId, message => ({
           ...message,

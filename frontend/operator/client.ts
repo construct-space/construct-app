@@ -347,6 +347,11 @@ export function useOperator() {
 
   async function stopStream(requestId: string): Promise<void> {
     if (!isTauri.value || !requestId) return
+    // Send cancel to operator first — this cancels the runner's context immediately
+    try {
+      await send('stream.cancel', { request_id: requestId })
+    } catch { /* ignore — operator may already be done */ }
+    // Then close the frontend socket
     const { invoke } = await import('@tauri-apps/api/core')
     await invoke('operator_stop_stream', { requestId })
   }

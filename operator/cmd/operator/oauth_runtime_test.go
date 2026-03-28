@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -28,6 +29,9 @@ func TestProviderFromOAuthCredentialsSupportedProviders(t *testing.T) {
 	}
 	if codexProv.ID() != "openai-oauth" {
 		t.Fatalf("expected openai runtime provider id, got %q", codexProv.ID())
+	}
+	if got, want := codexProv.Models(), []string{"gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-codex-spark", "gpt-5.2-codex", "gpt-5.2", "gpt-5.1-codex-max", "gpt-5.1-codex-mini"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected openai oauth models %#v, got %#v", want, got)
 	}
 
 	githubCreds := &oauth.Credentials{

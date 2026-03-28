@@ -42,3 +42,25 @@ func TestOpenAICompatBuildBodySanitizesToolSchema(t *testing.T) {
 		t.Fatalf("expected object schema, got %#v", parameters["type"])
 	}
 }
+
+func TestOpenAICompatBuildBodyIncludesRequiredToolChoice(t *testing.T) {
+	prov := NewOpenAICompat(OpenAICompatConfig{})
+	body := prov.buildBody(&Request{
+		Model:      "openrouter/free",
+		ToolChoice: "required",
+		Messages: []Message{
+			{Role: "user", Content: "hello"},
+		},
+		Tools: []ToolDef{
+			{
+				Name:        "bash",
+				Description: "Run shell commands",
+				InputSchema: map[string]any{"type": "object"},
+			},
+		},
+	})
+
+	if body["tool_choice"] != "required" {
+		t.Fatalf("expected required tool_choice, got %#v", body["tool_choice"])
+	}
+}
