@@ -142,6 +142,9 @@ func (rt *operatorRuntime) dispatchFrontRequests(reqCtx context.Context, req tra
 		req.Type == "context.get":
 		return rt.handleContextRequest(reqCtx, req)
 
+	case isStateRequestType(req.Type):
+		return rt.handleStateRequest(req)
+
 	default:
 		return transport.Response{}, false
 	}

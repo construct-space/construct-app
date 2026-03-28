@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"construct-operator/internal/provider"
 	"construct-operator/internal/runner"
 	"construct-operator/internal/session"
+	"construct-operator/internal/state"
 	"construct-operator/internal/tool"
 	"construct-operator/internal/transport"
 )
@@ -520,6 +522,482 @@ func TestDispatchFrontRequestsContextClearProject(t *testing.T) {
 	}
 }
 
+func TestDispatchFrontRequestsStorageRoundTrip(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+	projectID := 7
+	value := json.RawMessage(`{"dark":true}`)
+
+	setResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-storage-set",
+		Type: "storage.set",
+		Payload: mustJSON(t, map[string]any{
+			"key":       "theme",
+			"value":     value,
+			"category":  "prefs",
+			"projectId": projectID,
+			"userId":    "u1",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !setResp.Success {
+		t.Fatalf("storage.set response = %#v", setResp)
+	}
+
+	getResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-storage-get",
+		Type: "storage.get",
+		Payload: mustJSON(t, map[string]any{
+			"key":       "theme",
+			"category":  "prefs",
+			"projectId": projectID,
+			"userId":    "u1",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !getResp.Success {
+		t.Fatalf("storage.get response = %#v", getResp)
+	}
+	getData := mustResponseDataMap(t, getResp)
+	if got := mustRawMessage(t, getData["value"]); string(got) != string(value) {
+		t.Fatalf("storage.get value = %s, want %s", got, value)
+	}
+
+	batchResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-storage-batch-get",
+		Type: "storage.batch_get",
+		Payload: mustJSON(t, map[string]any{
+			"keys":      []string{"theme", "missing"},
+			"category":  "prefs",
+			"projectId": projectID,
+			"userId":    "u1",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !batchResp.Success {
+		t.Fatalf("storage.batch_get response = %#v", batchResp)
+	}
+	batchData := mustResponseDataMap(t, batchResp)
+	items, ok := batchData["items"].(map[string]json.RawMessage)
+	if !ok {
+		t.Fatalf("storage.batch_get items type = %T, want map[string]json.RawMessage", batchData["items"])
+	}
+	if got := items["theme"]; string(got) != string(value) {
+		t.Fatalf("storage.batch_get theme = %s, want %s", got, value)
+	}
+
+	listResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-storage-list",
+		Type: "storage.list",
+		Payload: mustJSON(t, map[string]any{
+			"category":  "prefs",
+			"projectId": projectID,
+			"userId":    "u1",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !listResp.Success {
+		t.Fatalf("storage.list response = %#v", listResp)
+	}
+	listData := mustResponseDataMap(t, listResp)
+	listItems, ok := listData["items"].([]map[string]any)
+	if !ok || len(listItems) != 1 {
+		t.Fatalf("storage.list items = %#v, want one entry", listData["items"])
+	}
+	if listItems[0]["key"] != "theme" {
+		t.Fatalf("storage.list key = %#v, want %q", listItems[0]["key"], "theme")
+	}
+	if got := mustRawMessage(t, listItems[0]["value"]); string(got) != string(value) {
+		t.Fatalf("storage.list value = %s, want %s", got, value)
+	}
+
+	deleteResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-storage-delete",
+		Type: "storage.delete",
+		Payload: mustJSON(t, map[string]any{
+			"key":       "theme",
+			"category":  "prefs",
+			"projectId": projectID,
+			"userId":    "u1",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !deleteResp.Success {
+		t.Fatalf("storage.delete response = %#v", deleteResp)
+	}
+
+	getAfterDeleteResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-storage-get-after-delete",
+		Type: "storage.get",
+		Payload: mustJSON(t, map[string]any{
+			"key":       "theme",
+			"category":  "prefs",
+			"projectId": projectID,
+			"userId":    "u1",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !getAfterDeleteResp.Success {
+		t.Fatalf("storage.get after delete response = %#v", getAfterDeleteResp)
+	}
+	if got := mustResponseDataMap(t, getAfterDeleteResp)["value"]; got != nil {
+		t.Fatalf("storage.get after delete value = %#v, want nil", got)
+	}
+}
+
+func TestDispatchFrontRequestsKVRoundTrip(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	setResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-kv-set",
+		Type: "kv.set",
+		Payload: mustJSON(t, map[string]any{
+			"key":      "token",
+			"value":    "abc123",
+			"category": "auth",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !setResp.Success {
+		t.Fatalf("kv.set response = %#v", setResp)
+	}
+
+	getResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-kv-get",
+		Type: "kv.get",
+		Payload: mustJSON(t, map[string]any{
+			"key":      "token",
+			"category": "auth",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !getResp.Success {
+		t.Fatalf("kv.get response = %#v", getResp)
+	}
+	if got := mustResponseDataMap(t, getResp)["value"]; got != "abc123" {
+		t.Fatalf("kv.get value = %#v, want %q", got, "abc123")
+	}
+
+	listResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-kv-list",
+		Type: "kv.list",
+		Payload: mustJSON(t, map[string]any{
+			"category": "auth",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !listResp.Success {
+		t.Fatalf("kv.list response = %#v", listResp)
+	}
+	entries, ok := mustResponseDataMap(t, listResp)["entries"].([]state.KVEntry)
+	if !ok || len(entries) != 1 {
+		t.Fatalf("kv.list entries = %#v, want one entry", mustResponseDataMap(t, listResp)["entries"])
+	}
+	if entries[0].Key != "token" || entries[0].Value != "abc123" {
+		t.Fatalf("kv.list entry = %#v, want token=abc123", entries[0])
+	}
+
+	deleteResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-kv-delete",
+		Type: "kv.delete",
+		Payload: mustJSON(t, map[string]any{
+			"key":      "token",
+			"category": "auth",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !deleteResp.Success {
+		t.Fatalf("kv.delete response = %#v", deleteResp)
+	}
+
+	getAfterDeleteResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-kv-get-after-delete",
+		Type: "kv.get",
+		Payload: mustJSON(t, map[string]any{
+			"key":      "token",
+			"category": "auth",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !getAfterDeleteResp.Success {
+		t.Fatalf("kv.get after delete response = %#v", getAfterDeleteResp)
+	}
+	if got := mustResponseDataMap(t, getAfterDeleteResp)["value"]; got != nil {
+		t.Fatalf("kv.get after delete value = %#v, want nil", got)
+	}
+}
+
+func TestDispatchFrontRequestsSettingsRoundTrip(t *testing.T) {
+	t.Setenv("CONSTRUCT_PROJECTS_ROOT", "")
+	t.Setenv("MIMO_API_KEY", "")
+
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	rootResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-settings-root",
+		Type: "settings.set",
+		Payload: mustJSON(t, map[string]any{
+			"key":   "construct_projects_root",
+			"value": "/tmp/projects-root",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !rootResp.Success {
+		t.Fatalf("settings.set root response = %#v", rootResp)
+	}
+	if got := os.Getenv("CONSTRUCT_PROJECTS_ROOT"); got != "/tmp/projects-root" {
+		t.Fatalf("CONSTRUCT_PROJECTS_ROOT = %q, want %q", got, "/tmp/projects-root")
+	}
+
+	providerResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-settings-provider",
+		Type: "settings.set",
+		Payload: mustJSON(t, map[string]any{
+			"key":   "provider_key:mimo",
+			"value": "sk-test",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !providerResp.Success {
+		t.Fatalf("settings.set provider response = %#v", providerResp)
+	}
+
+	getResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-settings-get",
+		Type: "settings.get",
+		Payload: mustJSON(t, map[string]any{
+			"key": "provider_key:mimo",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !getResp.Success {
+		t.Fatalf("settings.get response = %#v", getResp)
+	}
+	if got := mustResponseDataMap(t, getResp)["value"]; got != "sk-test" {
+		t.Fatalf("settings.get value = %#v, want %q", got, "sk-test")
+	}
+
+	statusResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-settings-status",
+		Type: "settings.provider_status",
+	}, requestDispatchDeps{})
+	if !handled || !statusResp.Success {
+		t.Fatalf("settings.provider_status response = %#v", statusResp)
+	}
+	providers, ok := mustResponseDataMap(t, statusResp)["providers"].(map[string]bool)
+	if !ok {
+		t.Fatalf("settings.provider_status providers type = %T, want map[string]bool", mustResponseDataMap(t, statusResp)["providers"])
+	}
+	if !providers["mimo"] {
+		t.Fatalf("settings.provider_status = %#v, want mimo enabled", providers)
+	}
+	if !runnerHasProvider(rt.runner.ListProviders(), "mimo") {
+		t.Fatalf("runner providers = %#v, want mimo to be registered", rt.runner.ListProviders())
+	}
+}
+
+func TestDispatchFrontRequestsProjectSettingsRoundTrip(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	setResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-project-settings-set",
+		Type: "project_settings.set",
+		Payload: mustJSON(t, map[string]any{
+			"projectId":  42,
+			"localPath":  "/tmp/project",
+			"editorPath": "/Applications/Zed.app",
+			"syncedAt":   "2026-03-28T00:00:00Z",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !setResp.Success {
+		t.Fatalf("project_settings.set response = %#v", setResp)
+	}
+
+	getResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-project-settings-get",
+		Type: "project_settings.get",
+		Payload: mustJSON(t, map[string]any{
+			"projectId": 42,
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !getResp.Success {
+		t.Fatalf("project_settings.get response = %#v", getResp)
+	}
+	settings, ok := getResp.Data.(state.ProjectSettings)
+	if !ok {
+		t.Fatalf("project_settings.get data type = %T, want state.ProjectSettings", getResp.Data)
+	}
+	if settings.ProjectID != 42 || settings.LocalPath != "/tmp/project" || settings.EditorPath != "/Applications/Zed.app" {
+		t.Fatalf("project settings = %#v, want saved values", settings)
+	}
+}
+
+func TestDispatchFrontRequestsPinnedRoundTrip(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	for _, item := range []state.PinnedItem{
+		{ID: "a", Name: "Alpha", Type: "file", PinnedAt: "2026-03-28T00:00:00Z"},
+		{ID: "b", Name: "Beta", Type: "file", PinnedAt: "2026-03-28T01:00:00Z"},
+	} {
+		resp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+			ID:      "req-pinned-add-" + item.ID,
+			Type:    "pinned.add",
+			Payload: mustJSON(t, item),
+		}, requestDispatchDeps{})
+		if !handled || !resp.Success {
+			t.Fatalf("pinned.add response = %#v", resp)
+		}
+	}
+
+	reorderResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-pinned-reorder",
+		Type: "pinned.reorder",
+		Payload: mustJSON(t, map[string]any{
+			"items": []state.PinnedOrder{
+				{ID: "a", SortOrder: 2},
+				{ID: "b", SortOrder: 1},
+			},
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !reorderResp.Success {
+		t.Fatalf("pinned.reorder response = %#v", reorderResp)
+	}
+
+	listResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-pinned-list",
+		Type: "pinned.list",
+	}, requestDispatchDeps{})
+	if !handled || !listResp.Success {
+		t.Fatalf("pinned.list response = %#v", listResp)
+	}
+	items, ok := mustResponseDataMap(t, listResp)["items"].([]state.PinnedItem)
+	if !ok || len(items) != 2 {
+		t.Fatalf("pinned.list items = %#v, want two items", mustResponseDataMap(t, listResp)["items"])
+	}
+	if items[0].ID != "b" || items[1].ID != "a" {
+		t.Fatalf("pinned.list order = %#v, want b then a", items)
+	}
+
+	removeResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-pinned-remove",
+		Type: "pinned.remove",
+		Payload: mustJSON(t, map[string]any{
+			"id": "b",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !removeResp.Success {
+		t.Fatalf("pinned.remove response = %#v", removeResp)
+	}
+
+	listAfterRemoveResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-pinned-list-after-remove",
+		Type: "pinned.list",
+	}, requestDispatchDeps{})
+	if !handled || !listAfterRemoveResp.Success {
+		t.Fatalf("pinned.list after remove response = %#v", listAfterRemoveResp)
+	}
+	itemsAfterRemove, ok := mustResponseDataMap(t, listAfterRemoveResp)["items"].([]state.PinnedItem)
+	if !ok || len(itemsAfterRemove) != 1 || itemsAfterRemove[0].ID != "a" {
+		t.Fatalf("pinned.list after remove items = %#v, want only a", mustResponseDataMap(t, listAfterRemoveResp)["items"])
+	}
+}
+
+func TestDispatchFrontRequestsDesignsRoundTrip(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+	projectID := 9
+
+	saveResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-designs-save",
+		Type: "designs.save",
+		Payload: mustJSON(t, map[string]any{
+			"local_id":      "landing-page",
+			"project_id":    projectID,
+			"name":          "Landing Page",
+			"nodes":         json.RawMessage(`[{"id":"node-1"}]`),
+			"pages_json":    `[{"id":"page-1"}]`,
+			"viewport_json": `{"x":1}`,
+			"history_json":  `[{"type":"init"}]`,
+			"history_index": 2,
+			"created_at":    "2026-03-28T00:00:00Z",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !saveResp.Success {
+		t.Fatalf("designs.save response = %#v", saveResp)
+	}
+	saveData := mustResponseDataMap(t, saveResp)
+	if saveData["localId"] != "landing-page" {
+		t.Fatalf("designs.save localId = %#v, want %q", saveData["localId"], "landing-page")
+	}
+
+	getResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-designs-get",
+		Type: "designs.get",
+		Payload: mustJSON(t, map[string]any{
+			"localId": "landing-page",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !getResp.Success {
+		t.Fatalf("designs.get response = %#v", getResp)
+	}
+	designData := mustResponseDataMap(t, getResp)
+	design, ok := designData["design"].(map[string]any)
+	if !ok {
+		t.Fatalf("designs.get design type = %T, want map[string]any", designData["design"])
+	}
+	if design["localId"] != "landing-page" || design["local_id"] != "landing-page" {
+		t.Fatalf("designs.get design = %#v, want localId aliases", design)
+	}
+	if design["projectId"] != float64(projectID) && design["projectId"] != projectID {
+		t.Fatalf("designs.get projectId = %#v, want %d", design["projectId"], projectID)
+	}
+	if design["nodes_json"] != `[{"id":"node-1"}]` {
+		t.Fatalf("designs.get nodes_json = %#v, want saved nodes", design["nodes_json"])
+	}
+
+	listResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-designs-list",
+		Type: "designs.list",
+		Payload: mustJSON(t, map[string]any{
+			"projectId": projectID,
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !listResp.Success {
+		t.Fatalf("designs.list response = %#v", listResp)
+	}
+	designs, ok := mustResponseDataMap(t, listResp)["designs"].([]map[string]any)
+	if !ok || len(designs) != 1 {
+		t.Fatalf("designs.list items = %#v, want one design", mustResponseDataMap(t, listResp)["designs"])
+	}
+
+	deleteResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-designs-delete",
+		Type: "designs.delete",
+		Payload: mustJSON(t, map[string]any{
+			"localId": "landing-page",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !deleteResp.Success {
+		t.Fatalf("designs.delete response = %#v", deleteResp)
+	}
+
+	getAfterDeleteResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-designs-get-after-delete",
+		Type: "designs.get",
+		Payload: mustJSON(t, map[string]any{
+			"localId": "landing-page",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !getAfterDeleteResp.Success {
+		t.Fatalf("designs.get after delete response = %#v", getAfterDeleteResp)
+	}
+	if got := mustResponseDataMap(t, getAfterDeleteResp)["design"]; got != nil {
+		t.Fatalf("designs.get after delete design = %#v, want nil", got)
+	}
+}
+
 func mustResponseDataMap(t *testing.T, resp transport.Response) map[string]any {
 	t.Helper()
 
@@ -538,6 +1016,20 @@ func mustJSON(t *testing.T, payload any) json.RawMessage {
 		t.Fatalf("marshal payload: %v", err)
 	}
 	return raw
+}
+
+func mustRawMessage(t *testing.T, value any) json.RawMessage {
+	t.Helper()
+
+	switch raw := value.(type) {
+	case json.RawMessage:
+		return raw
+	case []byte:
+		return json.RawMessage(raw)
+	default:
+		t.Fatalf("raw message type = %T, want json.RawMessage", value)
+		return nil
+	}
 }
 
 func newRequestHandlerTestRuntime(t *testing.T, prov provider.Provider) *operatorRuntime {
@@ -562,6 +1054,7 @@ func newRequestHandlerTestRuntime(t *testing.T, prov provider.Provider) *operato
 		},
 	}
 	rt.sessionStore = session.NewStore("")
+	rt.stateStore = state.NewStore(tempDir)
 	rt.oauthStorage = oauth.NewStorage(filepath.Join(tempDir, "auth.json"))
 	rt.tools = tool.NewRegistry()
 	rt.tools.Register(&tool.Tool{
@@ -633,4 +1126,13 @@ type stubToolExecutor struct{}
 
 func (stubToolExecutor) Execute(context.Context, string) (*tool.Result, error) {
 	return &tool.Result{Content: "ok"}, nil
+}
+
+func runnerHasProvider(providers []map[string]any, id string) bool {
+	for _, providerInfo := range providers {
+		if providerID, _ := providerInfo["id"].(string); providerID == id {
+			return true
+		}
+	}
+	return false
 }
