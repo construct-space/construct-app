@@ -114,9 +114,9 @@ export const routes: RouteRecordRaw[] = [
             component: () => import('@/spaces/architect/pages/ArchitectPage.vue'),
           },
           {
-            path: 'vibe',
-            name: 'project-vibe',
-            component: () => import('@/spaces/vibe/pages/VibePage.vue'),
+            path: 'coder',
+            name: 'project-coder',
+            component: () => import('@/spaces/coder/pages/CoderPage.vue'),
           },
           // /app/projects/:projectId/:spaceName — space within project
           {
@@ -157,15 +157,15 @@ export const routes: RouteRecordRaw[] = [
         component: () => import('@/spaces/architect/pages/ArchitectPage.vue'),
       },
       {
-        path: 'vibe',
-        name: 'vibe',
-        component: () => import('@/spaces/vibe/pages/VibePage.vue'),
+        path: 'coder',
+        name: 'coder',
+        component: () => import('@/spaces/coder/pages/CoderPage.vue'),
       },
 
       // ===== Dynamic space routes (company-scoped) =====
       // Remaining spaces (code, design, kanban, etc.) go through DynamicSpacePage.
       // SpaceLoader handles dev (Vite import) vs prod (IIFE bundle) loading.
-      // NOTE: "projects", "brainstorm", "architect", "vibe" are native pages above.
+      // NOTE: "projects", "brainstorm", "architect" are native pages above.
       {
         path: ':spaceName',
         component: () => import('@/layouts/SpaceLayout.vue'),

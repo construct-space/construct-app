@@ -16,7 +16,6 @@ export const StreamType = {
   Text: 'text',
   Stream: 'stream',
   Done: 'done',
-  VibeSession: 'vibe.session',
 } as const
 
 // ─── Event data interfaces ───
@@ -60,18 +59,6 @@ export interface TurnEndEvent {
 
 export interface TextEvent {
   text: string
-}
-
-export interface VibeSessionEvent {
-  session_id: string
-  goal?: string
-  source?: string
-  space?: string
-  status?: string
-  project_id?: string
-  project_name?: string
-  project_path?: string
-  current_phase?: string
 }
 
 export interface DoneEvent {

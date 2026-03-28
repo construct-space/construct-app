@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
 import type { ToolActivity } from '@/operator/useStreamStatus'
-import VibeToolCallItem from './VibeToolCall.vue'
+import ToolCall from './ToolCall.vue'
 
 const props = defineProps<{
   toolHistory: readonly ToolActivity[]
@@ -60,10 +60,10 @@ watch(
           <p class="text-xs text-app-muted/50">Waiting for first tool call...</p>
         </div>
         <p v-else class="text-xs text-app-muted/50 py-4 text-center">
-          Tool calls will appear here in real time.
+          Tool calls will appear here.
         </p>
       </template>
-      <VibeToolCallItem
+      <ToolCall
         v-for="tc in toolHistory"
         :key="tc.callId"
         :call="tc"

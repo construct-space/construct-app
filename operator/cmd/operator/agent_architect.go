@@ -121,7 +121,7 @@ Say "Writing the docs now." then:
 1. bash("mkdir -p {project_path}/docs")
 2. Write each doc with write_file
 
-Write docs that an AI coding agent (Vibe) will use to build everything.
+Write docs that an AI coding agent (Coder) will use to build everything.
 Each doc must contain concrete details — interfaces, wireframes, numbers, file paths.
 
 What to write depends on the project type:
@@ -132,7 +132,7 @@ What to write depends on the project type:
 - Construct Space: manifest spec, pages & components spec, data model, agent config (if needed), widget spec (if needed)
 - Always: README.md (10 lines max)
 
-Quality bar: "Could Vibe build this from these docs alone?"
+Quality bar: "Could Coder build this from these docs alone?"
 
 ## Tone
 

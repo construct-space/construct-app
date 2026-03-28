@@ -1,7 +1,7 @@
 /**
  * useStreamStatus — Shared composable for human-readable status from operator streams.
  *
- * Works with any stream consumer (chat, agent, vibe). Parses "status" events
+ * Works with any stream consumer (chat, agent, coder). Parses "status" events
  * from the operator and exposes reactive state for the UI.
  *
  * Usage:
@@ -54,6 +54,13 @@ export interface ProgressUpdate {
 
 const IDLE_STATUS: StatusInfo = { state: 'idle', message: '' }
 // No more generic filler — show actual tool actions instead
+
+function shouldStoreNarration(state: StatusState, message: string) {
+  if (!message) return false
+  if (state === 'tool_running' || state === 'tool_done' || state === 'complete') return false
+  if (message === 'Thinking…' || message === 'Thinking...' || message === 'Done') return false
+  return true
+}
 
 export function useStreamStatus() {
   const status = ref<StatusInfo>({ ...IDLE_STATUS })
@@ -108,8 +115,9 @@ export function useStreamStatus() {
 
     if (type === 'status') {
       const message = (data.message as string) || ''
+      const nextState = (data.state as StatusState) || 'idle'
       status.value = {
-        state: (data.state as StatusState) || 'idle',
+        state: nextState,
         message,
         tool: data.tool as string | undefined,
         callId: data.call_id as string | undefined,
@@ -117,11 +125,11 @@ export function useStreamStatus() {
         maxTurns: data.max_turns as number | undefined,
         isError: data.is_error as boolean | undefined,
       }
-      if (message) {
+      if (shouldStoreNarration(nextState, message)) {
         statusNarration.value = message
-        if (message !== 'Thinking…' && message !== 'Thinking...') {
-          appendProgressUpdate(message)
-        }
+        appendProgressUpdate(message)
+      } else {
+        statusNarration.value = ''
       }
       triggerRef(status)
       triggerRef(statusNarration)

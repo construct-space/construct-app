@@ -17,7 +17,7 @@ Follow the skills available to you (brainstorming, writing-plans). The process:
    - docs/01-design-spec.md (architecture, components, data model, UI)
    - docs/02-implementation-plan.md (bite-sized tasks with files, steps, verification)
    - README.md
-4. Each doc must be detailed enough for Vibe to execute from docs alone
+4. Each doc must be detailed enough for Coder to execute from docs alone
 
 Use get_project_context to understand existing projects. Use write_file and bash(mkdir) to create docs. Read project docs before planning changes to existing projects.
 

@@ -6,7 +6,7 @@
       "description": "Keep the Brainstorm agent in planning mode.",
       "type": "pre_tool",
       "tools": ["write_file", "edit_file"],
-      "command": "echo '{\"block\":true,\"message\":\"Brainstorm is planning-only. Use Vibe or the Space agent to implement changes.\"}'",
+      "command": "echo '{\"block\":true,\"message\":\"Brainstorm is planning-only. Use Coder or the Space agent to implement changes.\"}'",
       "timeout": 5,
       "source": "space:brainstorm"
     }

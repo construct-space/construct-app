@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * Architect Space — describe a project, agent writes docs, hand off to Vibe.
+ * Architect Space — describe a project, agent writes docs.
  *
- * Flow: User describes → Architect writes docs to project/docs/ → "Start Vibe" button.
+ * Flow: User describes → Architect writes docs to project/docs/ → "Open Project" button.
  * No questions step, no plan JSON, no templates, no scaffolding.
- * Architect ONLY writes markdown docs. Vibe writes code.
+ * Architect ONLY writes markdown docs. Coder writes code.
  */
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -96,16 +96,15 @@ async function handleSend(blocks: RequestBlock[]) {
   })
 }
 
-function startVibe() {
+function startCoder() {
   const path = projectPath.value || detectedProjectPath.value
   const projectId = route.params.projectId as string
   if (projectId) {
-    router.push(`/app/projects/${projectId}/vibe`)
+    router.push(`/app/projects/${projectId}/coder`)
   } else if (path) {
-    // Navigate to vibe with the project path
-    router.push({ path: '/app/vibe', query: { path, autorun: '1', source: 'architect' } })
+    router.push({ path: '/app/coder', query: { path, autorun: '1', source: 'architect' } })
   } else {
-    router.push('/app/vibe')
+    router.push('/app/coder')
   }
 }
 </script>

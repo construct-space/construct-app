@@ -276,19 +276,22 @@ const nextTurnId = () => `turn-${++turnCounter}`
 export function useAgentSession() {
   const operator = useOperator()
   const streamStatus = useStreamStatus()
-  const { defaultModelId } = useAIModel()
+  const { defaultModelId, resolveModelId, loadProviders } = useAIModel()
 
   const turns = ref<Turn[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const selectedAgent = ref('general')
   const selectedModel = ref<string | undefined>(undefined)
+  const runnerSessionId = ref<string | null>(null)
 
   let unlisten: (() => void) | null = null
   let activeRequestId: string | null = null
 
   const hasTurns = computed(() => turns.value.length > 0)
-  const effectiveModel = computed(() => selectedModel.value || defaultModelId.value)
+  const effectiveModel = computed(() =>
+    resolveModelId(selectedModel.value || defaultModelId.value, { allowAuto: false }),
+  )
   const activeTurn = computed(() => {
     const last = turns.value[turns.value.length - 1]
     return last?.status === 'streaming' ? last : null
@@ -400,19 +403,11 @@ export function useAgentSession() {
     error.value = null
     streamStatus.reset()
 
-    // Build task with history context
-    const history = turns.value.slice(0, -1).slice(-5)
-    let task = options?.taskOverride?.trim() || textContent.trim()
-    if (history.length > 0) {
-      const historyStr = history.map(t => {
-        const req = t.request.filter((b): b is TextBlock => b.type === 'text').map(b => b.content).join('\n')
-        const res = t.response.filter((b): b is TextBlock => b.type === 'text').map(b => b.content).join('\n')
-        return `User: ${req}\n\nAssistant: ${res}`
-      }).join('\n\n')
-      task = `<conversation_history>\n${historyStr}\n</conversation_history>\n\nUser: ${textContent.trim()}`
-    }
+    const task = options?.taskOverride?.trim() || textContent.trim()
 
     try {
+      await loadProviders()
+      const resolvedModel = resolveModelId(options?.model || effectiveModel.value, { allowAuto: false })
       unlisten = await operator.dispatchStream(
         agentId,
         task,
@@ -422,6 +417,7 @@ export function useAgentSession() {
           turn.status = 'done'
           turn.agentId = result.agent_id || turn.agentId
           turn.turns = result.turns
+          if (result.session_id) runnerSessionId.value = result.session_id
 
           // Mark any remaining running tool blocks as done
           for (const block of turn.response) {
@@ -481,8 +477,11 @@ export function useAgentSession() {
           triggerRef(turns)
           if (unlisten) { unlisten(); unlisten = null }
         },
-        options?.model || effectiveModel.value,
-        options?.projectPath ? { projectPath: options.projectPath } : undefined,
+        resolvedModel,
+        {
+          ...(options?.projectPath ? { projectPath: options.projectPath } : {}),
+          ...(runnerSessionId.value ? { sessionId: runnerSessionId.value } : {}),
+        },
         (requestId) => {
           activeRequestId = requestId
         },
@@ -490,10 +489,12 @@ export function useAgentSession() {
     } catch {
       // Streaming not available — fall back to sync
       try {
+        await loadProviders()
+        const resolvedModel = resolveModelId(options?.model || effectiveModel.value, { allowAuto: false })
         const result: DispatchResult = await operator.dispatch(
           agentId,
           task,
-          options?.model || effectiveModel.value,
+          resolvedModel,
         )
         turn.response.push({ type: 'text', content: result.content })
         turn.status = 'done'
@@ -566,6 +567,7 @@ export function useAgentSession() {
     turns.value = []
     error.value = null
     isLoading.value = false
+    runnerSessionId.value = null
     streamStatus.reset()
   }
 
@@ -642,6 +644,7 @@ export function useAgentSession() {
   function newSession() {
     if (isLoading.value) void stop()
     sessionId.value = null
+    runnerSessionId.value = null
     turns.value = []
     error.value = null
     isLoading.value = false

@@ -320,7 +320,7 @@ export function useProjectDirectory() {
       const content = await tauriFs.readTextFile(configPath)
       const raw = JSON.parse(content) as Record<string, unknown>
 
-      // Normalize config — vibe/operator may write different field names or formats
+      // Normalize config — operator may write different field names or formats
       const config: ProjectConfig = {
         version: 1,
         name: (raw.name as string) || normalizedProjectPath.split('/').filter(Boolean).pop() || '',

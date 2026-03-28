@@ -14,7 +14,7 @@ Detailed Construct-facing implementation plan lives in [`construct/docs/plans/co
 
 ### What was done
 
-- **Phase 1-5**: Operator client, AssistantPanel, `useArchitect`, `useVibe` wired
+- **Phase 1-5**: Operator client, AssistantPanel, `useArchitect` wired
 - **Phase 6**: Deleted `useContextService`, migrated remaining consumers
 - **Build chain**: brain -> operator in Tauri config, Rust bridge, and build scripts
 - **Naming**: brain-era logs and identifiers renamed to operator
@@ -47,7 +47,7 @@ Detailed Construct-facing implementation plan lives in [`construct/docs/plans/co
 ### 2. Pinned items and designs
 
 - [x] Make `pinned.*` return real data for `useContextDB` / `useStorage`
-- [x] Make `designs.*` return real data for vibe and related flows
+- [x] Make `designs.*` return real data for coder and related flows
 
 ### 3. MCP settings page
 

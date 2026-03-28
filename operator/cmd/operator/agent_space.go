@@ -9,7 +9,7 @@ func spaceAgent() *agent.Config {
 		Description:  "Construct space specialist — scaffolds, builds, installs, and develops spaces",
 		Category:     "specialist",
 		Model:        "", // uses the user's selected model from Settings > LLMs
-		MaxTurns:     100,
+		MaxTurns:     50,
 		CanSpawn:     true,
 		SpawnAllowed: []string{}, // Space agent doesn't spawn — it executes directly
 		BlockTools:   noBrowserTools,

@@ -16,7 +16,7 @@ When brainstorming a project, follow this process:
 5. **Present design** — cover architecture, components, data flow, key decisions
 6. **Get approval** — present the design before moving to planning
 
-HARD GATE: No plan until you understand what they want. No code ever — you plan, Vibe codes.
+HARD GATE: No plan until you understand what they want. No code ever — you plan, Coder codes.
 
 Key principles:
 - One question per message

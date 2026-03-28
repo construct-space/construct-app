@@ -34,7 +34,6 @@ import (
 	"construct-operator/internal/stream"
 	"construct-operator/internal/tool"
 	"construct-operator/internal/transport"
-	"construct-operator/internal/vibe"
 )
 
 const Version = "0.6.7"
@@ -173,94 +172,6 @@ func mapString(m map[string]any, key string) string {
 	return value
 }
 
-func mergeContextMaps(base, extra map[string]any) map[string]any {
-	if len(base) == 0 && len(extra) == 0 {
-		return nil
-	}
-	result := make(map[string]any, len(base)+len(extra))
-	for key, value := range base {
-		result[key] = value
-	}
-	for key, value := range extra {
-		result[key] = value
-	}
-	return result
-}
-
-func localDataString(localData map[string]any, key string) string {
-	if len(localData) == 0 {
-		return ""
-	}
-	if value, ok := localData[key].(string); ok && strings.TrimSpace(value) != "" {
-		return strings.TrimSpace(value)
-	}
-	spaceContext, _ := localData["space_context"].(map[string]any)
-	projectContext, _ := spaceContext["project"].(map[string]any)
-	switch key {
-	case "project_name":
-		if value, ok := projectContext["name"].(string); ok && strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	case "project_path":
-		if value, ok := projectContext["localPath"].(string); ok && strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
-}
-
-func localDataProjectID(localData map[string]any) string {
-	if len(localData) == 0 {
-		return ""
-	}
-	for _, key := range []string{"project_id", "projectId"} {
-		if value, ok := localData[key].(string); ok && strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	if routeContext, _ := localData["route_context"].(map[string]any); routeContext != nil {
-		if value, ok := routeContext["projectId"].(string); ok && strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	if spaceContext, _ := localData["space_context"].(map[string]any); spaceContext != nil {
-		if projectContext, _ := spaceContext["project"].(map[string]any); projectContext != nil {
-			switch value := projectContext["id"].(type) {
-			case string:
-				return strings.TrimSpace(value)
-			case int:
-				if value > 0 {
-					return fmt.Sprintf("%d", value)
-				}
-			case int64:
-				if value > 0 {
-					return fmt.Sprintf("%d", value)
-				}
-			case float64:
-				if value > 0 {
-					return fmt.Sprintf("%.0f", value)
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func projectContextFromLocalData(localData map[string]any) *runner.ProjectContext {
-	if len(localData) == 0 {
-		return nil
-	}
-	name := localDataString(localData, "project_name")
-	path := localDataString(localData, "project_path")
-	if name == "" && path == "" {
-		return nil
-	}
-	return &runner.ProjectContext{
-		Name:     name,
-		RootPath: path,
-	}
-}
-
 // isDesktopOnlySpaceTool returns true for space tools that need the desktop
 // bridge and should be excluded when running headless (TUI/CLI mode).
 func isDesktopOnlySpaceTool(name string) bool {
@@ -274,6 +185,14 @@ func isDesktopOnlySpaceTool(name string) bool {
 	return false
 }
 
+func truncateLog(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}
+
 func lastUserMessage(messages []provider.Message) string {
 	for i := len(messages) - 1; i >= 0; i-- {
 		if strings.EqualFold(messages[i].Role, "user") {
@@ -285,295 +204,14 @@ func lastUserMessage(messages []provider.Message) string {
 	return ""
 }
 
-func intValue(value any) int {
-	switch v := value.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		return int(v)
-	default:
-		return 0
-	}
-}
 
-func looksLikeVibeToolDirective(content string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(content))
-	if normalized == "" {
-		return false
-	}
-	if !strings.Contains(normalized, "to=") && !strings.Contains(normalized, "tool:") && !strings.Contains(normalized, "function:") {
-		return false
-	}
-	for _, name := range []string{
-		"bash",
-		"write_file",
-		"edit_file",
-		"read_file",
-		"list_dir",
-		"glob",
-		"grep",
-		"spawn_agent",
-	} {
-		aliases := []string{
-			name,
-			strings.ReplaceAll(name, "_", "-"),
-			name + "_code",
-			strings.ReplaceAll(name, "_", "") + "_code",
-		}
-		for _, alias := range aliases {
-			if strings.Contains(normalized, "to="+alias) ||
-				strings.Contains(normalized, "tool:"+alias) ||
-				strings.Contains(normalized, "function:"+alias) {
-				return true
-			}
-		}
-	}
-	return false
-}
 
-func vibeTurnProgressText(turn, _ int) string {
-	if turn <= 0 {
-		return "Getting oriented in the project"
-	}
-	phrases := []string{
-		"Connecting the dots",
-		"Tracing the current implementation",
-		"Working through the next change",
-		"Checking the relevant files",
-		"Shaping the fix",
-		"Making the next pass",
-		"Refining the implementation",
-		"Validating the approach",
-	}
-	return phrases[(turn-1)%len(phrases)]
-}
 
-func extractAbsolutePaths(text string) []string {
-	if strings.TrimSpace(text) == "" {
-		return nil
-	}
-	var paths []string
-	seen := map[string]bool{}
-	for index := 0; index < len(text); {
-		switch text[index] {
-		case '"', '\'', '`':
-			quote := text[index]
-			if index+1 < len(text) && text[index+1] == '/' {
-				end := index + 2
-				for end < len(text) && text[end] != quote {
-					end++
-				}
-				candidate := strings.TrimSpace(text[index+1 : end])
-				candidate = strings.TrimRight(candidate, ",;:)]}")
-				if candidate != "" && filepath.IsAbs(candidate) && !seen[candidate] {
-					seen[candidate] = true
-					paths = append(paths, candidate)
-				}
-				index = end + 1
-				continue
-			}
-		case '/':
-			// Only treat as path if preceded by whitespace/start or quote — not mid-word like "dark/light"
-			if index > 0 && text[index-1] != ' ' && text[index-1] != '\n' && text[index-1] != '\t' && text[index-1] != '"' && text[index-1] != '\'' && text[index-1] != '`' && text[index-1] != '(' && text[index-1] != '[' {
-				index++
-				continue
-			}
-			end := index + 1
-			for end < len(text) {
-				switch text[end] {
-				case ' ', '\n', '\t', '\r', '"', '\'', '`', ',', ';', ':', ')', ']', '}':
-					goto flushPath
-				}
-				end++
-			}
-		flushPath:
-			candidate := strings.TrimSpace(text[index:end])
-			candidate = strings.TrimRight(candidate, ",;:)]}")
-			if candidate != "" && filepath.IsAbs(candidate) && !seen[candidate] {
-				seen[candidate] = true
-				paths = append(paths, candidate)
-			}
-			index = end
-			continue
-		}
-		index++
-	}
-	return paths
-}
 
-func inferConstructProjectRoot(path string) string {
-	clean := strings.TrimSpace(path)
-	if clean == "" {
-		return ""
-	}
-	clean = strings.TrimRight(clean, ",;:)]}")
-	if !filepath.IsAbs(clean) {
-		return ""
-	}
-	clean = filepath.Clean(clean)
-	sep := string(filepath.Separator)
-	for _, marker := range []string{sep + "docs" + sep, sep + "code" + sep, sep + ".construct" + sep} {
-		if idx := strings.Index(clean, marker); idx > 0 {
-			return clean[:idx]
-		}
-	}
-	for _, suffix := range []string{sep + "docs", sep + "code", sep + ".construct"} {
-		if strings.HasSuffix(clean, suffix) {
-			return filepath.Dir(clean)
-		}
-	}
-	projectConfigSuffix := filepath.Join(".construct", "project.json")
-	if strings.HasSuffix(clean, projectConfigSuffix) {
-		return filepath.Dir(filepath.Dir(clean))
-	}
-	return ""
-}
 
-func inferProjectContextFromToolEventData(data map[string]any) (string, string) {
-	if len(data) == 0 {
-		return "", ""
-	}
-	candidatePaths := []string{}
-	addTextPaths := func(text string) {
-		for _, candidate := range extractAbsolutePaths(text) {
-			candidatePaths = append(candidatePaths, candidate)
-		}
-	}
-	var walk func(value any)
-	walk = func(value any) {
-		switch typed := value.(type) {
-		case map[string]any:
-			for _, nested := range typed {
-				walk(nested)
-			}
-		case []any:
-			for _, nested := range typed {
-				walk(nested)
-			}
-		case string:
-			trimmed := strings.TrimSpace(typed)
-			if trimmed == "" {
-				return
-			}
-			if filepath.IsAbs(trimmed) {
-				candidatePaths = append(candidatePaths, trimmed)
-			}
-			addTextPaths(trimmed)
-			if strings.HasPrefix(trimmed, "{") {
-				var parsed map[string]any
-				if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil {
-					walk(parsed)
-				}
-			}
-		}
-	}
-	walk(data["input"])
-	walk(data["content"])
 
-	for _, candidate := range candidatePaths {
-		root := inferConstructProjectRoot(candidate)
-		if root == "" {
-			continue
-		}
-		return root, filepath.Base(root)
-	}
-	return "", ""
-}
 
-func pathExists(path string) bool {
-	if strings.TrimSpace(path) == "" {
-		return false
-	}
-	_, err := os.Stat(path)
-	return err == nil
-}
 
-func extractBacktickClaims(content string) []string {
-	if strings.TrimSpace(content) == "" {
-		return nil
-	}
-	claims := []string{}
-	seen := map[string]bool{}
-	inBackticks := false
-	start := 0
-	for index, r := range content {
-		if r != '`' {
-			continue
-		}
-		if !inBackticks {
-			inBackticks = true
-			start = index + 1
-			continue
-		}
-		candidate := strings.TrimSpace(content[start:index])
-		inBackticks = false
-		if candidate == "" || seen[candidate] {
-			continue
-		}
-		seen[candidate] = true
-		claims = append(claims, candidate)
-	}
-	return claims
-}
-
-func validateVibeCompletionClaims(sess *vibe.Session, content string) error {
-	content = strings.TrimSpace(content)
-	if content == "" {
-		return nil
-	}
-
-	projectPath := strings.TrimSpace(sess.ProjectPath)
-	if projectPath != "" && !pathExists(projectPath) {
-		return fmt.Errorf("claimed project path does not exist: %s", projectPath)
-	}
-
-	seenPaths := map[string]bool{}
-	pathsToCheck := []string{}
-	addPath := func(candidate string) {
-		candidate = strings.TrimSpace(candidate)
-		if candidate == "" || seenPaths[candidate] {
-			return
-		}
-		seenPaths[candidate] = true
-		pathsToCheck = append(pathsToCheck, candidate)
-	}
-
-	for _, candidate := range extractAbsolutePaths(content) {
-		addPath(candidate)
-	}
-
-	for _, claim := range extractBacktickClaims(content) {
-		if projectPath == "" {
-			continue
-		}
-		if strings.Contains(claim, "&&") || strings.Contains(claim, "\n") || strings.Contains(claim, " ") {
-			continue
-		}
-		if strings.HasPrefix(claim, "/") {
-			addPath(claim)
-			continue
-		}
-		if strings.HasPrefix(claim, "docs/") ||
-			strings.HasPrefix(claim, "code/") ||
-			strings.HasPrefix(claim, ".construct/") ||
-			strings.HasSuffix(claim, ".md") ||
-			strings.HasSuffix(claim, ".json") ||
-			strings.HasSuffix(claim, ".vue") ||
-			strings.HasSuffix(claim, ".css") {
-			addPath(filepath.Join(projectPath, claim))
-		}
-	}
-
-	for _, candidate := range pathsToCheck {
-		if !pathExists(candidate) {
-			return fmt.Errorf("claimed output does not exist: %s", candidate)
-		}
-	}
-
-	return nil
-}
 
 func hookTypeLabel(hookType hook.Type) string {
 	switch hookType {
@@ -688,7 +326,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "[operator] Projects root: %s\n", strings.TrimSpace(savedRoot))
 	}
 
-	vibeStore := vibe.NewStore(filepath.Join(appdir.Dir, "vibe-sessions"))
 	chatSessStore := chatsession.NewStore(appdir.Dir)
 
 	// Project context — tracked per connected Construct client instance.
@@ -1206,10 +843,13 @@ When the user asks to create, build, or manage a Construct space, use these tool
 		switch {
 		case req.Type == "agents.dispatch_stream":
 			var payload struct {
-				AgentID  string             `json:"agent_id"`
-				Task     string             `json:"task"`
-				Model    string             `json:"model,omitempty"`
-				Messages []provider.Message `json:"messages,omitempty"`
+				AgentID     string             `json:"agent_id"`
+				Task        string             `json:"task"`
+				Model       string             `json:"model,omitempty"`
+				Messages    []provider.Message `json:"messages,omitempty"`
+				SessionID   string             `json:"session_id,omitempty"`
+				ProjectPath string             `json:"project_path,omitempty"`
+				ProjectName string             `json:"project_name,omitempty"`
 			}
 			if req.Payload != nil {
 				json.Unmarshal(req.Payload, &payload)
@@ -1222,11 +862,35 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				return
 			}
 
+			// Continue from prior session — load saved messages so the model
+			// has full tool call/result history instead of a text-only summary.
+			if payload.SessionID != "" && len(payload.Messages) == 0 {
+				if prevSess, ok := run.GetSession(payload.SessionID); ok && len(prevSess.Messages) > 0 {
+					payload.Messages = append(prevSess.Messages, provider.Message{Role: "user", Content: payload.Task})
+					payload.Task = ""
+				}
+			}
+
 			agentCfg := resolveAgent(payload.AgentID)
 			if agentCfg == nil {
 				emit(transport.StreamChunk{ID: req.ID, Type: "error", Data: map[string]any{"error": "unknown agent: " + payload.AgentID}, Done: true})
 				return
 			}
+
+			// Resolve project context — prefer payload override, fall back to transport context
+			projectCtx := getProjectContext(reqCtx)
+			if payload.ProjectPath != "" {
+				projectCtx = &runner.ProjectContext{
+					RootPath: payload.ProjectPath,
+					Name:     payload.ProjectName,
+				}
+			}
+
+			fmt.Fprintf(os.Stderr, "[dispatch] agent=%s model=%s project=%s session=%s task=%s\n",
+				payload.AgentID, payload.Model,
+				func() string { if projectCtx != nil { return projectCtx.RootPath }; return "" }(),
+				payload.SessionID, truncateLog(payload.Task, 80))
+
 			emitter := stream.NewEmitter()
 
 			// Forward stream events to client — use a done channel to
@@ -1247,7 +911,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				Messages: payload.Messages,
 				Context:  getRunnerContext(reqCtx),
 				Stream:   emitter,
-				Project:  getProjectContext(reqCtx),
+				Project:  projectCtx,
 			})
 
 			// Close emitter and wait for all text events to be forwarded
@@ -1322,306 +986,6 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				"content":     result.Content,
 				"turns":       len(result.Turns),
 				"stop_reason": result.StopReason,
-			}, Done: true})
-
-		case req.Type == "ai.vibe_stream":
-			var payload struct {
-				Messages      []provider.Message `json:"messages"`
-				Model         string             `json:"model,omitempty"`
-				Source        string             `json:"source,omitempty"`
-				Goal          string             `json:"goal,omitempty"`
-				SessionID     string             `json:"session_id,omitempty"`
-				LocalData     map[string]any     `json:"local_data,omitempty"`
-				MaxIterations int                `json:"max_iterations,omitempty"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-
-			goal := strings.TrimSpace(payload.Goal)
-			if goal == "" {
-				goal = lastUserMessage(payload.Messages)
-			}
-			if goal == "" {
-				emit(transport.StreamChunk{ID: req.ID, Type: "error", Data: map[string]any{"error": "goal is required"}, Done: true})
-				return
-			}
-
-			agentCfg := resolveAgent("vibe")
-			if agentCfg == nil {
-				emit(transport.StreamChunk{ID: req.ID, Type: "error", Data: map[string]any{"error": "vibe agent not available"}, Done: true})
-				return
-			}
-
-			projectCtx := getProjectContext(reqCtx)
-			if override := projectContextFromLocalData(payload.LocalData); override != nil {
-				projectCtx = override
-				reqCtx = withProjectOverride(reqCtx, override)
-			}
-
-			runnerCtx := mergeContextMaps(getRunnerContext(reqCtx), payload.LocalData)
-			projectID := localDataProjectID(payload.LocalData)
-			source := strings.TrimSpace(payload.Source)
-			if source == "" {
-				source = "vibe"
-			}
-
-			var vibeSess *vibe.Session
-			if payload.SessionID != "" {
-				if existing, ok := vibeStore.Get(payload.SessionID); ok {
-					vibeSess = existing
-					// Resume existing session — follow-ups continue the same goal
-					vibeSess.Status = "running"
-					vibeStore.Update(vibeSess)
-				}
-			}
-			if vibeSess == nil {
-				vibeSess = vibeStore.Create(goal, projectID)
-			}
-
-			vibeSessionMu := sync.Mutex{}
-			updateVibeSession := func(mutator func(*vibe.Session)) {
-				vibeSessionMu.Lock()
-				defer vibeSessionMu.Unlock()
-				mutator(vibeSess)
-				vibeStore.Update(vibeSess)
-			}
-			appendVibeEvent := func(eventType string, data map[string]any) {
-				vibeStore.AppendEvent(vibeSess.ID, vibe.Event{
-					EventType: eventType,
-					Data:      data,
-				})
-			}
-			emitVibeSession := func() {
-				sessionData := map[string]any{
-					"session_id": vibeSess.ID,
-					"goal":       vibeSess.Goal,
-					"source":     vibeSess.Source,
-					"space":      "vibe",
-					"status":     vibeSess.Status,
-				}
-				if vibeSess.ProjectID != "" {
-					sessionData["project_id"] = vibeSess.ProjectID
-				}
-				if vibeSess.ProjectName != "" {
-					sessionData["project_name"] = vibeSess.ProjectName
-				}
-				if vibeSess.ProjectPath != "" {
-					sessionData["project_path"] = vibeSess.ProjectPath
-				}
-				if vibeSess.CurrentPhase != "" {
-					sessionData["current_phase"] = vibeSess.CurrentPhase
-				}
-				emit(transport.StreamChunk{ID: req.ID, Type: "vibe.session", Data: sessionData})
-				appendVibeEvent("vibe.session", sessionData)
-			}
-			maybeUpdateVibeProjectContext := func(data map[string]any) {
-				projectPath, projectName := inferProjectContextFromToolEventData(data)
-				if projectPath == "" {
-					return
-				}
-				changed := false
-				updateVibeSession(func(session *vibe.Session) {
-					if strings.TrimSpace(session.ProjectPath) == "" {
-						session.ProjectPath = projectPath
-						changed = true
-					}
-					if strings.TrimSpace(session.ProjectName) == "" && strings.TrimSpace(projectName) != "" {
-						session.ProjectName = projectName
-						changed = true
-					}
-					// Derive project ID from path if not set (folder name slug)
-					if strings.TrimSpace(session.ProjectID) == "" && session.ProjectPath != "" {
-						dirName := filepath.Base(session.ProjectPath)
-						if dirName != "" && dirName != "." && dirName != "/" {
-							session.ProjectID = dirName
-							changed = true
-						}
-					}
-					if changed && session.Source != "architect" {
-						session.SessionType = "new_feature"
-					}
-				})
-				if changed {
-					emitVibeSession()
-				}
-			}
-
-			updateVibeSession(func(session *vibe.Session) {
-				// Only set goal on first run, not on follow-ups
-				if session.Goal == "" {
-					session.Goal = goal
-				}
-				session.Source = source
-				if session.ProjectID == "" {
-					session.ProjectID = projectID
-				}
-				if name := localDataString(payload.LocalData, "project_name"); name != "" {
-					session.ProjectName = name
-				} else if projectCtx != nil && strings.TrimSpace(projectCtx.Name) != "" {
-					session.ProjectName = strings.TrimSpace(projectCtx.Name)
-				}
-				if path := localDataString(payload.LocalData, "project_path"); path != "" {
-					session.ProjectPath = path
-				} else if projectCtx != nil && strings.TrimSpace(projectCtx.RootPath) != "" {
-					session.ProjectPath = strings.TrimSpace(projectCtx.RootPath)
-				}
-				if session.Source == "architect" {
-					session.SessionType = "new_project"
-				} else if session.ProjectName != "" || session.ProjectPath != "" {
-					session.SessionType = "new_feature"
-				}
-				if session.AutonomyLevel == "" {
-					session.AutonomyLevel = "auto-until-checkpoint"
-				}
-				session.Status = "planning"
-				session.CurrentPhase = "implement"
-			})
-			emitVibeSession()
-
-			emitter := stream.NewEmitter()
-			events := emitter.Subscribe()
-			fwdDone := make(chan struct{})
-			assistantTextMu := sync.Mutex{}
-			assistantTextDelivered := false
-			go func() {
-				defer close(fwdDone)
-				var assistantText strings.Builder
-				flushAssistantText := func() {
-					text := strings.TrimSpace(assistantText.String())
-					assistantText.Reset()
-					if text == "" || looksLikeVibeToolDirective(text) {
-						return
-					}
-					assistantTextMu.Lock()
-					assistantTextDelivered = true
-					assistantTextMu.Unlock()
-					emit(transport.StreamChunk{ID: req.ID, Type: "stream", Data: map[string]any{"text": text}})
-				}
-				clearAssistantText := func() {
-					assistantText.Reset()
-				}
-				for ev := range events {
-					switch ev.Type {
-					case "text":
-						text, _ := ev.Data["text"].(string)
-						if strings.TrimSpace(text) == "" {
-							continue
-						}
-						assistantText.WriteString(text)
-					case "turn.start":
-						clearAssistantText()
-						turn := intValue(ev.Data["turn"])
-						maxTurns := intValue(ev.Data["max_turns"])
-						// Emit standard turn.start so frontend gets turn/maxTurns
-						emit(transport.StreamChunk{ID: req.ID, Type: "turn.start", Data: ev.Data})
-						// Also emit status for human-readable progress
-						statusMsg := vibeTurnProgressText(turn, maxTurns)
-						emit(transport.StreamChunk{ID: req.ID, Type: "status", Data: map[string]any{
-							"state": "thinking", "message": statusMsg,
-							"turn": turn, "max_turns": maxTurns,
-						}})
-						appendVibeEvent("status", map[string]any{"state": "thinking", "message": statusMsg})
-						if turn == 0 {
-							updateVibeSession(func(session *vibe.Session) {
-								session.Status = "implementing"
-								session.CurrentPhase = "implement"
-							})
-						}
-					case "status":
-						// Forward runner status events directly
-						emit(transport.StreamChunk{ID: req.ID, Type: "status", Data: ev.Data})
-					case "tool.call":
-						maybeUpdateVibeProjectContext(ev.Data)
-						// Emit standard tool.call (not tool_call)
-						emit(transport.StreamChunk{ID: req.ID, Type: "tool.call", Data: ev.Data})
-						appendVibeEvent("tool.call", ev.Data)
-					case "tool.result":
-						maybeUpdateVibeProjectContext(ev.Data)
-						// Emit standard tool.result (not tool_result)
-						emit(transport.StreamChunk{ID: req.ID, Type: "tool.result", Data: ev.Data})
-						appendVibeEvent("tool.result", ev.Data)
-					case "turn.end":
-						if nudge, _ := ev.Data["nudge"].(bool); nudge {
-							clearAssistantText()
-							continue
-						}
-						if intValue(ev.Data["tool_calls"]) > 0 {
-							clearAssistantText()
-							continue
-						}
-						flushAssistantText()
-					}
-				}
-				flushAssistantText()
-			}()
-
-			result, err := run.Run(reqCtx, &runner.RunRequest{
-				Agent:    agentCfg,
-				Task:     goal,
-				Model:    payload.Model,
-				Messages: payload.Messages,
-				Context:  runnerCtx,
-				Stream:   emitter,
-				Project:  projectCtx,
-				MaxTurns: payload.MaxIterations,
-			})
-
-			emitter.Close()
-			<-fwdDone
-
-			if err != nil {
-				updateVibeSession(func(session *vibe.Session) {
-					session.Status = "failed"
-				})
-				appendVibeEvent("session.failed", map[string]any{"error": err.Error()})
-				emit(transport.StreamChunk{ID: req.ID, Type: "error", Data: map[string]any{"error": err.Error()}, Done: true})
-				return
-			}
-
-			if validationErr := validateVibeCompletionClaims(vibeSess, result.Content); validationErr != nil {
-				updateVibeSession(func(session *vibe.Session) {
-					session.Status = "failed"
-				})
-				appendVibeEvent("session.failed", map[string]any{"error": validationErr.Error()})
-				emit(transport.StreamChunk{ID: req.ID, Type: "error", Data: map[string]any{"error": validationErr.Error()}, Done: true})
-				return
-			}
-
-			updateVibeSession(func(session *vibe.Session) {
-				session.Status = "complete"
-				session.CurrentPhase = "summarize"
-			})
-
-			assistantTextMu.Lock()
-			needsFinalSummary := !assistantTextDelivered
-			assistantTextMu.Unlock()
-			if needsFinalSummary {
-				if finalContent := strings.TrimSpace(result.Content); finalContent != "" && !looksLikeVibeToolDirective(finalContent) {
-					emit(transport.StreamChunk{ID: req.ID, Type: "stream", Data: map[string]any{"text": finalContent}})
-				}
-			}
-
-			completeData := map[string]any{
-				"status":  "completed",
-				"content": result.Content,
-				"results": []map[string]any{},
-			}
-			emit(transport.StreamChunk{ID: req.ID, Type: "orchestration.complete", Data: completeData})
-			appendVibeEvent("orchestration.complete", completeData)
-			appendVibeEvent("session.completed", map[string]any{"content": result.Content})
-
-			emit(transport.StreamChunk{ID: req.ID, Type: "done", Data: map[string]any{
-				"agent_id":          result.AgentID,
-				"session_id":        vibeSess.ID,
-				"runner_session_id": result.SessionID,
-				"content":           result.Content,
-				"turns":             len(result.Turns),
-				"stop_reason":       result.StopReason,
-				"usage": map[string]any{
-					"input_tokens":  result.Usage.InputTokens,
-					"output_tokens": result.Usage.OutputTokens,
-				},
 			}, Done: true})
 
 		default:
@@ -1707,10 +1071,11 @@ When the user asks to create, build, or manage a Construct space, use these tool
 		case req.Type == "agents.dispatch" || req.Type == "agents.dispatch_stream":
 			// Handle both sync and stream dispatch (stream falls back to sync here)
 			var payload struct {
-				AgentID  string             `json:"agent_id"`
-				Task     string             `json:"task"`
-				Model    string             `json:"model,omitempty"`
-				Messages []provider.Message `json:"messages,omitempty"`
+				AgentID   string             `json:"agent_id"`
+				Task      string             `json:"task"`
+				Model     string             `json:"model,omitempty"`
+				Messages  []provider.Message `json:"messages,omitempty"`
+				SessionID string             `json:"session_id,omitempty"`
 			}
 			if req.Payload != nil {
 				json.Unmarshal(req.Payload, &payload)
@@ -1720,6 +1085,13 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			}
 			if payload.Task == "" {
 				return transport.Response{ID: req.ID, Success: false, Error: "task is required"}
+			}
+
+			if payload.SessionID != "" && len(payload.Messages) == 0 {
+				if prevSess, ok := run.GetSession(payload.SessionID); ok && len(prevSess.Messages) > 0 {
+					payload.Messages = append(prevSess.Messages, provider.Message{Role: "user", Content: payload.Task})
+					payload.Task = ""
+				}
 			}
 
 			agentCfg := resolveAgent(payload.AgentID)
@@ -3579,71 +2951,6 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			req.Type == "system.check_update",
 			req.Type == "system.apply_update":
 			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{}}
-
-		case req.Type == "vibe.session.list":
-			var payload struct {
-				ProjectID   string `json:"project_id"`
-				ProjectPath string `json:"project_path"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			sessions := vibeStore.ListByIDOrPath(payload.ProjectID, payload.ProjectPath)
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"sessions": sessions}}
-
-		case req.Type == "vibe.session.get":
-			var payload struct {
-				SessionID string `json:"session_id"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			sess, ok := vibeStore.Get(payload.SessionID)
-			if !ok {
-				return transport.Response{ID: req.ID, Success: false, Error: "session not found"}
-			}
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{
-				"session":     sess,
-				"events":      sess.Events,
-				"checkpoints": sess.Checkpoints,
-			}}
-
-		case req.Type == "vibe.session.delete":
-			var payload struct {
-				SessionID string `json:"session_id"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			if payload.SessionID == "" {
-				return transport.Response{ID: req.ID, Success: false, Error: "session_id required"}
-			}
-			if err := vibeStore.Delete(payload.SessionID); err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-			return transport.Response{ID: req.ID, Success: true}
-
-		case req.Type == "vibe.session.create":
-			var payload struct {
-				Goal      string `json:"goal"`
-				ProjectID string `json:"project_id"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			sess := vibeStore.Create(payload.Goal, payload.ProjectID)
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"session": sess}}
-
-		case req.Type == "vibe.session.update":
-			var sess vibe.Session
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &sess)
-			}
-			if sess.ID == "" {
-				return transport.Response{ID: req.ID, Success: false, Error: "session id required"}
-			}
-			vibeStore.Update(&sess)
-			return transport.Response{ID: req.ID, Success: true}
 
 		// --- Chat Session Persistence ---
 

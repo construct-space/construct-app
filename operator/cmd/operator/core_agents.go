@@ -19,7 +19,7 @@ func coreAgents() []*agent.Config {
 	return []*agent.Config{
 		brainstormAgent(),
 		architectAgent(),
-		vibeAgent(),
+		coderAgent(),
 		projectAgent(),
 		spaceAgent(),
 	}

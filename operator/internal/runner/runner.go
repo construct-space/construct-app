@@ -48,6 +48,13 @@ type Runner struct {
 	agentResolver AgentResolver
 }
 
+const (
+	maxToolResultContextChars  = 1200
+	toolResultContextHeadChars = 700
+	toolResultContextTailChars = 260
+	stuckLoopStopReason        = "stuck_loop"
+)
+
 // New creates a Runner with all dependencies injected.
 func New(opts ...Option) *Runner {
 	r := &Runner{
@@ -143,6 +150,23 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 		req.Stream.Emit(stream.Event{Type: "session.start", Data: map[string]any{
 			"session_id": sess.ID, "agent_id": req.Agent.ID, "model": model,
 		}})
+	}
+
+	// Log session start to project directory
+	if req.Project != nil && req.Project.RootPath != "" {
+		task := req.Task
+		if task == "" && len(req.Messages) > 0 {
+			for i := len(req.Messages) - 1; i >= 0; i-- {
+				if strings.EqualFold(req.Messages[i].Role, "user") {
+					task = req.Messages[i].Content
+					break
+				}
+			}
+		}
+		if len(task) > 200 {
+			task = task[:200] + "..."
+		}
+		appendProjectLog(req.Project.RootPath, req.Agent, fmt.Sprintf("session start | model=%s | task: %s", model, task))
 	}
 
 	// Build system prompt with project context
@@ -248,6 +272,24 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 	}
 
 	for turn := 0; turn < maxTurns; turn++ {
+		// Stop if the caller cancelled (e.g. frontend disconnected)
+		if ctx.Err() != nil {
+			sess.SetError("cancelled")
+			sess.Messages = messages
+			r.sessions.Save(sess)
+			if req.Project != nil && req.Project.RootPath != "" {
+				appendProjectLog(req.Project.RootPath, req.Agent, "cancelled — client disconnected")
+			}
+			return &agent.RunResult{
+				AgentID:    req.Agent.ID,
+				SessionID:  sess.ID,
+				Content:    "cancelled",
+				Turns:      turns,
+				Usage:      totalUsage,
+				StopReason: "cancelled",
+			}, nil
+		}
+
 		if req.Stream != nil {
 			req.Stream.Emit(stream.Event{Type: "turn.start", Data: map[string]any{
 				"turn": turn, "max_turns": maxTurns,
@@ -264,6 +306,9 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 			Messages: messages,
 			Tools:    toolDefs,
 			System:   system,
+		}
+		if requiresInitialToolUse(req.Agent) && !hasUsedTools && len(toolDefs) > 0 {
+			provReq.ToolChoice = "required"
 		}
 		if req.Agent.Temperature != nil {
 			provReq.Temperature = req.Agent.Temperature
@@ -305,12 +350,38 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 				resp.Content = ""
 			}
 		}
+		if len(resp.ToolCalls) > 0 && (resp.StopReason == "" || resp.StopReason == "end_turn") {
+			resp.StopReason = "tool_use"
+		}
 
 		totalUsage.InputTokens += resp.Usage.InputTokens
 		totalUsage.OutputTokens += resp.Usage.OutputTokens
 
-		fmt.Fprintf(os.Stderr, "[runner] turn %d: stop=%s, tool_calls=%d, content_len=%d, tools_sent=%d\n",
-			turn, resp.StopReason, len(resp.ToolCalls), len(resp.Content), len(toolDefs))
+		// Log model text if present
+		if text := strings.TrimSpace(resp.Content); text != "" && req.Project != nil && req.Project.RootPath != "" {
+			if len(text) > 300 {
+				text = text[:300] + "..."
+			}
+			appendProjectLog(req.Project.RootPath, req.Agent, ">>> "+text)
+		}
+
+		if len(resp.ToolCalls) > 0 {
+			names := make([]string, 0, len(resp.ToolCalls))
+			for _, tc := range resp.ToolCalls {
+				names = append(names, tc.Name)
+			}
+			logLine := fmt.Sprintf("turn %d: %s", turn, strings.Join(names, ", "))
+			fmt.Fprintln(os.Stderr, "[runner] "+logLine)
+			if req.Project != nil && req.Project.RootPath != "" {
+				appendProjectLog(req.Project.RootPath, req.Agent, logLine)
+			}
+		} else if resp.StopReason != "" {
+			logLine := fmt.Sprintf("turn %d: %s", turn, resp.StopReason)
+			fmt.Fprintln(os.Stderr, "[runner] "+logLine)
+			if req.Project != nil && req.Project.RootPath != "" {
+				appendProjectLog(req.Project.RootPath, req.Agent, logLine)
+			}
+		}
 
 		// Log raw response
 		logConversation(req.Agent, turn, "response", provReq, resp)
@@ -435,9 +506,10 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 				})
 			}
 			thisTurn.ToolCalls = append(thisTurn.ToolCalls, exec)
+			modelResult := compactToolResultForModelContext(exec.Result)
 			messages = append(messages, provider.Message{
 				Role:       "tool",
-				ToolResult: &exec.Result,
+				ToolResult: &modelResult,
 			})
 		}
 		hadToolErrorLastTurn = false
@@ -450,6 +522,34 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 
 		turns = append(turns, thisTurn)
 		sess.AddTurn()
+
+		if isStuckInLoop(turns) {
+			content := stuckLoopMessage(req.Agent)
+			messages = append(messages, provider.Message{
+				Role:    "assistant",
+				Content: content,
+			})
+			if req.Stream != nil {
+				req.Stream.Emit(stream.Event{Type: "turn.end", Data: map[string]any{
+					"turn": turn, "tool_calls": len(resp.ToolCalls),
+				}})
+			}
+			emitStatus(req.Stream, stream.StatusComplete, "Stopped repetitive tool loop", map[string]any{
+				"turns":       len(turns),
+				"stop_reason": stuckLoopStopReason,
+			})
+			sess.Complete()
+			sess.Messages = messages
+			r.sessions.Save(sess)
+			return &agent.RunResult{
+				AgentID:    req.Agent.ID,
+				SessionID:  sess.ID,
+				Content:    content,
+				Turns:      turns,
+				Usage:      totalUsage,
+				StopReason: stuckLoopStopReason,
+			}, nil
+		}
 
 		if req.Stream != nil {
 			req.Stream.Emit(stream.Event{Type: "turn.end", Data: map[string]any{
@@ -560,6 +660,52 @@ func truncateForCompare(s string, max int) string {
 		return s
 	}
 	return s[:max]
+}
+
+func compactToolResultForModelContext(result provider.ToolResult) provider.ToolResult {
+	compacted := result
+	compacted.Content = compactTextForModelContext(result.Content)
+	return compacted
+}
+
+func compactTextForModelContext(content string) string {
+	if len(content) <= maxToolResultContextChars {
+		return content
+	}
+
+	headChars := toolResultContextHeadChars
+	tailChars := toolResultContextTailChars
+	if headChars > len(content) {
+		headChars = len(content)
+	}
+	if tailChars > len(content)-headChars {
+		tailChars = len(content) - headChars
+	}
+	if tailChars < 0 {
+		tailChars = 0
+	}
+
+	truncatedChars := len(content) - headChars - tailChars
+	if truncatedChars < 0 {
+		truncatedChars = 0
+	}
+
+	head := content[:headChars]
+	tail := ""
+	if tailChars > 0 {
+		tail = content[len(content)-tailChars:]
+	}
+	return head + fmt.Sprintf("\n\n...[truncated %d chars for model context]...\n\n", truncatedChars) + tail
+}
+
+func stuckLoopMessage(agentCfg *agent.Config) string {
+	if agentCfg != nil {
+		switch strings.TrimSpace(strings.ToLower(agentCfg.ID)) {
+		case "vibe", "space:vibe":
+			return "Stopped after repeated identical tool calls without making progress. Start a fresh run and follow the docs first, especially docs/goals and docs/construct-context when they exist."
+		}
+	}
+	return "Stopped after repeated identical tool calls without making progress."
 }
 
 func shouldRetryForToolUse(agentTools []*tool.Tool, content string) bool {
@@ -1371,6 +1517,11 @@ func toolTitle(name, input string) string {
 func (r *Runner) executeSingleTool(ctx context.Context, req *RunRequest, tc provider.ToolCall) agent.ToolExecution {
 	exec := agent.ToolExecution{Call: tc}
 
+	// Log tool call to project log file
+	if req.Project != nil && req.Project.RootPath != "" {
+		logToolCall(req.Project.RootPath, req.Agent, tc)
+	}
+
 	// Pre-hooks
 	if hookResult, err := r.hooks.RunPre(ctx, tc.Name, tc.Input); err == nil && hookResult != nil {
 		exec.Hooks = append(exec.Hooks, *hookResult)
@@ -1543,7 +1694,17 @@ func (r *Runner) resolveProvider(model string) (provider.Provider, string, error
 			}
 			return nil, "", fmt.Errorf("provider %q does not support model %q", providerID, modelName)
 		}
-		// Provider not registered — don't silently fallback to a different provider
+		// Some model IDs include ":" as part of the raw model name
+		// (for example OpenRouter free-tier suffixes like ":free").
+		// If the provider prefix is unknown, treat the whole string as a
+		// bare model ID before surfacing a registration error.
+		for _, p := range r.providers {
+			for _, m := range p.Models() {
+				if m == model {
+					return p, model, nil
+				}
+			}
+		}
 		return nil, "", fmt.Errorf("provider %q not registered (need to authenticate?)", providerID)
 	}
 
@@ -1619,7 +1780,7 @@ func (r *Runner) streamCall(ctx context.Context, p provider.Provider, req *provi
 		case "text_delta":
 			fullContent += event.Text
 			emitter.Emit(stream.Event{Type: "text", Data: map[string]any{"text": event.Text}})
-		case "tool_call_start", "tool_call_delta":
+		case "tool_call_start", "tool_call_delta", "tool_call_done":
 			if event.ToolCall != nil {
 				toolCalls = append(toolCalls, *event.ToolCall)
 			}
@@ -1631,12 +1792,27 @@ func (r *Runner) streamCall(ctx context.Context, p provider.Provider, req *provi
 	}
 
 	if finalResp != nil {
+		if finalResp.Content == "" && fullContent != "" {
+			finalResp.Content = fullContent
+		}
+		if len(finalResp.ToolCalls) == 0 && len(toolCalls) > 0 {
+			finalResp.ToolCalls = toolCalls
+		}
+		if len(finalResp.ToolCalls) > 0 && (finalResp.StopReason == "" || finalResp.StopReason == "end_turn") {
+			finalResp.StopReason = "tool_use"
+		}
 		return finalResp, nil
 	}
 
 	return &provider.Response{
 		Content:   fullContent,
 		ToolCalls: toolCalls,
+		StopReason: func() string {
+			if len(toolCalls) > 0 {
+				return "tool_use"
+			}
+			return "end_turn"
+		}(),
 	}, nil
 }
 
@@ -1698,6 +1874,60 @@ func (r *Runner) ListSessions() []*session.Session {
 // GetSession returns a session by ID.
 func (r *Runner) GetSession(id string) (*session.Session, bool) {
 	return r.sessions.Get(id)
+}
+
+// ─── Project-level logging ───
+// Writes a human-readable log to {project_root}/.construct/coder.log
+// so the user can monitor and review the full agent session.
+
+var projectLogMu sync.Mutex
+
+func projectLogPath(projectRoot string) string {
+	dir := filepath.Join(projectRoot, ".construct")
+	os.MkdirAll(dir, 0755)
+	return filepath.Join(dir, "coder.log")
+}
+
+func appendProjectLog(projectRoot string, agentCfg *agent.Config, line string) {
+	agentID := "agent"
+	if agentCfg != nil {
+		agentID = agentCfg.ID
+	}
+	ts := time.Now().Format("15:04:05")
+	entry := fmt.Sprintf("[%s] [%s] %s\n", ts, agentID, line)
+
+	projectLogMu.Lock()
+	defer projectLogMu.Unlock()
+	f, err := os.OpenFile(projectLogPath(projectRoot), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	f.WriteString(entry)
+}
+
+func logToolCall(projectRoot string, agentCfg *agent.Config, tc provider.ToolCall) {
+	// Extract primary arg for readable logging
+	arg := ""
+	if tc.Input != "" {
+		var parsed map[string]any
+		if json.Unmarshal([]byte(tc.Input), &parsed) == nil {
+			for _, key := range []string{"path", "pattern", "command", "agent_id"} {
+				if v, ok := parsed[key].(string); ok && v != "" {
+					arg = v
+					break
+				}
+			}
+		}
+	}
+	line := tc.Name
+	if arg != "" {
+		if len(arg) > 120 {
+			arg = arg[:120] + "..."
+		}
+		line += "(" + arg + ")"
+	}
+	appendProjectLog(projectRoot, agentCfg, line)
 }
 
 // conversationLogger groups logs by session into a single JSONL file.

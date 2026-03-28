@@ -82,12 +82,6 @@ async function activateProjectMode(project: { id: string | number; name: string;
 
   const projectSpaces = getProjectSpaces(spaces.value, project.spaces)
   const items = [
-    {
-      id: 'vibe',
-      label: 'Vibe',
-      icon: 'i-lucide-zap',
-      route: `/app/projects/${projectId()}/vibe`,
-    },
     ...projectSpaces.map(s => ({
       id: s.name,
       label: s.displayName || s.name,

@@ -4,7 +4,7 @@
  *
  * Renders Turn[] as request bubbles + response blocks.
  * Auto-scrolls on new content. Shows status at bottom.
- * Used by AssistantPanel, Vibe, and any space embedding AI.
+ * Used by AssistantPanel, Coder, and any space embedding AI.
  */
 import { ref, computed, watch, nextTick } from 'vue'
 import type { Turn } from '@/operator/useAgentSession'

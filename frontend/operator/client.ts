@@ -92,61 +92,6 @@ async function send<T = Record<string, unknown>>(
   }
 }
 
-// ─── Auto-forward tokens on connect ───
-// Silently push Claude Code keychain + Codex tokens to operator so auth persists across restarts
-type InvokeFn = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>
-let tokenForwardDone = false
-let lastTokenForwardMs = 0
-
-async function autoForwardTokens(invoke: InvokeFn) {
-  const now = Date.now()
-  // Always forward on first call; after that, re-forward every 30 minutes
-  // to pick up rotated refresh tokens from Claude Code
-  if (tokenForwardDone && now - lastTokenForwardMs < 30 * 60 * 1000) return
-  tokenForwardDone = true
-  lastTokenForwardMs = now
-
-  // Always push fresh tokens from Claude Code keychain (tokens rotate)
-  try {
-    const tokens = await invoke<{ access_token: string; refresh_token?: string; expires_in?: number }>('oauth_read_keychain')
-    if (tokens?.access_token) {
-      await invoke('send_context_request', {
-        requestType: 'auth.anthropic.set_tokens',
-        payload: {
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token || '',
-          expires_in: tokens.expires_in || 3600,
-        },
-      })
-    }
-  } catch { /* no keychain tokens */ }
-
-  // Check if OpenAI is already authenticated
-  try {
-    const status = await invoke<{ authenticated?: boolean }>('send_context_request', {
-      requestType: 'auth.openai.status',
-      payload: {},
-    })
-    if (!status?.authenticated) {
-      // Try Codex tokens (routes through chatgpt.com backend, not api.openai.com)
-      try {
-        const tokens = await invoke<{ access_token: string; refresh_token?: string; account_id?: string }>('codex_read_tokens')
-        if (tokens?.access_token) {
-          await invoke('send_context_request', {
-            requestType: 'auth.openai.set_tokens',
-            payload: {
-              access_token: tokens.access_token,
-              refresh_token: tokens.refresh_token || '',
-              account_id: tokens.account_id || '',
-            },
-          })
-          console.log('[operator] Auto-forwarded Codex tokens (chatgpt.com backend)')
-        }
-      } catch { /* no codex tokens */ }
-    }
-  } catch { /* operator not ready */ }
-}
-
 // ─── Composable ───
 
 export function useOperator() {
@@ -157,7 +102,6 @@ export function useOperator() {
     if (connected.value) return true
     connecting.value = true
     error.value = null
-    tokenForwardDone = false // reset so tokens are re-forwarded on reconnect
 
     try {
       // Trigger Tauri to start/connect to operator
@@ -168,10 +112,6 @@ export function useOperator() {
       if (result.status === 'ok') {
         connected.value = true
         version.value = result.version
-
-        // Auto-forward keychain/Codex tokens to operator (silent, best-effort)
-        autoForwardTokens(invoke).catch(() => {})
-
         return true
       }
       return false
@@ -196,7 +136,7 @@ export function useOperator() {
     }
 
     if (!connected.value) {
-      await connect()
+      return { providers: [], default: '', defaultProvider: '', defaultModel: '' }
     }
 
     const { invoke } = await import('@tauri-apps/api/core')
@@ -366,6 +306,7 @@ export function useOperator() {
     options?: {
       projectPath?: string
       projectName?: string
+      sessionId?: string
     },
     onStart?: (requestId: string) => void,
   ): Promise<() => void> {
@@ -377,6 +318,7 @@ export function useOperator() {
         ...(model ? { model } : {}),
         ...(options?.projectPath ? { project_path: options.projectPath } : {}),
         ...(options?.projectName ? { project_name: options.projectName } : {}),
+        ...(options?.sessionId ? { session_id: options.sessionId } : {}),
       },
       onChunk,
       (data) => onDone?.(data as unknown as DispatchResult),
@@ -452,12 +394,7 @@ export function useOperator() {
     setComponent,
 
     // Auth
-    refreshTokens: async () => {
-      if (!isTauri.value) return
-      lastTokenForwardMs = 0 // force re-forward
-      const { invoke } = await import('@tauri-apps/api/core')
-      await autoForwardTokens(invoke as InvokeFn)
-    },
+    refreshTokens: async () => {},
 
     // Raw access (replaces sendRequest)
     send,

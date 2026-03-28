@@ -1,0 +1,7 @@
+{
+  "id": "coder",
+  "name": "Coder",
+  "description": "Autonomous coding agent",
+  "icon": "lucide:terminal",
+  "version": "1.0.0"
+}

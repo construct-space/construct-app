@@ -38,9 +38,13 @@ const MODEL_LABELS: Record<string, string> = {
   'glm-5': 'GLM-5',
   'gpt-5-mini': 'GPT-5 Mini',
   'gpt-5.4': 'GPT-5.4',
+  'gpt-5.4-mini': 'GPT-5.4 Mini',
   'gpt-5.3-codex': 'GPT-5.3 Codex',
+  'gpt-5.3-codex-spark': 'GPT-5.3 Codex Spark',
   'gpt-5.2-codex': 'GPT-5.2 Codex',
+  'gpt-5.2': 'GPT-5.2',
   'gpt-5.1-codex': 'GPT-5.1 Codex',
+  'gpt-5.1-codex-max': 'GPT-5.1 Codex Max',
   'gpt-5.1-codex-mini': 'GPT-5.1 Codex Mini',
   'gpt-4.1': 'GPT-4.1',
   'gpt-4.1-mini': 'GPT-4.1 Mini',
@@ -128,16 +132,15 @@ const defaultModelSubtext = computed(() => {
   if (hasExplicitDefaultModel.value) {
     return 'This saved default requires an active provider connection. Connect the provider, then choose a new default.'
   }
-  return 'Pick one model to make it the default for Vibe, Architect, and Assistant.'
+  return 'Pick one model to make it the default for Coder, Architect, and Assistant.'
 })
 
 const capabilityFilter = ref<string | null>(null)
 
 const availableModelGroups = computed(() =>
   modelsByProvider.value
-    .filter(group => group.models.length > 0)
+    .filter(group => group.provider.active !== false && group.models.length > 0)
     .map(group => {
-      const active = group.provider.active !== false
       const models = group.models.map(model => ({
         ...model,
         displayLabel: formatModelLabel(model.label),
@@ -145,7 +148,7 @@ const availableModelGroups = computed(() =>
       }))
       return {
         ...group,
-        active,
+        active: true,
         displayLabel: formatProviderLabel(group.provider.label || group.provider.id),
         authDisplayLabel: authLabel(group.authType),
         description: providerDescription(group.authType),
@@ -159,7 +162,7 @@ const availableModelGroups = computed(() =>
 
 const accordionItems = computed(() =>
   availableModelGroups.value.map(group => ({
-    label: `${group.displayLabel}  ·  ${group.models.length} model${group.models.length === 1 ? '' : 's'}${!group.active ? '  ·  Not connected' : ''}`,
+    label: `${group.displayLabel}  ·  ${group.models.length} model${group.models.length === 1 ? '' : 's'}`,
     value: group.provider.id,
     slot: group.provider.id,
   })),
@@ -227,6 +230,11 @@ const deviceCode = ref<{ provider: string; code: string; url: string } | null>(n
 const ghCheck = ref<{ username: string; token: string } | null>(null)
 let devicePollTimer: ReturnType<typeof setTimeout> | null = null
 
+async function ensureOperatorConnected() {
+  if (!operator.isTauri.value || operator.connected.value) return
+  await operator.connect()
+}
+
 async function refreshOAuthProviders() {
   try {
     const result = await operator.send('oauth.providers', {}) as {
@@ -265,6 +273,8 @@ async function startOAuthLogin(providerId: string) {
   oauthLoading.value[providerId] = true
   let keepLoading = false
   try {
+    await ensureOperatorConnected()
+
     // GitHub Copilot: check for existing gh CLI auth first
     if (providerId === 'github-copilot') {
       try {
@@ -295,7 +305,7 @@ async function startOAuthLogin(providerId: string) {
       const provider = oauthProviders.find(entry => entry.id === providerId)
       await refreshOAuthProviders()
       toast.add({ title: `${provider?.name || providerId} connected`, color: 'success' })
-      await loadProviders()
+      await loadProviders(5, providerId)
     }
   } catch (e) {
     deviceCode.value = null
@@ -311,10 +321,11 @@ async function acceptGhAuth() {
   if (!ghCheck.value) return
   oauthLoading.value['github-copilot'] = true
   try {
+    await ensureOperatorConnected()
     const result = await operator.send('oauth.gh-use-token', { token: ghCheck.value.token })
     if (result?.success) {
       await refreshOAuthProviders()
-      await loadProviders()
+      await loadProviders(5, 'github-copilot')
       toast.add({ title: 'GitHub Copilot connected', color: 'success' })
     }
   } catch (e) {
@@ -334,6 +345,7 @@ async function declineGhAuth() {
 
 async function startDeviceCodeFlow(providerId: string) {
   try {
+    await ensureOperatorConnected()
     toast.add({ title: 'Starting device code flow...', color: 'info' })
     const result = await operator.send('oauth.login', { provider: providerId })
 
@@ -361,7 +373,7 @@ async function pollDeviceCode(providerId: string) {
     if (result?.success) {
       const provider = oauthProviders.find(entry => entry.id === providerId)
       await refreshOAuthProviders()
-      await loadProviders()
+      await loadProviders(5, providerId)
       toast.add({ title: `${provider?.name || providerId} connected`, color: 'success' })
     }
   } catch (e) {
@@ -392,7 +404,7 @@ async function pollOAuthFlow(providerId: string) {
     if (result?.success) {
       const provider = oauthProviders.find(entry => entry.id === providerId)
       await refreshOAuthProviders()
-      await loadProviders()
+      await loadProviders(5, providerId)
       toast.add({ title: `${provider?.name || providerId} connected`, color: 'success' })
     }
   } catch (e) {
@@ -402,7 +414,7 @@ async function pollOAuthFlow(providerId: string) {
     await refreshOAuthProviders()
     const provider = oauthProviders.find(entry => entry.id === providerId)
     if (provider?.connected) {
-      await loadProviders()
+      await loadProviders(5, providerId)
       toast.add({ title: `${provider.name} connected`, color: 'success' })
     } else {
       const msg = e instanceof Error ? e.message : String(e)
@@ -437,7 +449,7 @@ async function disconnectOAuthProvider(providerId: string) {
   try {
     await operator.send('oauth.logout', { provider: providerId })
     await refreshOAuthProviders()
-    await loadProviders()
+    await loadProviders(5, providerId)
     const provider = oauthProviders.find(entry => entry.id === providerId)
     toast.add({ title: `${provider?.name || providerId} disconnected`, color: 'info' })
   } catch (e) {
@@ -479,7 +491,7 @@ async function saveKey(provider: ProviderKeyConfig) {
     toast.add({ title: `${provider.name} API key saved`, color: 'success' })
 
     // Refresh models list so new provider's models appear immediately
-    await loadProviders()
+    await loadProviders(5, provider.id)
   } catch {
     toast.add({ title: `Failed to save ${provider.name} key`, color: 'error' })
   } finally {
@@ -496,7 +508,7 @@ async function clearKey(provider: ProviderKeyConfig) {
     toast.add({ title: `${provider.name} key cleared`, color: 'info' })
 
     // Refresh models list so removed provider's models disappear
-    await loadProviders()
+    await loadProviders(5, provider.id)
   } catch {
     toast.add({ title: `Failed to clear ${provider.name} key`, color: 'error' })
   }
@@ -525,6 +537,8 @@ onMounted(async () => {
     if (route.query.connect === 'oauth' || route.query.connect === 'openai') {
       activeTab.value = 'auth'
     }
+    await ensureOperatorConnected()
+    await loadProviders()
     await refreshOAuthProviders()
     await loadKeys()
   } catch {
@@ -605,27 +619,15 @@ onMounted(async () => {
             <template #body="{ item }">
               <div class="px-4 pb-2">
                 <template v-for="group in [availableModelGroups.find(g => g.provider.id === item.value)]" :key="item.value">
-                  <!-- Not connected banner -->
-                  <div v-if="group && !group.active"
-                    class="mb-2 px-2 py-1.5 rounded-md bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] text-[11px] text-[var(--app-muted)] flex items-center justify-between">
-                    <span>Not connected — add API key or login to use these models</span>
-                    <button class="text-[var(--app-accent)] hover:underline ml-2"
-                      @click="activeTab = group.authType === 'oauth' ? 'auth' : 'providers'">
-                      Connect
-                    </button>
-                  </div>
                   <button v-for="model in group?.models || []"
                     :key="model.compositeId"
-                    :disabled="!group?.active"
                     class="flex items-center justify-between w-full px-2 py-1.5 rounded-md text-left transition-colors"
                     :class="[
-                      !group?.active
-                        ? 'opacity-40 cursor-not-allowed'
-                        : resolvedDefaultModelId === model.compositeId
-                          ? 'bg-[var(--app-accent)]/10 text-[var(--app-foreground)] cursor-pointer'
-                          : 'text-[var(--app-muted)] hover:bg-[var(--app-background)] hover:text-[var(--app-foreground)] cursor-pointer'
+                      resolvedDefaultModelId === model.compositeId
+                        ? 'bg-[var(--app-accent)]/10 text-[var(--app-foreground)] cursor-pointer'
+                        : 'text-[var(--app-muted)] hover:bg-[var(--app-background)] hover:text-[var(--app-foreground)] cursor-pointer'
                     ]"
-                    @click="group?.active && setDefaultModel(model.compositeId)">
+                    @click="setDefaultModel(model.compositeId)">
                     <div class="flex items-center gap-2 min-w-0">
                       <span class="text-sm truncate">{{ model.displayLabel }}</span>
                       <span v-if="model.capabilities?.length" class="flex gap-0.5 shrink-0">

@@ -8,7 +8,7 @@
 import type { SpaceConfig } from '@/composables/useSpaces'
 
 /** IDs of spaces that are bundled into the app */
-export const BUILTIN_SPACE_IDS = ['vibe', 'architect', 'projects']
+export const BUILTIN_SPACE_IDS = ['architect', 'projects']
 
 /** @deprecated Use BUILTIN_SPACE_IDS instead */
 export const builtinSpaces: SpaceConfig[] = []

@@ -15,7 +15,7 @@ import type { LoadedSpace, SpaceManifest } from './SpaceLoader'
 
 // Page components
 import BrainstormPage from '@/spaces/brainstorm/pages/BrainstormPage.vue'
-import VibePage from '@/spaces/vibe/pages/VibePage.vue'
+import CoderPage from '@/spaces/coder/pages/CoderPage.vue'
 import ArchitectPage from '@/spaces/architect/pages/ArchitectPage.vue'
 import ProjectsPage from '@/spaces/project/pages/ProjectsPage.vue'
 import ProjectDetailPage from '@/spaces/project/pages/ProjectDetailPage.vue'
@@ -23,11 +23,6 @@ import ProjectDetailPage from '@/spaces/project/pages/ProjectDetailPage.vue'
 // Widget components — brainstorm
 import QuickChat4x2 from '@/spaces/brainstorm/widgets/QuickChat4x2.vue'
 import QuickChat2x1 from '@/spaces/brainstorm/widgets/QuickChat2x1.vue'
-
-// Widget components — vibe
-import QuickVibe1x1 from '@/spaces/vibe/widgets/QuickVibe1x1.vue'
-import QuickVibe4x1 from '@/spaces/vibe/widgets/QuickVibe4x1.vue'
-import QuickVibe2x1 from '@/spaces/vibe/widgets/QuickVibe2x1.vue'
 
 // Widget components — architect
 import QuickArchitect1x1 from '@/spaces/architect/widgets/QuickArchitect1x1.vue'
@@ -43,7 +38,7 @@ import ProjectStats4x2 from '@/spaces/project/widgets/ProjectStats4x2.vue'
 
 // Manifests
 import brainstormManifest from '@/spaces/brainstorm/manifest.json'
-import vibeManifest from '@/spaces/vibe/manifest.json'
+import coderManifest from '@/spaces/coder/manifest.json'
 import architectManifest from '@/spaces/architect/manifest.json'
 import projectManifest from '@/spaces/project/manifest.json'
 
@@ -60,17 +55,11 @@ const CORE_SPACES: Record<string, LoadedSpace> = {
     },
     cssInjected: false,
   },
-  vibe: {
-    id: 'vibe',
-    manifest: vibeManifest as unknown as SpaceManifest,
-    pages: { '': VibePage },
-    widgets: {
-      'quick-vibe': {
-        '1x1': QuickVibe1x1,
-        '2x1': QuickVibe2x1,
-        '4x1': QuickVibe4x1,
-      },
-    },
+  coder: {
+    id: 'coder',
+    manifest: coderManifest as unknown as SpaceManifest,
+    pages: { '': CoderPage },
+    widgets: {},
     cssInjected: false,
   },
   architect: {

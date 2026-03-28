@@ -150,10 +150,10 @@ function getExtLabel(ext: string): string {
         </button>
         <button
           class="inline-flex items-center gap-2 rounded-full border border-[var(--app-border)] px-4 py-2 text-sm font-medium text-[var(--app-foreground)] transition-colors hover:border-amber-400/40 hover:bg-amber-400/10"
-          @click="enterSpace('vibe')"
+          @click="enterSpace('coder')"
         >
           <Zap class="size-4 text-amber-400" />
-          Open Vibe
+          Open Coder
         </button>
         <button
           class="inline-flex items-center gap-2 rounded-full border border-[var(--app-border)] px-4 py-2 text-sm font-medium text-[var(--app-foreground)] transition-colors hover:border-blue-400/40 hover:bg-blue-400/10"
