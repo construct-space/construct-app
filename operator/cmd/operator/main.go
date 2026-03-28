@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -118,12 +117,12 @@ func providerIDForSetting(settingKey string) string {
 
 func providerStatus(settings map[string]string) map[string]bool {
 	result := map[string]bool{
-		"deepseek":    strings.TrimSpace(os.Getenv("DEEPSEEK_API_KEY")) != "",
-		"mimo":        strings.TrimSpace(os.Getenv("MIMO_API_KEY")) != "",
-		"xai":         strings.TrimSpace(os.Getenv("XAI_API_KEY")) != "",
-		"zai":         strings.TrimSpace(os.Getenv("ZAI_API_KEY")) != "",
-		"openrouter":  strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")) != "",
-		"kimi":        false,
+		"deepseek":   strings.TrimSpace(os.Getenv("DEEPSEEK_API_KEY")) != "",
+		"mimo":       strings.TrimSpace(os.Getenv("MIMO_API_KEY")) != "",
+		"xai":        strings.TrimSpace(os.Getenv("XAI_API_KEY")) != "",
+		"zai":        strings.TrimSpace(os.Getenv("ZAI_API_KEY")) != "",
+		"openrouter": strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")) != "",
+		"kimi":       false,
 	}
 	for key, value := range settings {
 		if !strings.HasPrefix(key, "provider_key:") {
@@ -203,15 +202,6 @@ func lastUserMessage(messages []provider.Message) string {
 	}
 	return ""
 }
-
-
-
-
-
-
-
-
-
 
 func hookTypeLabel(hookType hook.Type) string {
 	switch hookType {
@@ -301,90 +291,64 @@ func main() {
 	if workDir == "" {
 		workDir, _ = os.Getwd()
 	}
+	opRuntime := newOperatorRuntime(workDir)
 
 	// Initialize data directory (~/Library/Application Support/Construct/)
 	appdir.Init(isDev)
 
 	// Desktop bridge client (operator → Tauri reverse bridge)
 	// Token is passed via env by Tauri when spawning operator.
-	var bridge *desktop.Client
 	if token := os.Getenv("CONSTRUCT_BRIDGE_TOKEN"); token != "" {
-		bridge = desktop.NewClient(token)
-		space.Bridge = bridge // Make bridge available to space tools
+		opRuntime.bridge = desktop.NewClient(token)
+		space.Bridge = opRuntime.bridge // Make bridge available to space tools
 		fmt.Fprintf(os.Stderr, "[operator] desktop bridge: enabled (token len=%d)\n", len(token))
 	} else {
 		fmt.Fprintf(os.Stderr, "[operator] desktop bridge: disabled (no CONSTRUCT_BRIDGE_TOKEN)\n")
 	}
 
 	// Initialize session store (persistent to disk)
-	sessStore := session.NewStore(appdir.SessionsDir())
-	stateStore := state.NewStore(appdir.StateDir())
+	opRuntime.sessionStore = session.NewStore(appdir.SessionsDir())
+	opRuntime.stateStore = state.NewStore(appdir.StateDir())
 
 	// Restore projects root from settings (so hooks/agents use the user's configured path)
-	if savedRoot, ok := stateStore.SettingGet("construct_projects_root"); ok && strings.TrimSpace(savedRoot) != "" {
+	if savedRoot, ok := opRuntime.stateStore.SettingGet("construct_projects_root"); ok && strings.TrimSpace(savedRoot) != "" {
 		os.Setenv("CONSTRUCT_PROJECTS_ROOT", strings.TrimSpace(savedRoot))
 		fmt.Fprintf(os.Stderr, "[operator] Projects root: %s\n", strings.TrimSpace(savedRoot))
 	}
 
-	chatSessStore := chatsession.NewStore(appdir.Dir)
-
-	// Project context — tracked per connected Construct client instance.
-	// Defined early so tools can resolve the active project for the requesting client.
-	activeProjects := make(map[string]*runner.ProjectContext)
-	clientContexts := make(map[string]*clientContextState)
-	var projectMu sync.RWMutex
-
-	getProjectDir := func(reqCtx context.Context) string {
-		if override := projectOverrideFromContext(reqCtx); override != nil && override.RootPath != "" {
-			return override.RootPath
-		}
-		clientID := clientKey(transport.ClientIDFromContext(reqCtx))
-		projectMu.RLock()
-		defer projectMu.RUnlock()
-		if proj := activeProjects[clientID]; proj != nil && proj.RootPath != "" {
-			return proj.RootPath
-		}
-		return workDir
-	}
-
-	getProjectContext := func(reqCtx context.Context) *runner.ProjectContext {
-		if override := projectOverrideFromContext(reqCtx); override != nil {
-			return override
-		}
-		clientID := clientKey(transport.ClientIDFromContext(reqCtx))
-		projectMu.RLock()
-		defer projectMu.RUnlock()
-		return activeProjects[clientID]
-	}
-
-	getClientContext := func(reqCtx context.Context) *clientContextState {
-		clientID := clientKey(transport.ClientIDFromContext(reqCtx))
-		projectMu.RLock()
-		defer projectMu.RUnlock()
-		return clientContexts[clientID]
-	}
+	opRuntime.chatSessionStore = chatsession.NewStore(appdir.Dir)
 
 	// Initialize providers (LLM-agnostic — add as many as you want)
-	opts := []runner.Option{runner.WithSessionStore(sessStore)}
-	oauthRegistry := oauth.NewRegistry()
-	oauthStorage := oauth.NewStorageInDir(appdir.Dir)
-	oauthData, _ := oauthStorage.Load()
+	opts := []runner.Option{runner.WithSessionStore(opRuntime.sessionStore)}
+	opRuntime.oauthRegistry = oauth.NewRegistry()
+	opRuntime.oauthStorage = oauth.NewStorageInDir(appdir.Dir)
+	oauthData, _ := opRuntime.oauthStorage.Load()
 	activeProviderIDs := map[string]bool{}
-	var pendingDeviceFlowsMu sync.Mutex
-	pendingDeviceFlows := map[string]*oauth.DeviceFlowState{}
-
-	// Background OAuth flows (callback-server-based providers like Anthropic, OpenAI, Gemini)
-	type pendingOAuthResult struct {
-		Creds *oauth.Credentials
-		Err   error
-		URL   string
-	}
-	var pendingOAuthMu sync.Mutex
-	pendingOAuthFlows := map[string]chan pendingOAuthResult{}
+	bridge := opRuntime.bridge
+	stateStore := opRuntime.stateStore
+	chatSessStore := opRuntime.chatSessionStore
+	oauthRegistry := opRuntime.oauthRegistry
+	oauthStorage := opRuntime.oauthStorage
+	getProjectDir := opRuntime.projectDir
+	getProjectContext := opRuntime.projectContext
+	getClientContext := opRuntime.clientContext
+	getRunnerContext := opRuntime.runnerContext
+	setProjectContext := opRuntime.setProject
+	setClientMode := opRuntime.setClientMode
+	setClientComponent := opRuntime.setClientComponent
+	setClientSelection := opRuntime.setClientSelection
+	clearProjectContext := opRuntime.clearProject
+	contextData := opRuntime.contextData
+	setPendingDeviceFlow := opRuntime.setPendingDeviceFlow
+	getPendingDeviceFlow := opRuntime.pendingDeviceFlow
+	clearPendingDeviceFlow := opRuntime.clearPendingDeviceFlow
+	setPendingOAuthFlow := opRuntime.setPendingOAuthFlow
+	getPendingOAuthFlow := opRuntime.pendingOAuthFlow
+	clearPendingOAuthFlow := opRuntime.clearPendingOAuthFlow
 
 	// Anthropic OAuth — try OpenCode tokens first, then env vars
 	// Skip auto-discovery if user explicitly disconnected
-	if !oauthStorage.IsDisconnected("anthropic") {
+	if !opRuntime.oauthStorage.IsDisconnected("anthropic") {
 		if oauthProvider, err := provider.NewAnthropicOAuthFromOpenCode(); err == nil {
 			opts = append(opts, runner.WithProvider(oauthProvider))
 			activeProviderIDs[oauthProvider.ID()] = true
@@ -484,7 +448,8 @@ func main() {
 	appendOAuthRuntimeProviders(&opts, activeProviderIDs, oauthData)
 
 	// Initialize tools — use dynamic workdir that follows the active project
-	tools := tool.NewRegistry()
+	opRuntime.tools = tool.NewRegistry()
+	tools := opRuntime.tools
 	tool.RegisterBuiltins(tools, getProjectDir)
 	tool.RegisterBridgeTools(tools, bridge)
 	tool.RegisterSpaceCLITools(tools, getProjectDir)
@@ -547,17 +512,21 @@ func main() {
 	// Core agents — always available, cannot be uninstalled.
 	// Space agents can extend or shadow these via "space:<id>" namespace.
 	allAgents := coreAgents()
+	opRuntime.agents = allAgents
 	fmt.Fprintf(os.Stderr, "[operator] loaded %d core agents: architect, vibe, project\n", len(allAgents))
 
 	// Hook system — safety hooks first, then space + user hooks
-	hookReg := hook.NewRegistry()
+	opRuntime.hooks = hook.NewRegistry()
+	hookReg := opRuntime.hooks
 	hook.RegisterSafetyHooks(hookReg, getProjectDir)
 
 	// Skill registry
-	skillReg := skill.NewRegistry()
+	opRuntime.skills = skill.NewRegistry()
+	skillReg := opRuntime.skills
 
 	// Plugin manager
-	pluginMgr := plugin.NewManager()
+	opRuntime.plugins = plugin.NewManager()
+	pluginMgr := opRuntime.plugins
 
 	// Load spaces from all known directories
 	spaceDirs := appdir.AllSpacesDirs()
@@ -660,7 +629,8 @@ func main() {
 			}
 		}
 	}
-	mcpClient := mcp.NewClient()
+	opRuntime.mcp = mcp.NewClient()
+	mcpClient := opRuntime.mcp
 	for _, cfg := range mcpConfigs {
 		mcpClient.Add(cfg)
 	}
@@ -768,6 +738,8 @@ When the user asks to create, build, or manage a Construct space, use these tool
 		MaxTurns: 25,
 		CanSpawn: true,
 	}
+	opRuntime.agents = allAgents
+	opRuntime.fallbackAgent = fallbackAgent
 
 	opts = append(opts, runner.WithTools(tools))
 	opts = append(opts, runner.WithHooks(hookReg))
@@ -776,9 +748,11 @@ When the user asks to create, build, or manage a Construct space, use these tool
 	// Resolve agent by ID — searches all loaded space agents, falls back to general
 	// Wire agent resolver and spawn tool into runner
 	opts = append(opts, runner.WithAgentResolver(func(id string) *agent.Config {
-		return resolveAgent(allAgents, fallbackAgent, id)
+		return opRuntime.resolveAgent(id)
 	}))
-	run := runner.New(opts...)
+	opRuntime.runner = runner.New(opts...)
+	run := opRuntime.runner
+	resolveRuntimeAgent := opRuntime.resolveAgent
 
 	// Register spawn_agent tool so agents with canSpawn can use it
 	runner.RegisterSpawnTool(tools)
@@ -823,7 +797,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				}
 			}
 
-			agentCfg := resolveAgent(allAgents, fallbackAgent, payload.AgentID)
+			agentCfg := resolveRuntimeAgent(payload.AgentID)
 			if agentCfg == nil {
 				emit(transport.StreamChunk{ID: req.ID, Type: "error", Data: map[string]any{"error": "unknown agent: " + payload.AgentID}, Done: true})
 				return
@@ -840,7 +814,12 @@ When the user asks to create, build, or manage a Construct space, use these tool
 
 			fmt.Fprintf(os.Stderr, "[dispatch] agent=%s model=%s project=%s session=%s task=%s\n",
 				payload.AgentID, payload.Model,
-				func() string { if projectCtx != nil { return projectCtx.RootPath }; return "" }(),
+				func() string {
+					if projectCtx != nil {
+						return projectCtx.RootPath
+					}
+					return ""
+				}(),
 				payload.SessionID, truncateLog(payload.Task, 80))
 
 			emitter := stream.NewEmitter()
@@ -861,7 +840,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				Task:     payload.Task,
 				Model:    payload.Model,
 				Messages: payload.Messages,
-				Context:  runnerContextFromClientState(getClientContext(reqCtx)),
+				Context:  getRunnerContext(reqCtx),
 				Stream:   emitter,
 				Project:  projectCtx,
 			})
@@ -916,11 +895,11 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			}()
 
 			result, err := run.Run(reqCtx, &runner.RunRequest{
-				Agent:    resolveAgent(allAgents, fallbackAgent, ""),
+				Agent:    resolveRuntimeAgent(""),
 				Task:     payload.Message,
 				Model:    payload.Model,
 				Messages: payload.Messages,
-				Context:  runnerContextFromClientState(getClientContext(reqCtx)),
+				Context:  getRunnerContext(reqCtx),
 				Stream:   emitter,
 				Project:  getProjectContext(reqCtx),
 			})
@@ -983,7 +962,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				ID: req.ID, Success: true,
 				Data: map[string]any{
 					"version":      Version,
-					"workDir":      workDir,
+					"workDir":      opRuntime.workDir,
 					"bridgeStatus": bridgeStatus,
 				},
 			}
@@ -1063,7 +1042,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				}
 			}
 
-			agentCfg := resolveAgent(allAgents, fallbackAgent, payload.AgentID)
+			agentCfg := resolveRuntimeAgent(payload.AgentID)
 			if agentCfg == nil {
 				return transport.Response{ID: req.ID, Success: false, Error: "unknown agent: " + payload.AgentID}
 			}
@@ -1072,7 +1051,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				Task:     payload.Task,
 				Model:    payload.Model,
 				Messages: payload.Messages,
-				Context:  runnerContextFromClientState(getClientContext(reqCtx)),
+				Context:  getRunnerContext(reqCtx),
 				Project:  getProjectContext(reqCtx),
 			})
 			if err != nil {
@@ -1112,11 +1091,11 @@ When the user asks to create, build, or manage a Construct space, use these tool
 
 			// Use general agent for chat
 			result, err := run.Run(reqCtx, &runner.RunRequest{
-				Agent:    resolveAgent(allAgents, fallbackAgent, ""),
+				Agent:    resolveRuntimeAgent(""),
 				Task:     payload.Message,
 				Model:    payload.Model,
 				Messages: payload.Messages,
-				Context:  runnerContextFromClientState(getClientContext(reqCtx)),
+				Context:  getRunnerContext(reqCtx),
 				Project:  getProjectContext(reqCtx),
 			})
 			if err != nil {
@@ -1164,27 +1143,23 @@ When the user asks to create, build, or manage a Construct space, use these tool
 					exec.Command("rundll32", "url.dll,FileProtocolHandler", state.VerificationURI).Start()
 				}
 				// Store state for polling
-				pendingDeviceFlowsMu.Lock()
-				pendingDeviceFlows[payload.Provider] = state
-				pendingDeviceFlowsMu.Unlock()
+				setPendingDeviceFlow(payload.Provider, state)
 
 				fmt.Fprintf(os.Stderr, "[oauth] %s: device flow started, code: %s\n", payload.Provider, state.UserCode)
 				return transport.Response{
 					ID: req.ID, Success: true,
 					Data: map[string]any{
-						"provider":   payload.Provider,
+						"provider":    payload.Provider,
 						"device_code": true,
-						"user_code":  state.UserCode,
-						"url":        state.VerificationURI,
+						"user_code":   state.UserCode,
+						"url":         state.VerificationURI,
 					},
 				}
 			}
 
 			// Standard OAuth flow — launch in background, return immediately
 			resultCh := make(chan pendingOAuthResult, 1)
-			pendingOAuthMu.Lock()
-			pendingOAuthFlows[payload.Provider] = resultCh
-			pendingOAuthMu.Unlock()
+			setPendingOAuthFlow(payload.Provider, resultCh)
 
 			providerID := payload.Provider
 			var authURL string
@@ -1236,9 +1211,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				json.Unmarshal(req.Payload, &payload)
 			}
 
-			pendingDeviceFlowsMu.Lock()
-			state, ok := pendingDeviceFlows[payload.Provider]
-			pendingDeviceFlowsMu.Unlock()
+			state, ok := getPendingDeviceFlow(payload.Provider)
 
 			if !ok || state == nil {
 				return transport.Response{ID: req.ID, Success: false, Error: "no pending device flow for " + payload.Provider}
@@ -1254,9 +1227,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			}
 
 			// Flow finished (success or error) — clean up
-			pendingDeviceFlowsMu.Lock()
-			delete(pendingDeviceFlows, payload.Provider)
-			pendingDeviceFlowsMu.Unlock()
+			clearPendingDeviceFlow(payload.Provider)
 
 			if err != nil {
 				return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("OAuth login failed: %v", err)}
@@ -1289,9 +1260,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				json.Unmarshal(req.Payload, &payload)
 			}
 
-			pendingOAuthMu.Lock()
-			ch, ok := pendingOAuthFlows[payload.Provider]
-			pendingOAuthMu.Unlock()
+			ch, ok := getPendingOAuthFlow(payload.Provider)
 
 			if !ok || ch == nil {
 				return transport.Response{ID: req.ID, Success: false, Error: "no pending OAuth flow for " + payload.Provider}
@@ -1301,9 +1270,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			select {
 			case result := <-ch:
 				// Flow finished — clean up
-				pendingOAuthMu.Lock()
-				delete(pendingOAuthFlows, payload.Provider)
-				pendingOAuthMu.Unlock()
+				clearPendingOAuthFlow(payload.Provider)
 
 				if result.Err != nil {
 					return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("OAuth login failed: %v", result.Err)}
@@ -1636,9 +1603,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				json.Unmarshal(req.Payload, &proj)
 			}
 			clientID := clientKey(req.ClientID)
-			projectMu.Lock()
-			activeProjects[clientID] = &proj
-			projectMu.Unlock()
+			setProjectContext(clientID, &proj)
 			fmt.Fprintf(os.Stderr, "[operator] project set (%s): %s (%s)\n", clientID, proj.Name, proj.RootPath)
 			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
 
@@ -1650,15 +1615,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				json.Unmarshal(req.Payload, &payload)
 			}
 			clientID := clientKey(req.ClientID)
-			projectMu.Lock()
-			state := clientContexts[clientID]
-			if state == nil {
-				state = &clientContextState{}
-				clientContexts[clientID] = state
-			}
-			state.Mode = payload.Mode
-			state.Timestamp = time.Now().UTC().Format(time.RFC3339)
-			projectMu.Unlock()
+			setClientMode(clientID, payload.Mode)
 			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
 
 		case req.Type == "context.set_component":
@@ -1667,15 +1624,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				json.Unmarshal(req.Payload, &payload)
 			}
 			clientID := clientKey(req.ClientID)
-			projectMu.Lock()
-			state := clientContexts[clientID]
-			if state == nil {
-				state = &clientContextState{}
-				clientContexts[clientID] = state
-			}
-			state.Component = cloneMap(payload)
-			state.Timestamp = time.Now().UTC().Format(time.RFC3339)
-			projectMu.Unlock()
+			setClientComponent(clientID, payload)
 			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
 
 		case req.Type == "context.set_selection":
@@ -1684,44 +1633,16 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				json.Unmarshal(req.Payload, &payload)
 			}
 			clientID := clientKey(req.ClientID)
-			projectMu.Lock()
-			state := clientContexts[clientID]
-			if state == nil {
-				state = &clientContextState{}
-				clientContexts[clientID] = state
-			}
-			state.Selection = cloneMap(payload)
-			state.Timestamp = time.Now().UTC().Format(time.RFC3339)
-			projectMu.Unlock()
+			setClientSelection(clientID, payload)
 			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
 
 		case req.Type == "context.clear_project":
 			clientID := clientKey(req.ClientID)
-			projectMu.Lock()
-			delete(activeProjects, clientID)
-			projectMu.Unlock()
+			clearProjectContext(clientID)
 			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
 
 		case req.Type == "context.get":
-			proj := getProjectContext(reqCtx)
-			clientCtx := getClientContext(reqCtx)
-			data := map[string]any{
-				"workDir":   getProjectDir(reqCtx),
-				"mode":      "code",
-				"timestamp": time.Now().UTC().Format(time.RFC3339),
-			}
-			if proj != nil {
-				data["project"] = proj
-			}
-			if clientCtx != nil {
-				for key, value := range runnerContextFromClientState(clientCtx) {
-					data[key] = value
-				}
-				if clientCtx.Timestamp != "" {
-					data["timestamp"] = clientCtx.Timestamp
-				}
-			}
-			return transport.Response{ID: req.ID, Success: true, Data: data}
+			return transport.Response{ID: req.ID, Success: true, Data: contextData(reqCtx)}
 
 		// --- Construct local state ---
 
@@ -2998,7 +2919,7 @@ When the user asks to create, build, or manage a Construct space, use these tool
 		}
 	})
 
-	fmt.Fprintf(os.Stderr, "[operator] v%s starting on :%s (workdir: %s)\n", Version, port, workDir)
+	fmt.Fprintf(os.Stderr, "[operator] v%s starting on :%s (workdir: %s)\n", Version, port, opRuntime.workDir)
 	fmt.Fprintf(os.Stderr, "[operator] tools: %d registered\n", len(tools.All()))
 
 	if err := srv.Serve(ctx); err != nil {
