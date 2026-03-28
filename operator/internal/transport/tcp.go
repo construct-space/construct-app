@@ -146,22 +146,38 @@ func (s *TCPServer) handleConn(ctx context.Context, conn net.Conn) {
 			s.activeStreams[req.ID] = cancel
 			s.activeStreamMu.Unlock()
 
-			s.streamH(reqCtx, req, func(chunk StreamChunk) {
-				chunk.ID = req.ID
-				s.sendJSON(conn, chunk)
-			})
+			func() {
+				defer func() {
+					s.activeStreamMu.Lock()
+					delete(s.activeStreams, req.ID)
+					s.activeStreamMu.Unlock()
+					cancel()
+				}()
+				defer recoverHandlerPanic(fmt.Sprintf("stream handler for request %q (%s)", req.ID, req.Type), func(message string) {
+					s.sendJSON(conn, StreamChunk{
+						ID:   req.ID,
+						Type: "error",
+						Data: map[string]any{"error": message},
+						Done: true,
+					})
+				})
 
-			// Cleanup after stream completes
-			s.activeStreamMu.Lock()
-			delete(s.activeStreams, req.ID)
-			s.activeStreamMu.Unlock()
-			cancel()
+				s.streamH(reqCtx, req, func(chunk StreamChunk) {
+					chunk.ID = req.ID
+					s.sendJSON(conn, chunk)
+				})
+			}()
 			continue
 		}
 
 		if s.handler != nil {
 			reqCtx := WithClientID(ctx, req.ClientID)
-			resp := s.handler(reqCtx, req)
+			resp := func() (resp Response) {
+				defer recoverHandlerPanic(fmt.Sprintf("request handler for request %q (%s)", req.ID, req.Type), func(message string) {
+					resp = Response{Success: false, Error: message}
+				})
+				return s.handler(reqCtx, req)
+			}()
 			resp.ID = req.ID
 			// If a _stream request fell through to the regular handler,
 			// wrap the response as a "done" stream chunk so the Tauri

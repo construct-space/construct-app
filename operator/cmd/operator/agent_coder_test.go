@@ -23,10 +23,12 @@ func TestCoderAgentSystemIncludesConstructSpaceWorkflowKnowledge(t *testing.T) {
 	system := coderAgent().System
 
 	for _, phrase := range []string{
-		"Construct spaces are Vue 3 extensions loaded inside the Construct desktop app.",
-		"space.manifest.json",
+		"If the project is a Construct space, use the space tools directly",
+		"Do NOT use bash for builds.",
+		"construct-spaces skill has full documentation",
 		"space_check",
 		"space_build",
+		"space_validate",
 		"space_install",
 		"construct_open_dev",
 	} {
