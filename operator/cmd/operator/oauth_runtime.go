@@ -7,7 +7,6 @@ import (
 
 	"construct-operator/internal/oauth"
 	"construct-operator/internal/provider"
-	"construct-operator/internal/runner"
 )
 
 type oauthProviderDescriptor struct {
@@ -106,7 +105,7 @@ func providerFromOAuthCredentials(providerID string, creds *oauth.Credentials) p
 	}
 }
 
-func appendOAuthRuntimeProviders(opts *[]runner.Option, existing map[string]bool, authData oauth.StorageData) {
+func appendOAuthRuntimeProviders(providers *[]provider.Provider, existing map[string]bool, authData oauth.StorageData) {
 	for providerID, cred := range authData {
 		if cred == nil || cred.Type != "oauth" || cred.Credentials == nil || cred.Type == "disconnected" {
 			continue
@@ -116,7 +115,7 @@ func appendOAuthRuntimeProviders(opts *[]runner.Option, existing map[string]bool
 			continue
 		}
 		if prov := providerFromOAuthCredentials(providerID, cred.Credentials); prov != nil {
-			*opts = append(*opts, runner.WithProvider(prov))
+			*providers = append(*providers, prov)
 			existing[prov.ID()] = true
 		}
 	}

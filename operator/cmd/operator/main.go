@@ -23,7 +23,6 @@ import (
 	"construct-operator/internal/hook"
 	"construct-operator/internal/mcp"
 	"construct-operator/internal/oauth"
-	"construct-operator/internal/plugin"
 	"construct-operator/internal/provider"
 	"construct-operator/internal/runner"
 	"construct-operator/internal/session"
@@ -31,7 +30,6 @@ import (
 	"construct-operator/internal/space"
 	"construct-operator/internal/state"
 	"construct-operator/internal/stream"
-	"construct-operator/internal/tool"
 	"construct-operator/internal/transport"
 )
 
@@ -323,15 +321,12 @@ func main() {
 	opRuntime.oauthRegistry = oauth.NewRegistry()
 	opRuntime.oauthStorage = oauth.NewStorageInDir(appdir.Dir)
 	oauthData, _ := opRuntime.oauthStorage.Load()
-	activeProviderIDs := map[string]bool{}
 	bridge := opRuntime.bridge
 	stateStore := opRuntime.stateStore
 	chatSessStore := opRuntime.chatSessionStore
 	oauthRegistry := opRuntime.oauthRegistry
 	oauthStorage := opRuntime.oauthStorage
-	getProjectDir := opRuntime.projectDir
 	getProjectContext := opRuntime.projectContext
-	getClientContext := opRuntime.clientContext
 	getRunnerContext := opRuntime.runnerContext
 	setProjectContext := opRuntime.setProject
 	setClientMode := opRuntime.setClientMode
@@ -346,372 +341,35 @@ func main() {
 	getPendingOAuthFlow := opRuntime.pendingOAuthFlow
 	clearPendingOAuthFlow := opRuntime.clearPendingOAuthFlow
 
-	// Anthropic OAuth — try OpenCode tokens first, then env vars
-	// Skip auto-discovery if user explicitly disconnected
-	if !opRuntime.oauthStorage.IsDisconnected("anthropic") {
-		if oauthProvider, err := provider.NewAnthropicOAuthFromOpenCode(); err == nil {
-			opts = append(opts, runner.WithProvider(oauthProvider))
-			activeProviderIDs[oauthProvider.ID()] = true
-			fmt.Fprintf(os.Stderr, "[operator] provider: anthropic-oauth (opencode tokens)\n")
-		}
-	}
-	if !activeProviderIDs["anthropic-oauth"] {
-		if token := os.Getenv("ANTHROPIC_OAUTH_TOKEN"); token != "" {
-			envProv := provider.NewAnthropicOAuth(provider.OAuthConfig{
-				AccessToken:  token,
-				RefreshToken: os.Getenv("ANTHROPIC_OAUTH_REFRESH"),
-			})
-			opts = append(opts, runner.WithProvider(envProv))
-			activeProviderIDs[envProv.ID()] = true
-			fmt.Fprintf(os.Stderr, "[operator] provider: anthropic-oauth (env)\n")
-		}
-	}
-	if key := os.Getenv("DEEPSEEK_API_KEY"); key != "" {
-		deepseekProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
-			Name: "DeepSeek", Key: "deepseek",
-			BaseURL: "https://api.deepseek.com/v1", APIKey: key,
-			Models: []string{"deepseek-chat", "deepseek-reasoner"},
-		})
-		opts = append(opts, runner.WithProvider(deepseekProv))
-		activeProviderIDs[deepseekProv.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: deepseek\n")
-	} else if prov := providerFromSetting("provider_key:deepseek", stateStore.Settings()["provider_key:deepseek"]); prov != nil {
+	providerBootstrap := bootstrapProviders(providerBootstrapConfig{
+		settings:       stateStore.Settings(),
+		env:            currentProviderEnv(),
+		oauthData:      oauthData,
+		isDisconnected: opRuntime.oauthStorage.IsDisconnected,
+		logf:           operatorBootstrapLogger,
+	})
+	for _, prov := range providerBootstrap.providers {
 		opts = append(opts, runner.WithProvider(prov))
-		activeProviderIDs[prov.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: deepseek (settings)\n")
-	}
-	if key := os.Getenv("MIMO_API_KEY"); key != "" {
-		mimoProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
-			Name: "MiMo", Key: "mimo",
-			BaseURL: "https://api.xiaomimimo.com/v1", APIKey: key,
-			Models: []string{"mimo-v2-flash"},
-		})
-		opts = append(opts, runner.WithProvider(mimoProv))
-		activeProviderIDs[mimoProv.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: mimo\n")
-	} else if prov := providerFromSetting("provider_key:mimo", stateStore.Settings()["provider_key:mimo"]); prov != nil {
-		opts = append(opts, runner.WithProvider(prov))
-		activeProviderIDs[prov.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: mimo (settings)\n")
-	}
-	if key := os.Getenv("ZAI_API_KEY"); key != "" {
-		zaiProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
-			Name: "Z.ai", Key: "zai",
-			BaseURL: "https://api.z.ai/api/coding/paas/v4", APIKey: key,
-			Models: []string{"glm-5"},
-		})
-		opts = append(opts, runner.WithProvider(zaiProv))
-		activeProviderIDs[zaiProv.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: zai\n")
-	} else if prov := providerFromSetting("provider_key:zai", stateStore.Settings()["provider_key:zai"]); prov != nil {
-		opts = append(opts, runner.WithProvider(prov))
-		activeProviderIDs[prov.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: zai (settings)\n")
-	}
-	// OpenAI API — only if user sets OPENAI_API_KEY
-
-	if key := os.Getenv("OPENAI_API_KEY"); key != "" {
-		openaiProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
-			Name: "OpenAI", Key: "openai",
-			BaseURL: "https://api.openai.com/v1", APIKey: key,
-			Models: []string{"gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini", "o3", "o3-mini", "o4-mini"},
-		})
-		opts = append(opts, runner.WithProvider(openaiProv))
-		activeProviderIDs[openaiProv.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: openai (api key)\n")
-	}
-	if key := os.Getenv("XAI_API_KEY"); key != "" {
-		xaiProv := provider.NewOpenAICompat(provider.OpenAICompatConfig{
-			Name: "xAI", Key: "xai",
-			BaseURL: "https://api.x.ai/v1", APIKey: key,
-			Models: []string{"grok-3", "grok-3-mini"},
-		})
-		opts = append(opts, runner.WithProvider(xaiProv))
-		activeProviderIDs[xaiProv.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: xai\n")
-	} else if prov := providerFromSetting("provider_key:xai", stateStore.Settings()["provider_key:xai"]); prov != nil {
-		opts = append(opts, runner.WithProvider(prov))
-		activeProviderIDs[prov.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: xai (settings)\n")
-	}
-	if key := os.Getenv("OPENROUTER_API_KEY"); key != "" {
-		orProv := provider.NewOpenRouter(key)
-		opts = append(opts, runner.WithProvider(orProv))
-		activeProviderIDs[orProv.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: openrouter (%d free models)\n", len(orProv.Models()))
-	} else if prov := providerFromSetting("provider_key:openrouter", stateStore.Settings()["provider_key:openrouter"]); prov != nil {
-		opts = append(opts, runner.WithProvider(prov))
-		activeProviderIDs[prov.ID()] = true
-		fmt.Fprintf(os.Stderr, "[operator] provider: openrouter (settings)\n")
 	}
 
-	appendOAuthRuntimeProviders(&opts, activeProviderIDs, oauthData)
-
-	// Initialize tools — use dynamic workdir that follows the active project
-	opRuntime.tools = tool.NewRegistry()
+	toolsSpaces := bootstrapToolsSpaces(opRuntime)
+	opRuntime.tools = toolsSpaces.tools
 	tools := opRuntime.tools
-	tool.RegisterBuiltins(tools, getProjectDir)
-	tool.RegisterBridgeTools(tools, bridge)
-	tool.RegisterSpaceCLITools(tools, getProjectDir)
-
-	// Project context tool — lets the agent discover the active project
-	tools.Register(tool.Func("get_project_context",
-		"Get information about the currently active project, including name, type, root path, framework, and available tools.",
-		map[string]any{"type": "object", "properties": map[string]any{}},
-		func(ctx context.Context, input string) (*tool.Result, error) {
-			proj := getProjectContext(ctx)
-			clientCtx := getClientContext(ctx)
-			if proj == nil {
-				home, _ := os.UserHomeDir()
-				projectsRoot := os.Getenv("CONSTRUCT_PROJECTS_ROOT")
-				if projectsRoot == "" {
-					projectsRoot = filepath.Join(home, "ConstructProjects")
-				}
-				content := "No project is currently active.\nProjects root: " + projectsRoot
-				if clientCtx != nil && clientCtx.Mode != "" {
-					content += "\nCurrent mode: " + clientCtx.Mode
-				}
-				content += "\nNew projects should be created under the projects root."
-				return &tool.Result{Content: content}, nil
-			}
-			// List all available tools
-			allTools := tools.All()
-			toolNames := make([]string, len(allTools))
-			for i, t := range allTools {
-				toolNames[i] = t.Def.Name
-			}
-			result := fmt.Sprintf("Active Project:\n  Name: %s\n  Type: %s\n  Root: %s\n  Framework: %s",
-				proj.Name, proj.Type, proj.RootPath, proj.Framework)
-			if clientCtx != nil {
-				if clientCtx.Mode != "" {
-					result += "\n  Mode: " + clientCtx.Mode
-				}
-				if len(clientCtx.Component) > 0 {
-					componentName := mapString(clientCtx.Component, "name")
-					componentType := mapString(clientCtx.Component, "type")
-					if componentName != "" {
-						if componentType != "" {
-							result += fmt.Sprintf("\n  Component: %s (%s)", componentName, componentType)
-						} else {
-							result += "\n  Component: " + componentName
-						}
-					}
-				}
-				if len(clientCtx.Selection) > 0 {
-					if selectionType := mapString(clientCtx.Selection, "type"); selectionType != "" {
-						result += "\n  Selection: " + selectionType
-					}
-				}
-			}
-			result += "\n\nAvailable tools: " + strings.Join(toolNames, ", ")
-			return &tool.Result{Content: result}, nil
-		},
-	))
-
-	// Load ALL agents from spaces — operator is space-agnostic.
-	// Core agents — always available, cannot be uninstalled.
-	// Space agents can extend or shadow these via "space:<id>" namespace.
-	allAgents := coreAgents()
-	opRuntime.agents = allAgents
-	fmt.Fprintf(os.Stderr, "[operator] loaded %d core agents: architect, vibe, project\n", len(allAgents))
-
-	// Hook system — safety hooks first, then space + user hooks
-	opRuntime.hooks = hook.NewRegistry()
+	opRuntime.hooks = toolsSpaces.hooks
 	hookReg := opRuntime.hooks
-	hook.RegisterSafetyHooks(hookReg, getProjectDir)
-
-	// Skill registry
-	opRuntime.skills = skill.NewRegistry()
+	opRuntime.skills = toolsSpaces.skills
 	skillReg := opRuntime.skills
+	opRuntime.plugins = toolsSpaces.plugins
+	allAgents := toolsSpaces.agents
 
-	// Plugin manager
-	opRuntime.plugins = plugin.NewManager()
-	pluginMgr := opRuntime.plugins
-
-	// Load spaces from all known directories
-	spaceDirs := appdir.AllSpacesDirs()
-	var spaceIDs []string
-	for _, dir := range spaceDirs {
-		fmt.Fprintf(os.Stderr, "[operator] loading spaces from: %s\n", dir)
-		spaceResults, err := space.LoadAll(dir, getProjectDir)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[operator] warning: %s: %v\n", dir, err)
-			continue
-		}
-		for _, sr := range spaceResults {
-			for _, t := range sr.Tools {
-				// Skip space tools that need the desktop bridge when it's not available
-				if bridge == nil && isDesktopOnlySpaceTool(t.Def.Name) {
-					continue
-				}
-				tools.Register(t)
-			}
-			for _, h := range sr.Hooks {
-				hookReg.Register(h)
-			}
-			for _, s := range sr.Skills {
-				skillReg.Register(s)
-			}
-			for _, p := range sr.Plugins {
-				if err := pluginMgr.RegisterPlugin(p, tools, hookReg); err != nil {
-					fmt.Fprintf(os.Stderr, "[operator] warning: %s plugin %s: %v\n", sr.SpaceID, p.ID, err)
-				}
-			}
-			spaceIDs = append(spaceIDs, sr.SpaceID)
-			if sr.Agent != nil {
-				allAgents = append(allAgents, sr.Agent)
-				fmt.Fprintf(os.Stderr, "[operator] space: %s (agent: %s, tools: %d, hooks: %d, skills: %d, plugins: %d)\n",
-					sr.SpaceID, sr.Agent.ID, len(sr.Tools), len(sr.Hooks), len(sr.Skills), len(sr.Plugins))
-			}
-		}
-	}
-
-	// Register space action tools from frontend (async — waits for frontend to be ready)
-	// Register space action tools when frontend loads spaces
-	// The bridge listener notifies us, but we also poll as fallback
-	if bridge != nil && len(spaceIDs) > 0 {
-		go func() {
-			time.Sleep(3 * time.Second) // initial wait for frontend boot
-			tool.RegisterSpaceActionTools(tools, bridge, spaceIDs)
-		}()
-	}
-
-	// Load user hook configs from data dir
-	if hooks, err := hook.LoadConfig(filepath.Join(appdir.Dir, "hooks.json")); err == nil {
-		for _, h := range hooks {
-			hookReg.Register(h)
-		}
-	}
-
-	if userSkills, err := skill.LoadFromDir(appdir.SkillsDir(), "user"); err == nil {
-		for _, s := range userSkills {
-			skillReg.Register(s)
-		}
-	}
-
-	skill.RegisterBuiltins(skillReg)
-	for _, builtinID := range skill.BuiltinIDs() {
-		if saved, ok := stateStore.SkillStates()[builtinID]; ok {
-			_ = skillReg.SetState(builtinID, skill.State{
-				Loaded:    saved.Loaded,
-				Enabled:   saved.Enabled,
-				LoadedAt:  saved.LoadedAt,
-				UpdatedAt: saved.UpdatedAt,
-			})
-			continue
-		}
-		skillReg.Unload(builtinID)
-	}
-	for id, saved := range stateStore.SkillStates() {
-		_ = skillReg.SetState(id, skill.State{
-			Loaded:    saved.Loaded,
-			Enabled:   saved.Enabled,
-			LoadedAt:  saved.LoadedAt,
-			UpdatedAt: saved.UpdatedAt,
-		})
-	}
-	for id, saved := range stateStore.HookStates() {
-		if saved.Enabled {
-			hookReg.SetEnabled(id, true)
-		} else {
-			hookReg.SetEnabled(id, false)
-		}
-	}
-	fmt.Fprintf(os.Stderr, "[operator] hooks: %d registered, skills: %d, plugins: %d\n",
-		len(hookReg.List()), len(skillReg.All()), len(pluginMgr.List()))
-
-	// Load and connect MCP servers
-	mcpConfigs := mcp.LoadAllConfigs(spaceDirs, appdir.Dir)
-	for id, saved := range stateStore.MCPStates() {
-		for i := range mcpConfigs {
-			if mcpConfigs[i].ID == id {
-				mcpConfigs[i].Enabled = saved.Enabled
-			}
-		}
-	}
-	opRuntime.mcp = mcp.NewClient()
+	opRuntime.bootstrapMCP(toolsSpaces.spaceDirs)
 	mcpClient := opRuntime.mcp
-	for _, cfg := range mcpConfigs {
-		mcpClient.Add(cfg)
-	}
-	// Connect enabled MCP servers in background — don't block startup.
-	// Servers that fail to connect will show as "stopped" in settings.
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Fprintf(os.Stderr, "[mcp] background connect panic: %v\n", r)
-			}
-		}()
-		for _, cfg := range mcpConfigs {
-			if cfg.Enabled {
-				connectCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				if err := mcpClient.Connect(connectCtx, cfg.ID); err != nil {
-					fmt.Fprintf(os.Stderr, "[mcp] %s: %v\n", cfg.ID, err)
-				} else {
-					fmt.Fprintf(os.Stderr, "[mcp] %s connected, registering tools\n", cfg.ID)
-					mcpClient.RegisterServerTools(tools, cfg.ID)
-				}
-				cancel()
-			}
-		}
-	}()
-	fmt.Fprintf(os.Stderr, "[operator] mcp configs: %d servers found (connecting in background)\n", len(mcpConfigs))
-
 	userMCPConfigPath := filepath.Join(appdir.Dir, "mcp.json")
-	listMCPServers := func() []map[string]any {
-		infos := mcpClient.List()
-		servers := make([]map[string]any, 0, len(infos))
-		for _, info := range infos {
-			status := "stopped"
-			switch info.Status {
-			case "running":
-				status = "running"
-			case "error":
-				status = "error"
-			}
-			toolsList := make([]map[string]any, 0, len(info.Tools))
-			for _, toolDef := range info.Tools {
-				toolsList = append(toolsList, map[string]any{
-					"name":        toolDef.Name,
-					"description": toolDef.Description,
-				})
-			}
-			serverType := info.Config.Kind
-			if serverType == "" {
-				serverType = "builtin"
-			}
-			servers = append(servers, map[string]any{
-				"id":        info.Config.ID,
-				"name":      info.Config.Name,
-				"type":      serverType,
-				"transport": info.Config.Transport,
-				"package":   info.Config.Package,
-				"path":      info.Config.Path,
-				"url":       info.Config.URL,
-				"enabled":   info.Config.Enabled,
-				"status":    status,
-				"tools":     toolsList,
-				"error":     info.Error,
-				"source":    info.Config.Source,
-			})
-		}
-		return servers
-	}
+	listMCPServers := opRuntime.listMCPServers
 	persistUserMCPConfigs := func() error {
-		infos := mcpClient.List()
-		configs := make([]mcp.ServerConfig, 0)
-		for _, info := range infos {
-			if info.Config.Source != "user" {
-				continue
-			}
-			configs = append(configs, info.Config)
-		}
-		return mcp.SaveConfig(userMCPConfigPath, configs)
+		return opRuntime.persistUserMCPConfigs(userMCPConfigPath)
 	}
-	registerMCPServerTools := func(serverID string) {
-		tools.RemoveBySource("mcp:" + serverID)
-		mcpClient.RegisterServerTools(tools, serverID)
-	}
+	registerMCPServerTools := opRuntime.registerMCPServerTools
 
 	// Fallback agent — used when no spaces are loaded or agent not found.
 	// This is the ONLY hardcoded agent. Everything else comes from spaces.
