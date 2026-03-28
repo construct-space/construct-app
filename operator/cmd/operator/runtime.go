@@ -41,9 +41,9 @@ type operatorRuntime struct {
 	plugins *plugin.Manager
 	mcp     *mcp.Client
 
-	agents        []*agent.Config
-	fallbackAgent *agent.Config
-	workDir       string
+	agents            []*agent.Config
+	fallbackAgent     *agent.Config
+	workDir           string
 	userMCPConfigPath string
 
 	projectMu      sync.RWMutex
