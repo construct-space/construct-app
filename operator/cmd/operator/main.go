@@ -325,8 +325,6 @@ func main() {
 	chatSessStore := opRuntime.chatSessionStore
 	oauthRegistry := opRuntime.oauthRegistry
 	oauthStorage := opRuntime.oauthStorage
-	getProjectContext := opRuntime.projectContext
-	getRunnerContext := opRuntime.runnerContext
 	setProjectContext := opRuntime.setProject
 	setClientMode := opRuntime.setClientMode
 	setClientComponent := opRuntime.setClientComponent
@@ -409,8 +407,6 @@ When the user asks to create, build, or manage a Construct space, use these tool
 	}))
 	opRuntime.runner = runner.New(opts...)
 	run := opRuntime.runner
-	resolveRuntimeAgent := opRuntime.resolveAgent
-
 	// Register spawn_agent tool so agents with canSpawn can use it
 	runner.RegisterSpawnTool(tools)
 
@@ -426,193 +422,17 @@ When the user asks to create, build, or manage a Construct space, use these tool
 		opRuntime.handleStream(reqCtx, req, emit)
 	})
 
+	requestDeps := requestDispatchDeps{
+		server:  srv,
+		rootCtx: ctx,
+		bridge:  bridge,
+	}
 	srv.OnRequest(func(reqCtx context.Context, req transport.Request) transport.Response {
+		if resp, handled := opRuntime.dispatchFrontRequests(reqCtx, req, requestDeps); handled {
+			return resp
+		}
+
 		switch {
-		case req.Type == "system.ping":
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{"status": "ok", "version": Version},
-			}
-
-		case req.Type == "stream.cancel":
-			var payload struct {
-				RequestID string `json:"request_id"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			if payload.RequestID == "" {
-				return transport.Response{ID: req.ID, Success: false, Error: "request_id required"}
-			}
-			cancelled := srv.CancelStream(payload.RequestID)
-			fmt.Fprintf(os.Stderr, "[operator] stream.cancel: %s (found=%v)\n", payload.RequestID, cancelled)
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{"cancelled": cancelled},
-			}
-
-		case req.Type == "system.info":
-			bridgeStatus := "disabled"
-			if bridge != nil {
-				if err := bridge.Ping(ctx); err == nil {
-					bridgeStatus = "connected"
-				} else {
-					bridgeStatus = "unreachable"
-				}
-			}
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{
-					"version":      Version,
-					"workDir":      opRuntime.workDir,
-					"bridgeStatus": bridgeStatus,
-				},
-			}
-
-		case req.Type == "providers.list" || req.Type == "ai.providers":
-			authData, _ := oauthStorage.Load()
-			providerList := mergeRunnerProvidersWithOAuthProviders(run.ListProviders(), authData)
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{"providers": providerList},
-			}
-
-		case req.Type == "ai.models":
-			// Flatten all provider models into a single list
-			var models []map[string]string
-			for _, p := range run.ListProviders() {
-				if ms, ok := p["models"].([]map[string]string); ok {
-					models = append(models, ms...)
-				}
-			}
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{"models": models},
-			}
-
-		case req.Type == "tools.list":
-			allTools := tools.All()
-			toolNames := make([]string, len(allTools))
-			for i, t := range allTools {
-				toolNames[i] = t.Def.Name
-			}
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{"tools": toolNames, "count": len(toolNames)},
-			}
-
-		case req.Type == "agents.list":
-			// Fully dynamic — all agents come from spaces
-			agentList := make([]map[string]any, 0, len(allAgents)+1)
-			agentList = append(agentList, map[string]any{
-				"id": fallbackAgent.ID, "name": fallbackAgent.Name,
-				"description": fallbackAgent.Description, "category": fallbackAgent.Category,
-			})
-			for _, a := range allAgents {
-				agentList = append(agentList, map[string]any{
-					"id": a.ID, "name": a.Name, "description": a.Description, "category": a.Category,
-				})
-			}
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{"agents": agentList, "count": len(agentList)},
-			}
-
-		case req.Type == "agents.dispatch" || req.Type == "agents.dispatch_stream":
-			// Handle both sync and stream dispatch (stream falls back to sync here)
-			var payload struct {
-				AgentID   string             `json:"agent_id"`
-				Task      string             `json:"task"`
-				Model     string             `json:"model,omitempty"`
-				Messages  []provider.Message `json:"messages,omitempty"`
-				SessionID string             `json:"session_id,omitempty"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			if payload.Task == "" {
-				payload.Task = lastUserMessage(payload.Messages)
-			}
-			if payload.Task == "" {
-				return transport.Response{ID: req.ID, Success: false, Error: "task is required"}
-			}
-
-			if payload.SessionID != "" && len(payload.Messages) == 0 {
-				if prevSess, ok := run.GetSession(payload.SessionID); ok && len(prevSess.Messages) > 0 {
-					payload.Messages = append(prevSess.Messages, provider.Message{Role: "user", Content: payload.Task})
-					payload.Task = ""
-				}
-			}
-
-			agentCfg := resolveRuntimeAgent(payload.AgentID)
-			if agentCfg == nil {
-				return transport.Response{ID: req.ID, Success: false, Error: "unknown agent: " + payload.AgentID}
-			}
-			result, err := run.Run(reqCtx, &runner.RunRequest{
-				Agent:    agentCfg,
-				Task:     payload.Task,
-				Model:    payload.Model,
-				Messages: payload.Messages,
-				Context:  getRunnerContext(reqCtx),
-				Project:  getProjectContext(reqCtx),
-			})
-			if err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{
-					"agent_id":   result.AgentID,
-					"session_id": result.SessionID,
-					"content":    result.Content,
-					"turns":      len(result.Turns),
-					"usage": map[string]any{
-						"input_tokens":  result.Usage.InputTokens,
-						"output_tokens": result.Usage.OutputTokens,
-					},
-					"stop_reason": result.StopReason,
-				},
-			}
-
-		case req.Type == "ai.chat" || req.Type == "ai.chat_stream":
-			var payload struct {
-				Message  string             `json:"message"`
-				Model    string             `json:"model,omitempty"`
-				Messages []provider.Message `json:"messages,omitempty"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			if payload.Message == "" {
-				payload.Message = lastUserMessage(payload.Messages)
-			}
-			if payload.Message == "" {
-				return transport.Response{ID: req.ID, Success: false, Error: "message is required"}
-			}
-
-			// Use general agent for chat
-			result, err := run.Run(reqCtx, &runner.RunRequest{
-				Agent:    resolveRuntimeAgent(""),
-				Task:     payload.Message,
-				Model:    payload.Model,
-				Messages: payload.Messages,
-				Context:  getRunnerContext(reqCtx),
-				Project:  getProjectContext(reqCtx),
-			})
-			if err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{
-					"content":     result.Content,
-					"turns":       len(result.Turns),
-					"stop_reason": result.StopReason,
-				},
-			}
-
 		case req.Type == "oauth.login":
 			var payload struct {
 				Provider string `json:"provider"`
