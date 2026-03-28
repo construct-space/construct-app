@@ -44,6 +44,7 @@ type operatorRuntime struct {
 	agents        []*agent.Config
 	fallbackAgent *agent.Config
 	workDir       string
+	userMCPConfigPath string
 
 	projectMu      sync.RWMutex
 	activeProjects map[string]*runner.ProjectContext

@@ -145,6 +145,9 @@ func (rt *operatorRuntime) dispatchFrontRequests(reqCtx context.Context, req tra
 	case isStateRequestType(req.Type):
 		return rt.handleStateRequest(req)
 
+	case isMCPRequestType(req.Type):
+		return rt.handleMCPRequest(reqCtx, req)
+
 	default:
 		return transport.Response{}, false
 	}

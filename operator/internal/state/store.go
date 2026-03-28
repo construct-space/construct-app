@@ -1067,7 +1067,7 @@ func (s *Store) saveJSON(name string, value any) error {
 	if s.dir == "" {
 		return nil
 	}
-	data, err := json.MarshalIndent(value, "", "  ")
+	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}

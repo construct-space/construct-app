@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"construct-operator/internal/agent"
+	"construct-operator/internal/mcp"
 	"construct-operator/internal/oauth"
 	"construct-operator/internal/provider"
 	"construct-operator/internal/runner"
@@ -998,6 +999,114 @@ func TestDispatchFrontRequestsDesignsRoundTrip(t *testing.T) {
 	}
 }
 
+func TestDispatchFrontRequestsMCPListAndEnable(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+	rt.mcp.Add(mcp.ServerConfig{
+		ID:        "user-demo",
+		Name:      "User Demo",
+		Type:      mcp.TypeStdio,
+		Command:   "/bin/echo",
+		Transport: "stdio",
+		Enabled:   false,
+		Kind:      "local",
+		Path:      "/bin/echo",
+		Source:    "user",
+	})
+
+	listResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-mcp-list",
+		Type: "mcp.list",
+	}, requestDispatchDeps{})
+	if !handled || !listResp.Success {
+		t.Fatalf("mcp.list response = %#v", listResp)
+	}
+	listData := mustResponseDataMap(t, listResp)
+	if listData["count"] != 1 {
+		t.Fatalf("mcp.list count = %#v, want 1", listData["count"])
+	}
+	servers, ok := listData["servers"].([]map[string]any)
+	if !ok || len(servers) != 1 {
+		t.Fatalf("mcp.list servers = %#v, want one server", listData["servers"])
+	}
+	if servers[0]["id"] != "user-demo" || servers[0]["enabled"] != false {
+		t.Fatalf("mcp.list server = %#v, want disabled user-demo", servers[0])
+	}
+
+	enableResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-mcp-enable",
+		Type: "mcp.enable",
+		Payload: mustJSON(t, map[string]any{
+			"id": "user-demo",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !enableResp.Success {
+		t.Fatalf("mcp.enable response = %#v", enableResp)
+	}
+	enableData := mustResponseDataMap(t, enableResp)
+	assertExactKeys(t, enableData, "ok", "status")
+	if enableData["status"] != "connecting" {
+		t.Fatalf("mcp.enable status = %#v, want %q", enableData["status"], "connecting")
+	}
+
+	info, ok := rt.mcp.Get("user-demo")
+	if !ok || !info.Config.Enabled {
+		t.Fatalf("mcp.Get = (%#v, %v), want enabled user-demo", info, ok)
+	}
+	if got := rt.stateStore.MCPStates()["user-demo"]; !got.Enabled {
+		t.Fatalf("stored MCP state = %#v, want enabled", got)
+	}
+	raw, err := os.ReadFile(rt.userMCPConfigPath)
+	if err != nil {
+		t.Fatalf("read mcp config: %v", err)
+	}
+	if !strings.Contains(string(raw), "user-demo") {
+		t.Fatalf("mcp config = %s, want user-demo entry", string(raw))
+	}
+}
+
+func TestDispatchFrontRequestsMCPAddAndRemove(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	addResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-mcp-add",
+		Type: "mcp.add",
+		Payload: mustJSON(t, map[string]any{
+			"type":    "local",
+			"name":    "Local Echo",
+			"path":    "/bin/echo",
+			"package": "",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !addResp.Success {
+		t.Fatalf("mcp.add response = %#v", addResp)
+	}
+	addData := mustResponseDataMap(t, addResp)
+	id, ok := addData["id"].(string)
+	if !ok || id == "" {
+		t.Fatalf("mcp.add id = %#v, want non-empty string", addData["id"])
+	}
+
+	removeResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-mcp-remove",
+		Type: "mcp.remove",
+		Payload: mustJSON(t, map[string]any{
+			"id": id,
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !removeResp.Success {
+		t.Fatalf("mcp.remove response = %#v", removeResp)
+	}
+	if _, exists := rt.mcp.Get(id); exists {
+		t.Fatalf("mcp.Remove should remove %q", id)
+	}
+}
+
 func mustResponseDataMap(t *testing.T, resp transport.Response) map[string]any {
 	t.Helper()
 
@@ -1056,6 +1165,8 @@ func newRequestHandlerTestRuntime(t *testing.T, prov provider.Provider) *operato
 	rt.sessionStore = session.NewStore("")
 	rt.stateStore = state.NewStore(tempDir)
 	rt.oauthStorage = oauth.NewStorage(filepath.Join(tempDir, "auth.json"))
+	rt.mcp = mcp.NewClient()
+	rt.userMCPConfigPath = filepath.Join(tempDir, "mcp.json")
 	rt.tools = tool.NewRegistry()
 	rt.tools.Register(&tool.Tool{
 		Def: provider.ToolDef{
