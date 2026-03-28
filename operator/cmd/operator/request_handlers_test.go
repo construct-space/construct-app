@@ -371,6 +371,155 @@ func TestDispatchFrontRequestsAIChatStreamFallback(t *testing.T) {
 	}
 }
 
+func TestDispatchFrontRequestsContextProjectRoundTrip(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+	ctx := transport.WithClientID(context.Background(), "client-1")
+
+	setResp, handled := rt.dispatchFrontRequests(ctx, transport.Request{
+		ID:       "req-set-project",
+		Type:     "context.set_project",
+		ClientID: "client-1",
+		Payload: mustJSON(t, map[string]any{
+			"name":      "Alpha",
+			"rootPath":  "/tmp/alpha",
+			"root_path": "/tmp/alpha",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !setResp.Success {
+		t.Fatalf("set project response = %#v", setResp)
+	}
+
+	getResp, handled := rt.dispatchFrontRequests(ctx, transport.Request{
+		ID:       "req-get-context",
+		Type:     "context.get",
+		ClientID: "client-1",
+	}, requestDispatchDeps{})
+	if !handled || !getResp.Success {
+		t.Fatalf("context.get response = %#v", getResp)
+	}
+	data := mustResponseDataMap(t, getResp)
+	if data["workDir"] != "/tmp/alpha" {
+		t.Fatalf("workDir = %#v, want %q", data["workDir"], "/tmp/alpha")
+	}
+	project, ok := data["project"].(*runner.ProjectContext)
+	if !ok {
+		t.Fatalf("project type = %T, want *runner.ProjectContext", data["project"])
+	}
+	if project.Name != "Alpha" || project.RootPath != "/tmp/alpha" {
+		t.Fatalf("project = %#v, want Alpha /tmp/alpha", project)
+	}
+}
+
+func TestDispatchFrontRequestsContextStateRoundTrip(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+	ctx := transport.WithClientID(context.Background(), "client-1")
+
+	cases := []transport.Request{
+		{
+			ID:       "req-set-mode",
+			Type:     "context.set_mode",
+			ClientID: "client-1",
+			Payload:  mustJSON(t, map[string]any{"mode": "design"}),
+		},
+		{
+			ID:       "req-set-component",
+			Type:     "context.set_component",
+			ClientID: "client-1",
+			Payload:  mustJSON(t, map[string]any{"panel": "assistant"}),
+		},
+		{
+			ID:       "req-set-selection",
+			Type:     "context.set_selection",
+			ClientID: "client-1",
+			Payload:  mustJSON(t, map[string]any{"selected": "file.go"}),
+		},
+	}
+	for _, req := range cases {
+		resp, handled := rt.dispatchFrontRequests(ctx, req, requestDispatchDeps{})
+		if !handled || !resp.Success {
+			t.Fatalf("%s response = %#v", req.Type, resp)
+		}
+	}
+
+	resp, handled := rt.dispatchFrontRequests(ctx, transport.Request{
+		ID:       "req-context-get",
+		Type:     "context.get",
+		ClientID: "client-1",
+	}, requestDispatchDeps{})
+	if !handled || !resp.Success {
+		t.Fatalf("context.get response = %#v", resp)
+	}
+	data := mustResponseDataMap(t, resp)
+	if data["mode"] != "design" {
+		t.Fatalf("mode = %#v, want %q", data["mode"], "design")
+	}
+	component, ok := data["component"].(map[string]any)
+	if !ok {
+		t.Fatalf("component type = %T, want map[string]any", data["component"])
+	}
+	assertExactKeys(t, component, "panel")
+	if component["panel"] != "assistant" {
+		t.Fatalf("component = %#v, want panel assistant", component)
+	}
+	selection, ok := data["selection"].(map[string]any)
+	if !ok {
+		t.Fatalf("selection type = %T, want map[string]any", data["selection"])
+	}
+	assertExactKeys(t, selection, "selected")
+	if selection["selected"] != "file.go" {
+		t.Fatalf("selection = %#v, want selected file.go", selection)
+	}
+}
+
+func TestDispatchFrontRequestsContextClearProject(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+	ctx := transport.WithClientID(context.Background(), "client-1")
+
+	setResp, handled := rt.dispatchFrontRequests(ctx, transport.Request{
+		ID:       "req-set-project",
+		Type:     "context.set_project",
+		ClientID: "client-1",
+		Payload:  mustJSON(t, runner.ProjectContext{Name: "Beta", RootPath: "/tmp/beta"}),
+	}, requestDispatchDeps{})
+	if !handled || !setResp.Success {
+		t.Fatalf("set project response = %#v", setResp)
+	}
+
+	clearResp, handled := rt.dispatchFrontRequests(ctx, transport.Request{
+		ID:       "req-clear-project",
+		Type:     "context.clear_project",
+		ClientID: "client-1",
+	}, requestDispatchDeps{})
+	if !handled || !clearResp.Success {
+		t.Fatalf("clear project response = %#v", clearResp)
+	}
+
+	getResp, handled := rt.dispatchFrontRequests(ctx, transport.Request{
+		ID:       "req-context-get",
+		Type:     "context.get",
+		ClientID: "client-1",
+	}, requestDispatchDeps{})
+	if !handled || !getResp.Success {
+		t.Fatalf("context.get response = %#v", getResp)
+	}
+	data := mustResponseDataMap(t, getResp)
+	if _, ok := data["project"]; ok {
+		t.Fatalf("project should be cleared, got %#v", data["project"])
+	}
+	if data["workDir"] != rt.workDir {
+		t.Fatalf("workDir = %#v, want %q", data["workDir"], rt.workDir)
+	}
+}
+
 func mustResponseDataMap(t *testing.T, resp transport.Response) map[string]any {
 	t.Helper()
 

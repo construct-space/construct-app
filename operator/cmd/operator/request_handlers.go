@@ -134,6 +134,14 @@ func (rt *operatorRuntime) dispatchFrontRequests(reqCtx context.Context, req tra
 	case req.Type == "ai.chat" || req.Type == "ai.chat_stream":
 		return rt.handleChatRequest(reqCtx, req), true
 
+	case req.Type == "context.set_project" ||
+		req.Type == "context.set_mode" ||
+		req.Type == "context.set_component" ||
+		req.Type == "context.set_selection" ||
+		req.Type == "context.clear_project" ||
+		req.Type == "context.get":
+		return rt.handleContextRequest(reqCtx, req)
+
 	default:
 		return transport.Response{}, false
 	}

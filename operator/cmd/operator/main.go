@@ -325,12 +325,6 @@ func main() {
 	chatSessStore := opRuntime.chatSessionStore
 	oauthRegistry := opRuntime.oauthRegistry
 	oauthStorage := opRuntime.oauthStorage
-	setProjectContext := opRuntime.setProject
-	setClientMode := opRuntime.setClientMode
-	setClientComponent := opRuntime.setClientComponent
-	setClientSelection := opRuntime.setClientSelection
-	clearProjectContext := opRuntime.clearProject
-	contextData := opRuntime.contextData
 	setPendingDeviceFlow := opRuntime.setPendingDeviceFlow
 	getPendingDeviceFlow := opRuntime.pendingDeviceFlow
 	clearPendingDeviceFlow := opRuntime.clearPendingDeviceFlow
@@ -916,55 +910,6 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				ID: req.ID, Success: true,
 				Data: map[string]any{"cleared": true},
 			}
-
-		// --- Project Context ---
-
-		case req.Type == "context.set_project":
-			var proj runner.ProjectContext
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &proj)
-			}
-			clientID := clientKey(req.ClientID)
-			setProjectContext(clientID, &proj)
-			fmt.Fprintf(os.Stderr, "[operator] project set (%s): %s (%s)\n", clientID, proj.Name, proj.RootPath)
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
-
-		case req.Type == "context.set_mode":
-			var payload struct {
-				Mode string `json:"mode"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			clientID := clientKey(req.ClientID)
-			setClientMode(clientID, payload.Mode)
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
-
-		case req.Type == "context.set_component":
-			var payload map[string]any
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			clientID := clientKey(req.ClientID)
-			setClientComponent(clientID, payload)
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
-
-		case req.Type == "context.set_selection":
-			var payload map[string]any
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			clientID := clientKey(req.ClientID)
-			setClientSelection(clientID, payload)
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
-
-		case req.Type == "context.clear_project":
-			clientID := clientKey(req.ClientID)
-			clearProjectContext(clientID)
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
-
-		case req.Type == "context.get":
-			return transport.Response{ID: req.ID, Success: true, Data: contextData(reqCtx)}
 
 		// --- Construct local state ---
 
