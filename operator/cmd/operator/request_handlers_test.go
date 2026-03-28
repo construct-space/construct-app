@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"construct-operator/internal/agent"
+	"construct-operator/internal/chatsession"
+	"construct-operator/internal/hook"
 	"construct-operator/internal/mcp"
 	"construct-operator/internal/oauth"
 	"construct-operator/internal/provider"
@@ -214,6 +216,84 @@ func TestDispatchFrontRequestsCatalogRoutes(t *testing.T) {
 	})
 }
 
+func TestDispatchFrontRequestsToolRoutes(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	executeResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-tool-execute",
+		Type: "tool.execute",
+		Payload: mustJSON(t, map[string]any{
+			"name":  "test.tool",
+			"input": `{"path":"README.md"}`,
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !executeResp.Success {
+		t.Fatalf("tool.execute response = %#v", executeResp)
+	}
+	executeData := mustResponseDataMap(t, executeResp)
+	assertExactKeys(t, executeData, "content", "is_error")
+	if executeData["content"] != "ok" || executeData["is_error"] != false {
+		t.Fatalf("tool.execute data = %#v, want ok/false", executeData)
+	}
+
+	callResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-tools-call",
+		Type: "tools.call",
+		Payload: mustJSON(t, map[string]any{
+			"toolCall": map[string]any{
+				"function": map[string]any{
+					"name":      "test.tool",
+					"arguments": `{"path":"package.json"}`,
+				},
+			},
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !callResp.Success {
+		t.Fatalf("tools.call response = %#v", callResp)
+	}
+	callData := mustResponseDataMap(t, callResp)
+	assertExactKeys(t, callData, "content", "is_error")
+	if callData["content"] != "ok" || callData["is_error"] != false {
+		t.Fatalf("tools.call data = %#v, want ok/false", callData)
+	}
+}
+
+func TestDispatchFrontRequestsToolBlockedByHook(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+	rt.hooks.Register(hook.Hook{
+		ID:    "block-test-tool",
+		Type:  hook.PreTool,
+		Tools: []string{"test.tool"},
+		Check: func(context.Context, string, string) (bool, string) {
+			return true, "blocked in test"
+		},
+	})
+
+	resp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-tool-blocked",
+		Type: "tool.execute",
+		Payload: mustJSON(t, map[string]any{
+			"name":  "test.tool",
+			"input": "{}",
+		}),
+	}, requestDispatchDeps{})
+	if !handled {
+		t.Fatal("expected request to be handled")
+	}
+	if resp.Success {
+		t.Fatalf("response = %#v, want failure", resp)
+	}
+	if resp.Error != "blocked by hook: blocked in test" {
+		t.Fatalf("error = %q, want blocked error", resp.Error)
+	}
+}
+
 func TestDispatchFrontRequestsDispatchStreamFallback(t *testing.T) {
 	prov := &requestHandlerTestProvider{
 		id:     "test-provider",
@@ -371,6 +451,231 @@ func TestDispatchFrontRequestsAIChatStreamFallback(t *testing.T) {
 	}
 	if !strings.Contains(prov.completeReq.System, "Mode: code") {
 		t.Fatalf("system prompt missing UI context: %q", prov.completeReq.System)
+	}
+}
+
+func TestDispatchFrontRequestsDispatchProjectOverride(t *testing.T) {
+	prov := &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+		completeResponse: &provider.Response{
+			Content:    "override content",
+			StopReason: "end_turn",
+		},
+	}
+	rt := newRequestHandlerTestRuntime(t, prov)
+	rt.setProject("client-1", &runner.ProjectContext{
+		Name:     "Alpha",
+		RootPath: "/tmp/alpha",
+	})
+
+	resp, handled := rt.dispatchFrontRequests(transport.WithClientID(context.Background(), "client-1"), transport.Request{
+		ID:       "req-dispatch-project-override",
+		Type:     "agents.dispatch",
+		ClientID: "client-1",
+		Payload: mustJSON(t, map[string]any{
+			"agent_id":     "builder",
+			"task":         "Use explicit project context",
+			"project_path": "/tmp/override",
+			"project_name": "Override",
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !resp.Success {
+		t.Fatalf("agents.dispatch response = %#v", resp)
+	}
+	if prov.completeReq == nil {
+		t.Fatal("expected provider request to be captured")
+	}
+	if !strings.Contains(prov.completeReq.System, "Project: Override") || !strings.Contains(prov.completeReq.System, "Root: /tmp/override") {
+		t.Fatalf("system prompt missing override project context: %q", prov.completeReq.System)
+	}
+	if strings.Contains(prov.completeReq.System, "Project: Alpha") {
+		t.Fatalf("system prompt used client project instead of explicit override: %q", prov.completeReq.System)
+	}
+}
+
+func TestDispatchFrontRequestsSessionRoutes(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	runnerSession := rt.sessionStore.Create("builder")
+	runnerSession.Messages = []provider.Message{
+		{Role: "user", Content: "hello"},
+	}
+
+	listResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-sessions-list",
+		Type: "sessions.list",
+	}, requestDispatchDeps{})
+	if !handled || !listResp.Success {
+		t.Fatalf("sessions.list response = %#v", listResp)
+	}
+	listData := mustResponseDataMap(t, listResp)
+	assertExactKeys(t, listData, "count", "sessions")
+	if listData["count"] != 1 {
+		t.Fatalf("sessions.list count = %#v, want 1", listData["count"])
+	}
+
+	getResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-sessions-get",
+		Type: "sessions.get",
+		Payload: mustJSON(t, map[string]any{
+			"session_id": runnerSession.ID,
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !getResp.Success {
+		t.Fatalf("sessions.get response = %#v", getResp)
+	}
+	getData := mustResponseDataMap(t, getResp)
+	sessionData, ok := getData["session"].(*session.Session)
+	if !ok {
+		t.Fatalf("sessions.get session type = %T, want *session.Session", getData["session"])
+	}
+	if sessionData.ID != runnerSession.ID {
+		t.Fatalf("sessions.get session = %#v, want id %q", sessionData, runnerSession.ID)
+	}
+}
+
+func TestDispatchFrontRequestsChatSessionPersistence(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	saved := chatsession.Session{
+		ID:          "session-1",
+		AgentID:     "builder",
+		ProjectID:   "project-1",
+		ProjectName: "Project One",
+		Turns: []chatsession.Turn{
+			{
+				ID:        "turn-1",
+				Request:   []chatsession.Block{{Type: "text", Content: "hello"}},
+				Response:  []chatsession.Block{{Type: "text", Content: "world"}},
+				AgentID:   "builder",
+				Status:    "done",
+				Timestamp: 1710000000,
+			},
+		},
+	}
+
+	saveResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:      "req-sessions-save",
+		Type:    "sessions.save",
+		Payload: mustJSON(t, map[string]any{"session": saved}),
+	}, requestDispatchDeps{})
+	if !handled || !saveResp.Success {
+		t.Fatalf("sessions.save response = %#v", saveResp)
+	}
+
+	loadResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-sessions-load",
+		Type: "sessions.load",
+		Payload: mustJSON(t, map[string]any{
+			"id": saved.ID,
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !loadResp.Success {
+		t.Fatalf("sessions.load response = %#v", loadResp)
+	}
+	loadData := mustResponseDataMap(t, loadResp)
+	loaded, ok := loadData["session"].(*chatsession.Session)
+	if !ok {
+		t.Fatalf("sessions.load session type = %T, want *chatsession.Session", loadData["session"])
+	}
+	if loaded.ID != saved.ID || loaded.ProjectID != saved.ProjectID {
+		t.Fatalf("sessions.load session = %#v, want saved session", loaded)
+	}
+
+	listResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-sessions-chat-list",
+		Type: "sessions.chat_list",
+	}, requestDispatchDeps{})
+	if !handled || !listResp.Success {
+		t.Fatalf("sessions.chat_list response = %#v", listResp)
+	}
+	listData := mustResponseDataMap(t, listResp)
+	assertExactKeys(t, listData, "count", "sessions")
+	metas, ok := listData["sessions"].([]chatsession.SessionMeta)
+	if !ok || len(metas) != 1 {
+		t.Fatalf("sessions.chat_list sessions = %#v, want one meta", listData["sessions"])
+	}
+	if metas[0].ProjectID != saved.ProjectID {
+		t.Fatalf("sessions.chat_list meta = %#v, want project id %q", metas[0], saved.ProjectID)
+	}
+
+	resumeResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-sessions-resume",
+		Type: "sessions.resume",
+		Payload: mustJSON(t, map[string]any{
+			"agent_id":   saved.AgentID,
+			"project_id": saved.ProjectID,
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !resumeResp.Success {
+		t.Fatalf("sessions.resume response = %#v", resumeResp)
+	}
+	resumeData := mustResponseDataMap(t, resumeResp)
+	resumed, ok := resumeData["session"].(*chatsession.Session)
+	if !ok {
+		t.Fatalf("sessions.resume session type = %T, want *chatsession.Session", resumeData["session"])
+	}
+	if resumed.ID != saved.ID {
+		t.Fatalf("sessions.resume session = %#v, want id %q", resumed, saved.ID)
+	}
+
+	deleteResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-sessions-delete",
+		Type: "sessions.delete",
+		Payload: mustJSON(t, map[string]any{
+			"id": saved.ID,
+		}),
+	}, requestDispatchDeps{})
+	if !handled || !deleteResp.Success {
+		t.Fatalf("sessions.delete response = %#v", deleteResp)
+	}
+
+	missingLoadResp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+		ID:   "req-sessions-load-missing",
+		Type: "sessions.load",
+		Payload: mustJSON(t, map[string]any{
+			"id": saved.ID,
+		}),
+	}, requestDispatchDeps{})
+	if !handled || missingLoadResp.Success {
+		t.Fatalf("sessions.load missing response = %#v, want failure", missingLoadResp)
+	}
+}
+
+func TestDispatchFrontRequestsPassthroughStubs(t *testing.T) {
+	rt := newRequestHandlerTestRuntime(t, &requestHandlerTestProvider{
+		id:     "test-provider",
+		models: []string{"test-model"},
+	})
+
+	for _, reqType := range []string{
+		"ai.conversations.list",
+		"ai.conversations.get",
+		"ai.conversations.save",
+		"ai.conversations.delete",
+		"auth.set_api_base",
+		"auth.sync_token",
+		"system.check_update",
+		"system.apply_update",
+	} {
+		resp, handled := rt.dispatchFrontRequests(context.Background(), transport.Request{
+			ID:   "req-" + strings.ReplaceAll(reqType, ".", "-"),
+			Type: reqType,
+		}, requestDispatchDeps{})
+		if !handled || !resp.Success {
+			t.Fatalf("%s response = %#v", reqType, resp)
+		}
+		data := mustResponseDataMap(t, resp)
+		if len(data) != 0 {
+			t.Fatalf("%s data = %#v, want empty map", reqType, data)
+		}
 	}
 }
 
@@ -1164,6 +1469,7 @@ func newRequestHandlerTestRuntime(t *testing.T, prov provider.Provider) *operato
 	}
 	rt.sessionStore = session.NewStore("")
 	rt.stateStore = state.NewStore(tempDir)
+	rt.chatSessionStore = chatsession.NewStore(tempDir)
 	rt.oauthStorage = oauth.NewStorage(filepath.Join(tempDir, "auth.json"))
 	rt.mcp = mcp.NewClient()
 	rt.userMCPConfigPath = filepath.Join(tempDir, "mcp.json")
@@ -1175,10 +1481,12 @@ func newRequestHandlerTestRuntime(t *testing.T, prov provider.Provider) *operato
 		},
 		Executor: stubToolExecutor{},
 	})
+	rt.hooks = hook.NewRegistry()
 	rt.runner = runner.New(
 		runner.WithProvider(prov),
 		runner.WithSessionStore(rt.sessionStore),
 		runner.WithTools(rt.tools),
+		runner.WithHooks(rt.hooks),
 	)
 	return rt
 }

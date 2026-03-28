@@ -321,7 +321,6 @@ func main() {
 	oauthData, _ := opRuntime.oauthStorage.Load()
 	bridge := opRuntime.bridge
 	stateStore := opRuntime.stateStore
-	chatSessStore := opRuntime.chatSessionStore
 	oauthRegistry := opRuntime.oauthRegistry
 	oauthStorage := opRuntime.oauthStorage
 	setPendingDeviceFlow := opRuntime.setPendingDeviceFlow
@@ -787,29 +786,6 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				},
 			}
 
-		case req.Type == "sessions.list":
-			sessions := run.ListSessions()
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{"sessions": sessions, "count": len(sessions)},
-			}
-
-		case req.Type == "sessions.get":
-			var payload struct {
-				SessionID string `json:"session_id"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			sess, ok := run.GetSession(payload.SessionID)
-			if !ok {
-				return transport.Response{ID: req.ID, Success: false, Error: "session not found"}
-			}
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{"session": sess},
-			}
-
 		case req.Type == "auth.anthropic.set_tokens":
 			// Accept pre-exchanged tokens (from Tauri's oauth_exchange which has Cloudflare fallbacks)
 			var payload struct {
@@ -905,46 +881,6 @@ When the user asks to create, build, or manage a Construct space, use these tool
 			}
 
 		// --- Tools ---
-
-		case strings.HasPrefix(req.Type, "tool.") || req.Type == "tools.call":
-			var payload struct {
-				Name     string          `json:"name"`
-				Input    string          `json:"input"`
-				ToolCall json.RawMessage `json:"toolCall"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			// Support both direct tool.execute and tools.call (with nested toolCall)
-			if payload.Name == "" && payload.ToolCall != nil {
-				var tc struct {
-					Function struct {
-						Name      string `json:"name"`
-						Arguments string `json:"arguments"`
-					} `json:"function"`
-				}
-				json.Unmarshal(payload.ToolCall, &tc)
-				payload.Name = tc.Function.Name
-				payload.Input = tc.Function.Arguments
-			}
-			t, ok := tools.Get(payload.Name)
-			if !ok {
-				return transport.Response{ID: req.ID, Success: false, Error: "unknown tool: " + payload.Name}
-			}
-			// Pre-hooks (same safety checks as LLM-driven tool calls)
-			if hookResult, err := hookReg.RunPre(reqCtx, payload.Name, payload.Input); err == nil && hookResult != nil && hookResult.Block {
-				return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("blocked by hook: %s", hookResult.Message)}
-			}
-			result, err := t.Executor.Execute(reqCtx, payload.Input)
-			if err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-			// Post-hooks
-			hookReg.RunPost(reqCtx, payload.Name, result.Content)
-			return transport.Response{
-				ID: req.ID, Success: true,
-				Data: map[string]any{"content": result.Content, "is_error": result.IsError},
-			}
 
 		// --- Skills and hooks ---
 
@@ -1448,92 +1384,6 @@ When the user asks to create, build, or manage a Construct space, use these tool
 				})
 			}
 			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"metrics": items}}
-
-		// --- Passthrough stubs for frontend requests still intentionally deferred ---
-
-		case strings.HasPrefix(req.Type, "ai.conversations."),
-			strings.HasPrefix(req.Type, "auth.set_api_base"),
-			strings.HasPrefix(req.Type, "auth.sync_token"),
-			req.Type == "system.check_update",
-			req.Type == "system.apply_update":
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{}}
-
-		// --- Chat Session Persistence ---
-
-		case req.Type == "sessions.save":
-			var payload struct {
-				Session chatsession.Session `json:"session"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			if payload.Session.ID == "" {
-				return transport.Response{ID: req.ID, Success: false, Error: "session.id is required"}
-			}
-			if err := chatSessStore.Save(&payload.Session); err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
-
-		case req.Type == "sessions.load":
-			var payload struct {
-				ID string `json:"id"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			if payload.ID == "" {
-				return transport.Response{ID: req.ID, Success: false, Error: "id is required"}
-			}
-			sess, err := chatSessStore.Load(payload.ID)
-			if err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"session": sess}}
-
-		case req.Type == "sessions.chat_list":
-			metas, err := chatSessStore.List()
-			if err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{
-				"sessions": metas, "count": len(metas),
-			}}
-
-		case req.Type == "sessions.delete":
-			var payload struct {
-				ID string `json:"id"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			if payload.ID == "" {
-				return transport.Response{ID: req.ID, Success: false, Error: "id is required"}
-			}
-			if err := chatSessStore.Delete(payload.ID); err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
-
-		case req.Type == "sessions.resume":
-			var payload struct {
-				AgentID   string `json:"agent_id"`
-				ProjectID string `json:"project_id"`
-			}
-			if req.Payload != nil {
-				json.Unmarshal(req.Payload, &payload)
-			}
-			if payload.AgentID == "" {
-				return transport.Response{ID: req.ID, Success: false, Error: "agent_id is required"}
-			}
-			sess, err := chatSessStore.FindByAgent(payload.AgentID, payload.ProjectID)
-			if err != nil {
-				return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
-			}
-			if sess == nil {
-				return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"session": nil}}
-			}
-			return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"session": sess}}
 
 		default:
 			fmt.Fprintf(os.Stderr, "[operator] unknown request type: %s\n", req.Type)

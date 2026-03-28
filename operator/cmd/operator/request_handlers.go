@@ -148,6 +148,12 @@ func (rt *operatorRuntime) dispatchFrontRequests(reqCtx context.Context, req tra
 	case isMCPRequestType(req.Type):
 		return rt.handleMCPRequest(reqCtx, req)
 
+	case isToolRequestType(req.Type):
+		return rt.handleToolRequest(reqCtx, req), true
+
+	case isSessionRequestType(req.Type) || isPassthroughRequestType(req.Type):
+		return rt.handleSessionRequest(req), true
+
 	default:
 		return transport.Response{}, false
 	}
@@ -155,11 +161,13 @@ func (rt *operatorRuntime) dispatchFrontRequests(reqCtx context.Context, req tra
 
 func (rt *operatorRuntime) handleDispatchRequest(reqCtx context.Context, req transport.Request) transport.Response {
 	var payload struct {
-		AgentID   string             `json:"agent_id"`
-		Task      string             `json:"task"`
-		Model     string             `json:"model,omitempty"`
-		Messages  []provider.Message `json:"messages,omitempty"`
-		SessionID string             `json:"session_id,omitempty"`
+		AgentID     string             `json:"agent_id"`
+		Task        string             `json:"task"`
+		Model       string             `json:"model,omitempty"`
+		Messages    []provider.Message `json:"messages,omitempty"`
+		SessionID   string             `json:"session_id,omitempty"`
+		ProjectPath string             `json:"project_path,omitempty"`
+		ProjectName string             `json:"project_name,omitempty"`
 	}
 	if req.Payload != nil {
 		json.Unmarshal(req.Payload, &payload)
@@ -182,13 +190,21 @@ func (rt *operatorRuntime) handleDispatchRequest(reqCtx context.Context, req tra
 	if agentCfg == nil {
 		return transport.Response{ID: req.ID, Success: false, Error: "unknown agent: " + payload.AgentID}
 	}
+
+	projectCtx := rt.projectContext(reqCtx)
+	if payload.ProjectPath != "" {
+		projectCtx = &runner.ProjectContext{
+			RootPath: payload.ProjectPath,
+			Name:     payload.ProjectName,
+		}
+	}
 	result, err := rt.runner.Run(reqCtx, &runner.RunRequest{
 		Agent:    agentCfg,
 		Task:     payload.Task,
 		Model:    payload.Model,
 		Messages: payload.Messages,
 		Context:  rt.runnerContext(reqCtx),
-		Project:  rt.projectContext(reqCtx),
+		Project:  projectCtx,
 	})
 	if err != nil {
 		return transport.Response{ID: req.ID, Success: false, Error: err.Error()}

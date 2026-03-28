@@ -495,6 +495,10 @@ export function useAgentSession() {
           agentId,
           task,
           resolvedModel,
+          {
+            ...(options?.projectPath ? { projectPath: options.projectPath } : {}),
+            ...(runnerSessionId.value ? { sessionId: runnerSessionId.value } : {}),
+          },
         )
         turn.response.push({ type: 'text', content: result.content })
         turn.status = 'done'

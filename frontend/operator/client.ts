@@ -155,11 +155,23 @@ export function useOperator() {
 
   // ─── Agent execution ───
 
-  async function dispatch(agentId: string, task: string, model?: string): Promise<DispatchResult> {
+  async function dispatch(
+    agentId: string,
+    task: string,
+    model?: string,
+    options?: {
+      projectPath?: string
+      projectName?: string
+      sessionId?: string
+    },
+  ): Promise<DispatchResult> {
     return send<DispatchResult>('agents.dispatch', {
       agent_id: agentId,
       task,
       ...(model ? { model } : {}),
+      ...(options?.projectPath ? { project_path: options.projectPath } : {}),
+      ...(options?.projectName ? { project_name: options.projectName } : {}),
+      ...(options?.sessionId ? { session_id: options.sessionId } : {}),
     })
   }
 
