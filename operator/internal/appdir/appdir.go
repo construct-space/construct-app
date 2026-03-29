@@ -13,7 +13,8 @@ import (
 )
 
 // Dir is the resolved data directory, set once at startup by Init().
-var Dir string
+// Falls back to nativeDir() so logs never write to cwd.
+var Dir = nativeDir()
 
 // Init resolves the data directory and ensures structure exists.
 func Init(_ bool) {
