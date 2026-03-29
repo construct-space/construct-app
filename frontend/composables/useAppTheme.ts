@@ -192,6 +192,7 @@ export const appThemes: AppTheme[] = [
   {
     id: 'hc-black',
     name: 'High Contrast Dark',
+
     mode: 'dark',
     primary: 'yellow',
     neutral: 'neutral',

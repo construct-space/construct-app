@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { Sun, Moon, Monitor } from 'lucide-vue-next'
-import { useTheme } from '@construct-space/ui'
 
-const { themes, currentThemeId, setTheme } = useTheme()
+const { themes, currentThemeId, setTheme } = useAppTheme()
 
 const isAuto = computed(() => currentThemeId.value === 'auto')
 
@@ -56,25 +55,25 @@ function toggleAuto() {
         <!-- Color preview -->
         <div
           class="h-16 w-full relative"
-          :style="{ backgroundColor: theme.bg }"
+          :style="{ backgroundColor: theme.colors.background }"
         >
           <div
             class="absolute bottom-0 left-0 right-0 h-1"
-            :style="{ backgroundColor: theme.accent }"
+            :style="{ backgroundColor: theme.colors.accent }"
           />
           <div class="p-2 flex flex-col gap-1">
-            <div class="h-1.5 rounded-full w-3/4" :style="{ backgroundColor: theme.fg, opacity: 0.7 }" />
-            <div class="h-1.5 rounded-full w-1/2" :style="{ backgroundColor: theme.muted, opacity: 0.5 }" />
-            <div class="mt-1 h-3 rounded w-10" :style="{ backgroundColor: theme.accent }" />
+            <div class="h-1.5 rounded-full w-3/4" :style="{ backgroundColor: theme.colors.foreground, opacity: 0.7 }" />
+            <div class="h-1.5 rounded-full w-1/2" :style="{ backgroundColor: theme.colors.muted, opacity: 0.5 }" />
+            <div class="mt-1 h-3 rounded w-10" :style="{ backgroundColor: theme.colors.accent }" />
           </div>
         </div>
 
-        <div class="px-2 py-1.5 flex items-center justify-between" :style="{ backgroundColor: theme.bg }">
-          <span class="text-xs font-medium truncate" :style="{ color: theme.fg }">{{ theme.name }}</span>
+        <div class="px-2 py-1.5 flex items-center justify-between" :style="{ backgroundColor: theme.colors.background }">
+          <span class="text-xs font-medium truncate" :style="{ color: theme.colors.foreground }">{{ theme.name }}</span>
           <component
             :is="theme.mode === 'light' ? Sun : Moon"
             class="w-3 h-3 shrink-0 ml-1"
-            :style="{ color: theme.muted }"
+            :style="{ color: theme.colors.muted }"
           />
         </div>
 
@@ -82,10 +81,10 @@ function toggleAuto() {
         <div
           v-if="!isAuto && currentThemeId === theme.id"
           class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
-          :style="{ backgroundColor: theme.accent }"
+          :style="{ backgroundColor: theme.colors.accent }"
         >
           <svg class="w-2.5 h-2.5" viewBox="0 0 10 10" fill="none">
-            <path d="M2 5l2.5 2.5L8 3" :stroke="theme.accentFg" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M2 5l2.5 2.5L8 3" :stroke="theme.colors.accentForeground" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
       </button>
