@@ -31,11 +31,15 @@ async function handleItemClick(item: { id: string; onClick?: () => void; to?: st
     router.push(item.to)
   } else if (item.action) {
     const spaceName = frontPanel.value?.spaceName
+    console.log('[Toolbar] action:', item.action, 'space:', spaceName)
     if (spaceName) {
-      const { getAutomationProvider } = await import('@/lib/spaceContextBus')
+      const { getAutomationProvider, listAutomationProviders } = await import('@/lib/spaceContextBus')
+      console.log('[Toolbar] registered providers:', listAutomationProviders())
       const provider = getAutomationProvider(spaceName)
+      console.log('[Toolbar] provider for', spaceName, ':', !!provider)
       if (provider) {
-        await provider.runAction(item.action)
+        const result = await provider.runAction(item.action)
+        console.log('[Toolbar] action result:', result)
       }
     }
   }
