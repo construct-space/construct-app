@@ -22,7 +22,6 @@ import * as TauriFs from '@tauri-apps/plugin-fs'
 import * as TauriShell from '@tauri-apps/plugin-shell'
 import * as TauriDialog from '@tauri-apps/plugin-dialog'
 import * as TauriProcess from '@tauri-apps/plugin-process'
-import * as RekaUi from 'reka-ui'
 import * as Lucide from 'lucide-vue-next'
 import * as DateFns from 'date-fns'
 import DexieDefault, * as DexieNs from 'dexie'
@@ -80,7 +79,6 @@ export function initSpaceHost(): void {
     '@tauri-apps/plugin-shell': TauriShell,
     '@tauri-apps/plugin-dialog': TauriDialog,
     '@tauri-apps/plugin-process': TauriProcess,
-    'reka-ui': RekaUi,
     'lucide-vue-next': Lucide,
     'date-fns': DateFns,
     'dexie': Object.assign(DexieDefault, DexieNs),
