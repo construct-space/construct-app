@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+
 	"testing"
 
 	"construct-operator/internal/desktop"
@@ -113,5 +114,51 @@ func TestBridgeToolError(t *testing.T) {
 	}
 	if !result.IsError {
 		t.Error("expected error result")
+	}
+}
+
+func TestRegisterSpaceActionToolsInstant(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req desktop.Request
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &req)
+
+		if req.Method != "space.list_actions" {
+			json.NewEncoder(w).Encode(desktop.Response{
+				ID:    req.ID,
+				Error: &desktop.BridgeError{Code: "not_found", Message: "unknown"},
+			})
+			return
+		}
+
+		data, _ := json.Marshal(map[string]any{
+			"space_id": "canvas",
+			"actions": []map[string]any{
+				{
+					"id":          "list_cards",
+					"description": "List cards",
+					"params": map[string]any{
+						"type":       "object",
+						"properties": map[string]any{},
+					},
+				},
+			},
+		})
+		json.NewEncoder(w).Encode(desktop.Response{
+			ID:     req.ID,
+			Result: data,
+		})
+	}))
+	defer srv.Close()
+
+	bridge := &desktop.Client{}
+	bridge.SetAddrForTest(srv.URL)
+	bridge.SetTokenForTest("test")
+
+	reg := NewRegistry()
+	RegisterSpaceActionTools(reg, bridge, []string{"canvas"})
+
+	if _, ok := reg.Get("canvas.list_cards"); !ok {
+		t.Fatal("expected canvas.list_cards to be registered")
 	}
 }

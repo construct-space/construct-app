@@ -9,13 +9,36 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
+	"sync"
 )
 
+// Pending space action registration — set by main, triggered by frontend
 var (
-	spaceActionRegistrationMaxAttempts = 30
-	spaceActionRegistrationRetryDelay  = 2 * time.Second
+	pendingRegistry *Registry
+	pendingBridge   *desktop.Client
+	pendingSpaceIDs []string
+	pendingOnce     sync.Once
 )
+
+// SetPendingSpaceActions stores the info needed to register space actions later.
+// Called from main.go. Registration happens when the frontend signals readiness.
+func SetPendingSpaceActions(r *Registry, bridge *desktop.Client, spaceIDs []string) {
+	pendingRegistry = r
+	pendingBridge = bridge
+	pendingSpaceIDs = spaceIDs
+}
+
+// RegisterPendingSpaceActions registers all space action tools.
+// Called when the frontend signals that automation providers are ready.
+// Safe to call multiple times — only runs once.
+func RegisterPendingSpaceActions() {
+	pendingOnce.Do(func() {
+		if pendingRegistry == nil || pendingBridge == nil || len(pendingSpaceIDs) == 0 {
+			return
+		}
+		RegisterSpaceActionTools(pendingRegistry, pendingBridge, pendingSpaceIDs)
+	})
+}
 
 // RegisterBridgeTools adds all bridge-backed automation tools to the registry.
 // If bridge is nil (no CONSTRUCT_BRIDGE_TOKEN), tools are not registered.
@@ -312,49 +335,20 @@ func (b *bridgeExec) Execute(ctx context.Context, input string) (*Result, error)
 }
 
 // RegisterSpaceActionTools queries each space for its actions via the bridge
-// and registers each action as a dedicated tool: {spaceId}_{actionId}.
-// This runs async after the bridge is connected.
+// and registers each action as a dedicated tool: {spaceId}.{actionId}.
+// Called when the frontend signals that automation providers are ready.
 func RegisterSpaceActionTools(r *Registry, bridge *desktop.Client, spaceIDs []string) {
 	if bridge == nil {
 		return
 	}
 
-	pending := append([]string(nil), spaceIDs...)
-	lastErr := make(map[string]error, len(spaceIDs))
-	loggedRetry := make(map[string]bool, len(spaceIDs))
-
-	for attempt := 1; attempt <= spaceActionRegistrationMaxAttempts && len(pending) > 0; attempt++ {
-		nextPending := make([]string, 0, len(pending))
-
-		for _, sid := range pending {
-			resp, err := listSpaceActions(bridge, sid)
-			if err != nil {
-				lastErr[sid] = err
-				nextPending = append(nextPending, sid)
-				if attempt < spaceActionRegistrationMaxAttempts && !loggedRetry[sid] {
-					fmt.Fprintf(os.Stderr, "[tools] space %q list_actions not ready; retrying: %v\n", sid, err)
-					loggedRetry[sid] = true
-				}
-				continue
-			}
-
-			delete(lastErr, sid)
-			registerSpaceActionToolsForSpace(r, bridge, sid, resp.Actions)
-		}
-
-		if len(nextPending) == 0 {
-			return
-		}
-		if attempt < spaceActionRegistrationMaxAttempts {
-			time.Sleep(spaceActionRegistrationRetryDelay)
-		}
-		pending = nextPending
-	}
-
-	for _, sid := range pending {
-		if err := lastErr[sid]; err != nil {
+	for _, sid := range spaceIDs {
+		resp, err := listSpaceActions(bridge, sid)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "[tools] space %q list_actions failed: %v\n", sid, err)
+			continue
 		}
+		registerSpaceActionToolsForSpace(r, bridge, sid, resp.Actions)
 	}
 }
 

@@ -124,11 +124,11 @@ func run(args []string) int {
 		}
 	}
 
-	if bridge != nil && len(spaceIDs) > 0 {
-		go func() {
-			time.Sleep(3 * time.Second)
-			tool.RegisterSpaceActionTools(toolReg, bridge, spaceIDs)
-		}()
+	// Space action tools are registered on-demand when the frontend signals readiness
+	// via the "spaces.actions_ready" message (see tool module handler).
+	// Store spaceIDs for the handler to use.
+	if bridge != nil {
+		tool.SetPendingSpaceActions(toolReg, bridge, spaceIDs)
 	}
 
 	// User hooks & skills

@@ -36,4 +36,5 @@ func (m *ToolModule) Routes(r *module.Router) {
 	r.Handle("tools.list", m.handleList)
 	r.Handle("tools.call", m.handleCall)
 	r.Handle("tool.execute", m.handleCall)
+	r.Handle("spaces.actions_ready", m.handleSpaceActionsReady)
 }

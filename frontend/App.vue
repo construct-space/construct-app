@@ -104,9 +104,13 @@ onMounted(async () => {
   // Initialize theme (sets dark/light class + CSS variables)
   initTheme()
 
-  // Preload space actions so agent tools are available immediately
-  import('@/space_loader/SpaceLoader').then(({ preloadSpaceActions }) => {
-    preloadSpaceActions()
+  // Preload space actions, then notify operator to register them as tools
+  import('@/space_loader/SpaceLoader').then(async ({ preloadSpaceActions }) => {
+    await preloadSpaceActions()
+    // Signal operator that automation providers are ready
+    const { useOperator } = await import('@/operator/client')
+    const operator = useOperator()
+    operator.send('spaces.actions_ready', {}).catch(() => {})
   })
 
   // Telemetry: track session start + background sync
