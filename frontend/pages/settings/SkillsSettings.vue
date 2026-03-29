@@ -264,7 +264,7 @@ onMounted(() => { refresh() })
 
     <!-- Add Skill Modal -->
     <Modal :open="showAddModal" title="Add Skill" @close="showAddModal = false">
-      <div class="space-y-4 p-4">
+      <div class="space-y-4">
         <div>
           <label class="block text-xs font-medium text-[var(--app-muted)] mb-1">Filename</label>
           <Input v-model="newSkillFilename" placeholder="my-skill.md" />
