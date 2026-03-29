@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@construct-space/sdk": "^0.4.0",
-    "@construct-space/ui": "0.3.6",
+    "@construct-space/ui": "0.4.0",
     "@nicepkg/gpt-runner": "^1.2.9",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
@@ -48,7 +48,7 @@
     "@vueuse/core": "^14.2.1",
     "@vueuse/integrations": "^14.2.1",
     "async-validator": "^4.2.5",
-    "axios": "^1.13.6",
+    "axios": "^1.14.0",
     "change-case": "^5.4.4",
     "date-fns": "^4.1.0",
     "dexie": "^4.4.1",
@@ -72,7 +72,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@iconify/vue": "^4.3.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.2",
     "@tauri-apps/cli": "^2.10.1",
