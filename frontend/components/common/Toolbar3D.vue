@@ -24,13 +24,21 @@ onMounted(async () => {
   await initToolbar()
 })
 
-function handleItemClick(item: { id: string; onClick?: () => void; to?: string; action?: string }) {
+async function handleItemClick(item: { id: string; onClick?: () => void; to?: string; action?: string }) {
   if (item.onClick) {
     item.onClick()
   } else if (item.to) {
     router.push(item.to)
   } else if (item.action) {
-    console.log('Toolbar action:', item.action)
+    // Dispatch action to the active space
+    const spaceName = frontPanel.value?.spaceName
+    if (spaceName) {
+      const { loadSpace } = await import('@/space_loader/SpaceLoader')
+      const space = await loadSpace(spaceName)
+      if (space) {
+        await space.runAction(item.action)
+      }
+    }
   }
 }
 </script>
