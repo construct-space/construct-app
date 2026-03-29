@@ -2,6 +2,8 @@
 /**
  * Chat Quick Widget — 4x2 compact chat input
  */
+import { MessageCircle, ArrowUp } from 'lucide-vue-next'
+
 const message = ref('')
 const router = useRouter()
 
@@ -20,7 +22,7 @@ async function sendQuick() {
   <div class="h-full flex flex-col p-3 gap-2">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <Icon name="i-lucide-message-circle" class="size-4 text-[var(--app-accent)]" />
+        <MessageCircle class="size-4 text-[var(--app-accent)]" />
         <span class="text-xs font-medium text-[var(--app-foreground)]">Chat</span>
       </div>
       <button class="text-[10px] text-[var(--app-muted)] hover:text-[var(--app-accent)]" @click="openChat">
@@ -39,7 +41,7 @@ async function sendQuick() {
           class="size-8 rounded-lg bg-[var(--app-accent)] text-white flex items-center justify-center hover:opacity-90 transition-opacity"
           @click="sendQuick"
         >
-          <Icon name="i-lucide-arrow-up" class="size-3.5" />
+          <ArrowUp class="size-3.5" />
         </button>
       </div>
     </div>

@@ -4,6 +4,7 @@
  * Supports running Flutter on iOS, Android, and Web simultaneously
  */
 import { invoke } from '@tauri-apps/api/core'
+import { Monitor, Loader2, MonitorOff, Check } from 'lucide-vue-next'
 import { useConstructWindow } from '@/composables/useConstructWindow'
 import { useProjectRunner } from '../composables/useProjectRunner'
 import { useProcessManager } from '../composables/useProcessManager'
@@ -822,7 +823,7 @@ function handleConfigChange(value: string | number) {
       >
         <div class="p-4">
           <div class="flex items-center gap-2 mb-3">
-            <Icon name="i-lucide-monitor" class="size-5 text-app-accent" />
+            <Monitor class="size-5 text-app-accent" />
             <span class="text-sm font-medium text-app">Desktop Platform Not Configured</span>
           </div>
           <p class="text-xs text-app-muted leading-relaxed">
@@ -876,12 +877,12 @@ function handleConfigChange(value: string | number) {
         </div>
 
         <div v-if="isLoadingDevices" class="p-4 text-center">
-          <Icon name="i-lucide-loader-2" class="size-6 animate-spin text-app-muted mx-auto mb-2" />
+          <Loader2 class="size-6 animate-spin text-app-muted mx-auto mb-2" />
           <p class="text-sm text-app-muted">Loading devices...</p>
         </div>
 
         <div v-else-if="flutterDevices.length === 0" class="p-4 text-center">
-          <Icon name="i-lucide-smartphone-off" class="size-8 text-app-muted mx-auto mb-2" />
+          <MonitorOff class="size-8 text-app-muted mx-auto mb-2" />
           <p class="text-sm text-app-muted">No devices found</p>
           <p class="text-xs text-app-muted/60">Connect a device or start an emulator</p>
         </div>
@@ -906,9 +907,8 @@ function handleConfigChange(value: string | number) {
                 <span v-if="isDeviceRunning(device.id)" class="text-green-400">(Running)</span>
               </div>
             </div>
-            <Icon
+            <Check
               v-if="isDeviceRunning(device.id)"
-              name="i-lucide-check"
               class="size-4 text-green-400"
             />
           </button>
@@ -935,6 +935,6 @@ function handleConfigChange(value: string | number) {
 
   <!-- Loading indicator -->
   <div v-else-if="isDetecting" class="flex items-center gap-1.5 px-2">
-    <Icon name="i-lucide-loader-2" class="size-3.5 animate-spin text-app-muted" />
+    <Loader2 class="size-3.5 animate-spin text-app-muted" />
   </div>
 </template>

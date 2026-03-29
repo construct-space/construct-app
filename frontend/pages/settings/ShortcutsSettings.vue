@@ -1,17 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Upload, Download, Layers, Keyboard, Globe, ShieldAlert, RotateCcw } from 'lucide-vue-next'
 import { useShortcutStore, SHORTCUT_REGISTRY, type ShortcutSpace } from '@/composables/useShortcutStore'
-import { useGlobalShortcuts } from '@/composables/useGlobalShortcuts'
-
 const store = useShortcutStore()
-
-// Global shortcuts — the handler is only used in App.vue, but we need the
-// enabled/setEnabled/refresh here for the settings toggle.
-const globalShortcuts = useGlobalShortcuts((id) => {
-  // This instance won't handle events — the root App.vue instance does.
-  // We just need access to enabled state for the UI toggle.
-  console.debug('[Settings] global shortcut fired:', id)
-})
 
 // ─── Group shortcuts by space then group ─────────────────────────────────────
 
@@ -208,14 +199,14 @@ const spaceExamples = [
           class="text-xs px-3 py-1.5 rounded border border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-foreground)] hover:border-[var(--app-muted)] transition-colors flex items-center gap-1.5"
           @click="handleImport"
         >
-          <Icon name="i-lucide-upload" class="size-3" />
+          <Upload class="size-3" />
           Import
         </button>
         <button
           class="text-xs px-3 py-1.5 rounded border border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-foreground)] hover:border-[var(--app-muted)] transition-colors flex items-center gap-1.5"
           @click="handleExport"
         >
-          <Icon name="i-lucide-download" class="size-3" />
+          <Download class="size-3" />
           shortcuts.json
         </button>
       </div>
@@ -224,7 +215,7 @@ const spaceExamples = [
     <!-- Space-aware explainer -->
     <div class="mb-6 rounded-lg border border-[var(--app-border)] bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] p-4">
       <div class="flex items-start gap-3">
-        <Icon name="i-lucide-layers" class="size-4 text-app-accent mt-0.5 shrink-0" />
+        <Layers class="size-4 text-app-accent mt-0.5 shrink-0" />
         <div class="space-y-2 min-w-0">
           <p class="text-sm font-medium text-[var(--app-foreground)]">Space-aware shortcuts</p>
           <p class="text-sm text-[var(--app-muted)] leading-relaxed">
@@ -263,7 +254,7 @@ const spaceExamples = [
       class="mb-4 px-4 py-3 rounded-lg bg-[color-mix(in_srgb,var(--app-accent)_12%,transparent)] border border-[var(--app-accent)]/40 flex items-center justify-between"
     >
       <div class="flex items-center gap-2">
-        <Icon name="i-lucide-keyboard" class="size-4 text-app-accent" />
+        <Keyboard class="size-4 text-app-accent" />
         <span class="text-sm text-[var(--app-foreground)]">
           Press any key combination — <span class="font-medium">Escape</span> to cancel
         </span>
@@ -285,45 +276,6 @@ const spaceExamples = [
         <Icon :name="space.icon" class="size-4" />
         {{ space.label }}
       </button>
-    </div>
-
-    <!-- Global shortcuts toggle -->
-    <div v-if="activeSpace === 'global'" class="mb-6 space-y-3">
-      <div class="rounded-lg border border-[var(--app-border)] p-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <Icon name="i-lucide-globe" class="size-4 text-app-accent shrink-0" />
-          <div>
-            <p class="text-sm font-medium text-[var(--app-foreground)]">System-wide global shortcuts</p>
-            <p class="text-xs text-[var(--app-muted)] mt-0.5">These shortcuts work even when Construct is not focused.</p>
-          </div>
-        </div>
-        <button
-          class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-          :class="globalShortcuts.enabled.value ? 'bg-[var(--app-accent)]' : 'bg-[color-mix(in_srgb,var(--app-muted)_30%,transparent)]'"
-          @click="globalShortcuts.setEnabled(!globalShortcuts.enabled.value)"
-        >
-          <span
-            class="pointer-events-none inline-block size-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-            :class="globalShortcuts.enabled.value ? 'translate-x-4' : 'translate-x-0'"
-          />
-        </button>
-      </div>
-
-      <!-- Accessibility permission notice (macOS) -->
-      <div
-        v-if="globalShortcuts.enabled.value && globalShortcuts.accessibilityGranted.value === false"
-        class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 flex items-start gap-3"
-      >
-        <Icon name="i-lucide-shield-alert" class="size-4 text-amber-500 mt-0.5 shrink-0" />
-        <div>
-          <p class="text-sm font-medium text-amber-500">Accessibility permission required</p>
-          <p class="text-xs text-[var(--app-muted)] mt-1 leading-relaxed">
-            Global shortcuts need accessibility access on macOS. Open
-            <strong class="text-[var(--app-foreground)]">System Settings → Privacy & Security → Accessibility</strong>
-            and enable Construct. You may need to restart the app after granting access.
-          </p>
-        </div>
-      </div>
     </div>
 
     <!-- Shortcut groups for active space -->
@@ -401,7 +353,7 @@ const spaceExamples = [
                   :title="`Reset to default: ${def.defaultKey}`"
                   @click="store.resetKey(def.id)"
                 >
-                  <Icon name="i-lucide-rotate-ccw" class="size-3" />
+                  <RotateCcw class="size-3" />
                 </button>
               </template>
             </div>

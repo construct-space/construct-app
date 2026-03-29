@@ -38,4 +38,5 @@ context/bin/
 
 # Logs
 *.log
+*.jsonl
 target/

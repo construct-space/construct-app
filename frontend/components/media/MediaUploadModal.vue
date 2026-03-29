@@ -14,7 +14,7 @@
           <input ref="fileInput" type="file" accept="*/*" class="hidden" @change="handleFileSelect">
 
           <div v-if="!uploadForm.file">
-            <Icon name="i-lucide-upload-cloud" class="w-12 h-12 text-[var(--app-muted)] mx-auto mb-3" />
+            <UploadCloud class="w-12 h-12 text-[var(--app-muted)] mx-auto mb-3" />
             <p class="text-sm text-[var(--app-muted)] mb-2">
               Drag and drop your file here, or
             </p>
@@ -69,6 +69,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
+import { UploadCloud } from 'lucide-vue-next'
 import { appConfig } from '~/utils/config'
 
 interface Props {

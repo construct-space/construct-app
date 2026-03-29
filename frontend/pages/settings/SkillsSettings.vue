@@ -1,16 +1,64 @@
 <script setup lang="ts">
 import { useSkills } from '@/composables/useSkills'
 import type { SkillInfo, HookInfo } from '@/composables/useSkills'
-import { Switch, Select, Button } from '@construct-space/ui'
-
-
+import { Switch, Select, Button, Modal, Textarea, Input } from '@construct-space/ui'
 
 const toast = useNotification()
-const { skills, hooks, isLoading, loadSkill, enableSkill, disableSkill, enableHook, disableHook, loadBuiltins, refresh } = useSkills()
+const { skills, hooks, isLoading, loadSkill, enableSkill, disableSkill, enableHook, disableHook, deleteSkill, saveSkill, loadBuiltins, refresh } = useSkills()
 
 const activeTab = ref<'skills' | 'hooks'>('skills')
 const selectedSkill = ref<SkillInfo | null>(null)
 const hookTypeFilter = ref('')
+
+// Add skill modal
+const showAddModal = ref(false)
+const newSkillFilename = ref('')
+const newSkillContent = ref(`---
+name: My Skill
+description: What this skill does
+category: custom
+trigger: keyword1,keyword2
+---
+
+Your skill prompt here. This is the instruction text that gets injected when the skill is triggered.
+`)
+const isSaving = ref(false)
+
+async function handleSaveSkill() {
+  if (!newSkillFilename.value.trim() || !newSkillContent.value.trim()) {
+    toast.add({ title: 'Filename and content are required', color: 'warning' })
+    return
+  }
+  isSaving.value = true
+  try {
+    const result = await saveSkill(newSkillFilename.value, newSkillContent.value)
+    if (result) {
+      toast.add({ title: `Skill "${result.name}" saved`, color: 'success' })
+      showAddModal.value = false
+      newSkillFilename.value = ''
+    } else {
+      toast.add({ title: 'Failed to save skill', color: 'error' })
+    }
+  } catch (e) {
+    toast.add({ title: String(e), color: 'error' })
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function handleDeleteSkill(skill: SkillInfo) {
+  try {
+    const success = await deleteSkill(skill.id)
+    if (success) {
+      toast.add({ title: `${skill.name} deleted`, color: 'success' })
+      selectedSkill.value = null
+    } else {
+      toast.add({ title: 'Cannot delete — only user skills can be removed', color: 'warning' })
+    }
+  } catch (e) {
+    toast.add({ title: String(e), color: 'error' })
+  }
+}
 
 const hookTypes = [
   { label: 'All Types', value: '' },
@@ -82,11 +130,12 @@ onMounted(() => { refresh() })
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-1">
+    <div class="flex items-center justify-between mb-4">
       <div class="flex gap-2">
         <Button variant="soft" size="sm" :loading="isLoading" label="Refresh" @click="refresh" />
         <Button size="sm" label="Load Builtins" @click="handleLoadBuiltins" />
       </div>
+      <Button size="sm" label="+ Add Skill" @click="showAddModal = true" />
     </div>
 
     <!-- Tabs -->
@@ -165,6 +214,13 @@ onMounted(() => { refresh() })
                   skill.dependencies.join(', ') }}</span>
               </div>
             </div>
+            <div class="mt-3 flex justify-end">
+              <button
+                class="text-xs text-red-400 hover:text-red-300 transition"
+                @click.stop="handleDeleteSkill(skill)">
+                Delete skill
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -205,5 +261,28 @@ onMounted(() => { refresh() })
         </div>
       </div>
     </template>
+
+    <!-- Add Skill Modal -->
+    <Modal :open="showAddModal" title="Add Skill" @close="showAddModal = false">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-[var(--app-muted)] mb-1">Filename</label>
+          <Input v-model="newSkillFilename" placeholder="my-skill.md" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-[var(--app-muted)] mb-1">Skill content (paste markdown with YAML frontmatter)</label>
+          <textarea
+            v-model="newSkillContent"
+            rows="14"
+            class="w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-background)] text-[var(--app-foreground)] text-sm font-mono p-3 focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)] resize-y"
+            placeholder="---&#10;name: My Skill&#10;description: What it does&#10;category: custom&#10;trigger: keyword&#10;---&#10;&#10;Prompt text here..."
+          />
+        </div>
+        <div class="flex justify-end gap-2">
+          <Button variant="soft" label="Cancel" @click="showAddModal = false" />
+          <Button label="Save Skill" :loading="isSaving" @click="handleSaveSkill" />
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>

@@ -27,6 +27,7 @@ func builtinOutputSchema(key string) *provider.OutputSchemaConfig {
 const architectV1Schema = `{
   "type": "object",
   "required": ["version", "state"],
+  "additionalProperties": false,
   "properties": {
     "version": { "type": "string", "enum": ["architect.v1"] },
     "state": { "type": "string", "enum": ["questions", "plan", "progress"] },
@@ -35,6 +36,7 @@ const architectV1Schema = `{
       "items": {
         "type": "object",
         "required": ["id", "question", "type", "options"],
+        "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
           "question": { "type": "string" },
@@ -44,6 +46,7 @@ const architectV1Schema = `{
             "items": {
               "type": "object",
               "required": ["value", "label"],
+              "additionalProperties": false,
               "properties": {
                 "value": { "type": "string" },
                 "label": { "type": "string" },
@@ -62,6 +65,7 @@ const architectV1Schema = `{
       "items": {
         "type": "object",
         "required": ["label", "value"],
+        "additionalProperties": false,
         "properties": {
           "label": { "type": "string" },
           "value": { "type": "string" }
@@ -73,6 +77,7 @@ const architectV1Schema = `{
       "items": {
         "type": "object",
         "required": ["path", "title"],
+        "additionalProperties": false,
         "properties": {
           "path": { "type": "string" },
           "title": { "type": "string" }
@@ -84,6 +89,7 @@ const architectV1Schema = `{
       "items": {
         "type": "object",
         "required": ["id", "label"],
+        "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
           "label": { "type": "string" }

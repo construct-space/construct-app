@@ -58,12 +58,33 @@ export const assistantEnvelopeSchema = z.object({
 export type AssistantContentBlock = z.infer<typeof assistantContentBlockSchema>
 export type AssistantEnvelope = z.infer<typeof assistantEnvelopeSchema>
 
-export function tryParseAssistantEnvelope(raw: string): AssistantEnvelope | null {
+export function tryParseAssistantEnvelope(raw: string, stopReason?: string): AssistantEnvelope | null {
   const trimmed = raw.trim()
   if (!trimmed.startsWith('{')) return null
 
+  // Truncated response — JSON may be incomplete
+  if (stopReason === 'max_tokens') {
+    return {
+      version: 'assistant.v1',
+      state: 'incomplete',
+      provider: 'unknown',
+      stop_reason: 'max_tokens',
+    }
+  }
+
   try {
     const parsed = JSON.parse(trimmed)
+
+    // Handle refusal responses (model declined to answer)
+    if (parsed.type === 'error' && parsed.error?.type === 'refusal') {
+      return {
+        version: 'assistant.v1',
+        state: 'refusal',
+        provider: 'unknown',
+        refusal: { message: parsed.error.message || 'Request refused' },
+      }
+    }
+
     const result = assistantEnvelopeSchema.safeParse(parsed)
     return result.success ? result.data : null
   } catch {

@@ -10,7 +10,7 @@ import { useSpaceMarketplace } from '@/composables/useSpaceMarketplace'
 import { IS_DEV_INSTANCE } from '@/lib/appPaths'
 import {
   RefreshCw, Trash2, ToggleLeft, ToggleRight,
-  Download, Store, ExternalLink,
+  Download, Store, ExternalLink, Box,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -95,7 +95,7 @@ async function handleOpenConstructDev() {
         <!-- Icon + info -->
         <div
           class="size-10 rounded-lg bg-[color-mix(in_srgb,var(--app-accent)_10%,transparent)] flex items-center justify-center shrink-0">
-          <Icon name="i-lucide-box" class="size-5 text-[var(--app-accent)]" />
+          <Box class="size-5 text-[var(--app-accent)]" />
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">

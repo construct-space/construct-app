@@ -9,10 +9,10 @@
           <nav class="flex items-center gap-1 text-sm mt-1" aria-label="Breadcrumb">
             <button class="text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
               @click="navigateToFolder(null)">
-              <Icon name="i-lucide-home" class="w-4 h-4" />
+              <Home class="w-4 h-4" />
             </button>
             <template v-for="(crumb, index) in breadcrumbs" :key="crumb.id">
-              <Icon name="i-lucide-chevron-right" class="w-4 h-4 text-[var(--app-muted)]" />
+              <ChevronRight class="w-4 h-4 text-[var(--app-muted)]" />
               <button class="text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
                 :class="{ 'font-medium text-[var(--app-foreground)]': index === breadcrumbs.length - 1 }"
                 @click="navigateToFolder(crumb.id)">
@@ -46,7 +46,7 @@
             class="cursor-pointer border-2 border-[var(--app-border)] rounded-lg p-3 transition-all hover:shadow-md hover:border-[var(--app-border)]"
             @click="navigateToFolder(folder.id)">
             <div class="aspect-square flex items-center justify-center bg-[var(--app-background)] rounded mb-2">
-              <Icon name="i-lucide-folder" class="w-12 h-12 text-amber-500" />
+              <Folder class="w-12 h-12 text-amber-500" />
             </div>
             <p class="text-xs font-medium truncate text-center">{{ folder.name }}</p>
           </div>
@@ -72,15 +72,15 @@
         <div v-else-if="!loading && folders.length === 0 && files.length === 0"
           class="flex-1 flex items-center justify-center">
           <div class="text-center">
-            <Icon name="i-lucide-folder-open" class="w-16 h-16 text-[var(--app-muted)] mx-auto mb-3" />
+            <FolderOpen class="w-16 h-16 text-[var(--app-muted)] mx-auto mb-3" />
             <p class="text-sm text-[var(--app-muted)] mb-2">No files or folders in this directory</p>
             <div class="flex gap-2 justify-center">
               <Button size="sm" variant="outline" @click="showCreateFolder = true">
-                <Icon name="i-lucide-folder-plus" class="w-4 h-4 mr-1" />
+                <FolderPlus class="w-4 h-4 mr-1" />
                 New Folder
               </Button>
               <Button size="sm" @click="showUploadModal = true">
-                <Icon name="i-lucide-upload" class="w-4 h-4 mr-1" />
+                <Upload class="w-4 h-4 mr-1" />
                 Upload File
               </Button>
             </div>
@@ -89,7 +89,7 @@
 
         <!-- Loading -->
         <div v-if="loading" class="flex-1 flex items-center justify-center">
-          <Icon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-[var(--app-muted)]" />
+          <Loader2 class="w-8 h-8 animate-spin text-[var(--app-muted)]" />
         </div>
 
         <!-- Pagination -->
@@ -150,6 +150,7 @@
 <script setup lang="ts">
 import { useNotification } from '@construct-space/ui'
 import { ref, reactive, computed, watch } from 'vue'
+import { Home, ChevronRight, Folder, FolderOpen, FolderPlus, Upload, Loader2 } from 'lucide-vue-next'
 
 interface MediaFile {
   url: string

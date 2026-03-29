@@ -4,6 +4,7 @@
  * Persistent across navigation. Uses useAgentSession for streaming.
  */
 import { ref, computed, watch } from 'vue'
+import { Cookie, Plus, X } from 'lucide-vue-next'
 import { useAgentSession } from '@/operator/useAgentSession'
 import type { RequestBlock } from '@/assistant'
 import AgentView from '@/components/agent/AgentView.vue'
@@ -45,7 +46,7 @@ const emit = defineEmits<{
     <!-- Header -->
     <div class="shrink-0 flex items-center justify-between px-4 py-2 border-b border-app">
       <div class="flex items-center gap-2">
-        <Icon name="i-lucide-cookie" class="size-4 text-purple-400" />
+        <Cookie class="size-4 text-purple-400" />
         <span class="text-sm font-medium text-app">Chat</span>
       </div>
       <div class="flex items-center gap-1">
@@ -55,14 +56,14 @@ const emit = defineEmits<{
           title="New chat"
           @click="session.clear()"
         >
-          <Icon name="i-lucide-plus" class="size-3.5" />
+          <Plus class="size-3.5" />
         </button>
         <button
           class="p-1.5 rounded-md text-app-muted hover:text-app hover:bg-white/5 transition"
           title="Close"
           @click="emit('close')"
         >
-          <Icon name="i-lucide-x" class="size-3.5" />
+          <X class="size-3.5" />
         </button>
       </div>
     </div>
@@ -77,7 +78,7 @@ const emit = defineEmits<{
       >
         <template v-if="turns.length === 0">
           <div class="flex flex-col items-center justify-center h-full px-8 text-center">
-            <Icon name="i-lucide-cookie" class="size-10 text-purple-400/30 mb-4" />
+            <Cookie class="size-10 text-purple-400/30 mb-4" />
             <h2 class="text-lg font-semibold text-app mb-2">Chat</h2>
             <p class="text-sm text-app-muted max-w-xs">
               Ask anything. Brainstorm ideas, get explanations, debug your thinking.

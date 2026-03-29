@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { LocalProject } from '@/types/project'
+import { Folder, Pin, PinOff, Pencil, Rocket, X } from 'lucide-vue-next'
 
 const props = defineProps<{
   project: LocalProject
@@ -57,7 +58,7 @@ const iconColor = computed(() => {
     <!-- Header: icon + name -->
     <div class="mb-3 flex items-start gap-3">
       <div class="flex size-10 shrink-0 items-center justify-center rounded-lg" :style="{ background: iconColor + '18' }">
-        <Icon name="i-lucide-folder" class="size-5" :style="{ color: iconColor }" />
+        <Folder class="size-5" :style="{ color: iconColor }" />
       </div>
       <div class="min-w-0 flex-1">
         <h3 class="truncate text-sm font-semibold leading-tight text-[var(--app-foreground)]">{{ project.name }}</h3>
@@ -85,28 +86,29 @@ const iconColor = computed(() => {
           :title="pinned ? 'Unpin' : 'Pin'"
           @click.stop="emit('togglePin', project)"
         >
-          <Icon :name="pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" class="size-3.5" />
+          <PinOff v-if="pinned" class="size-3.5" />
+          <Pin v-else class="size-3.5" />
         </button>
         <button
           class="card-action"
           title="Edit"
           @click.stop="emit('edit', project)"
         >
-          <Icon name="i-lucide-pencil" class="size-3.5" />
+          <Pencil class="size-3.5" />
         </button>
         <button
           class="card-action text-emerald-500 hover:!bg-emerald-500/10"
           title="Deploy"
           @click.stop="emit('deploy', project)"
         >
-          <Icon name="i-lucide-rocket" class="size-3.5" />
+          <Rocket class="size-3.5" />
         </button>
         <button
           class="card-action text-red-400 hover:!bg-red-500/10"
           title="Remove"
           @click.stop="emit('remove', project)"
         >
-          <Icon name="i-lucide-x" class="size-3.5" />
+          <X class="size-3.5" />
         </button>
       </div>
     </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PlanBlock } from '@/assistant'
+import { Compass } from 'lucide-vue-next'
 
 defineProps<{
   block: PlanBlock
@@ -9,7 +10,7 @@ defineProps<{
 <template>
   <div class="my-2 rounded-xl border border-app-border bg-white/[0.03] p-4">
     <div class="flex items-center gap-2 mb-2">
-      <Icon name="i-lucide-compass" class="size-4 text-app-accent" />
+      <Compass class="size-4 text-app-accent" />
       <p class="text-sm font-semibold text-app">{{ block.name }}</p>
       <span v-if="block.planType" class="rounded-full bg-app-accent/10 px-2 py-0.5 text-[10px] text-app-accent">{{ block.planType }}</span>
     </div>

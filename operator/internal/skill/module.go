@@ -60,4 +60,6 @@ func (m *SkillModule) Routes(r *module.Router) {
 	r.Handle("skills.search", m.handleSearch)
 	r.Handle("skills.instructions", m.handleInstructions)
 	r.Handle("skills.format_for_ai", m.handleFormatForAI)
+	r.Handle("skills.save", m.handleSave)
+	r.Handle("skills.delete", m.handleDelete)
 }

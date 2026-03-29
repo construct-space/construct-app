@@ -22,6 +22,7 @@ import {
   isProjectRoutePath,
   parseProjectRouteContext,
 } from '@/utils/sidebarProjectNav'
+import { MessageCircle, FolderOpen, Folder, Grid2x2, Settings, ArrowLeft, CircleUser, LogOut } from 'lucide-vue-next'
 
 const router = useRouter()
 const route = useRoute()
@@ -192,7 +193,7 @@ watch(() => route.path, (newPath) => {
     <RouterLink to="/app/brainstorm" class="sidebar-btn mb-1"
       :class="activeId === 'brainstorm' ? 'sidebar-btn-active' : 'sidebar-btn-inactive'"
       title="Chat">
-      <Icon name="i-lucide-message-circle" class="size-5" />
+      <MessageCircle class="size-5" />
     </RouterLink>
 
     <!-- 3D Rotating Cube (2 panels) -->
@@ -210,7 +211,8 @@ watch(() => route.path, (newPath) => {
               :class="activeId === 'projects' ? 'sidebar-btn-active' : 'sidebar-btn-inactive'"
               :title="activeId === 'projects' ? 'Open Folder' : 'Projects'"
               @click="handleProjectsClick">
-              <Icon :name="activeId === 'projects' ? 'i-lucide-folder-open' : 'i-lucide-folder'" class="size-5" />
+              <FolderOpen v-if="activeId === 'projects'" class="size-5" />
+              <Folder v-else class="size-5" />
             </button>
 
             <div class="w-8 h-px bg-app-border my-0.5" />
@@ -234,13 +236,13 @@ watch(() => route.path, (newPath) => {
           <!-- All Spaces (Launchpad) -->
           <RouterLink to="/app/spaces" class="sidebar-btn"
             :class="activeId === 'all-spaces' ? 'sidebar-btn-active' : 'sidebar-btn-inactive'" title="All Spaces">
-            <Icon name="i-lucide-grid-2x2" class="size-5" />
+            <Grid2x2 class="size-5" />
           </RouterLink>
 
           <!-- Settings at bottom -->
           <RouterLink to="/app/settings" class="sidebar-btn mb-4"
             :class="activeId === 'settings' ? 'sidebar-btn-active' : 'sidebar-btn-inactive'" title="Settings">
-            <Icon name="i-lucide-settings" class="size-5" />
+            <Settings class="size-5" />
           </RouterLink>
         </div>
 
@@ -249,7 +251,7 @@ watch(() => route.path, (newPath) => {
           style="backface-visibility: hidden; transform: rotateY(90deg) translateZ(20px)">
           <!-- Back button (always shown) -->
           <button class="sidebar-btn sidebar-btn-inactive" title="Back" @click="goBackToMain">
-            <Icon name="i-lucide-arrow-left" class="size-5" />
+            <ArrowLeft class="size-5" />
           </button>
 
           <!-- ===== Project mode ===== -->
@@ -338,13 +340,13 @@ watch(() => route.path, (newPath) => {
             <button
               class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-app-foreground hover:bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] transition-colors text-left"
               @click="navigateTo('/app/settings/profile')">
-              <Icon name="i-lucide-circle-user" class="size-4 text-app-muted shrink-0" />
+              <CircleUser class="size-4 text-app-muted shrink-0" />
               Profile
             </button>
             <button
               class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-app-foreground hover:bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] transition-colors text-left"
               @click="navigateTo('/app/settings')">
-              <Icon name="i-lucide-settings" class="size-4 text-app-muted shrink-0" />
+              <Settings class="size-4 text-app-muted shrink-0" />
               Settings
             </button>
           </div>
@@ -353,7 +355,7 @@ watch(() => route.path, (newPath) => {
             <button
               class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 transition-colors text-left"
               @click="logout">
-              <Icon name="i-lucide-log-out" class="size-4 shrink-0" />
+              <LogOut class="size-4 shrink-0" />
               Log out
             </button>
           </div>

@@ -4,6 +4,7 @@
  * Supports Output, Debug Console, Problems, Terminal tabs
  * Ported from construct-mono (Nuxt) to Vue/Vite
  */
+import { Zap, RefreshCw, Square, Trash2, X, CheckCircle, XCircle, AlertTriangle } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{
   modelValue?: boolean
@@ -218,20 +219,20 @@ const statusBgColor = computed(() => {
           <Tooltip text="Hot Reload (r)">
             <button class="p-1.5 rounded-md text-yellow-400 hover:bg-yellow-500/10 transition-colors"
               @click="emit('hotReload')">
-              <Icon name="i-lucide-zap" class="size-4" />
+              <Zap class="size-4" />
             </button>
           </Tooltip>
 
           <Tooltip text="Restart (R)">
             <button class="p-1.5 rounded-md text-orange-400 hover:bg-orange-500/10 transition-colors"
               @click="emit('hotRestart')">
-              <Icon name="i-lucide-refresh-cw" class="size-4" />
+              <RefreshCw class="size-4" />
             </button>
           </Tooltip>
 
           <Tooltip text="Stop">
             <button class="p-1.5 rounded-md text-red-400 hover:bg-red-500/10 transition-colors" @click="emit('stop')">
-              <Icon name="i-lucide-square" class="size-4" />
+              <Square class="size-4" />
             </button>
           </Tooltip>
 
@@ -241,14 +242,14 @@ const statusBgColor = computed(() => {
         <Tooltip text="Clear">
           <button class="p-1.5 rounded-md text-app-muted hover:text-app hover:bg-white/5 transition-colors"
             @click="emit('clear')">
-            <Icon name="i-lucide-trash-2" class="size-4" />
+            <Trash2 class="size-4" />
           </button>
         </Tooltip>
 
         <Tooltip text="Close Panel">
           <button class="p-1.5 rounded-md text-app-muted hover:text-app hover:bg-white/5 transition-colors"
             @click="emit('update:modelValue', false)">
-            <Icon name="i-lucide-x" class="size-4" />
+            <X class="size-4" />
           </button>
         </Tooltip>
       </div>
@@ -277,7 +278,7 @@ const statusBgColor = computed(() => {
       <!-- Problems Tab -->
       <div v-show="currentTab === 'problems'" class="h-full overflow-auto">
         <div v-if="problems.length === 0" class="flex flex-col items-center justify-center h-full text-app-muted">
-          <Icon name="i-lucide-check-circle" class="size-8 mb-2 text-green-400" />
+          <CheckCircle class="size-8 mb-2 text-green-400" />
           <span class="text-sm">No problems detected</span>
         </div>
 
@@ -302,11 +303,11 @@ const statusBgColor = computed(() => {
         <div v-if="problems.length > 0" class="sticky bottom-0 px-3 py-1.5 bg-white/5 border-t border-white/10">
           <div class="flex items-center gap-4 text-xs">
             <span v-if="errorCount > 0" class="flex items-center gap-1 text-red-400">
-              <Icon name="i-lucide-x-circle" class="size-3.5" />
+              <XCircle class="size-3.5" />
               {{ errorCount }} {{ errorCount === 1 ? 'error' : 'errors' }}
             </span>
             <span v-if="warningCount > 0" class="flex items-center gap-1 text-yellow-400">
-              <Icon name="i-lucide-alert-triangle" class="size-3.5" />
+              <AlertTriangle class="size-3.5" />
               {{ warningCount }} {{ warningCount === 1 ? 'warning' : 'warnings' }}
             </span>
           </div>

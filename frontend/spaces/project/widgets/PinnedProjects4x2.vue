@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { buildProjectRoutePath } from '@/utils/projectRoutes'
-import { Pin } from 'lucide-vue-next'
+import { Pin, Folder } from 'lucide-vue-next'
 
 const router = useRouter()
 const projectStore = useProjectStore()
@@ -67,7 +67,7 @@ function shortPath(fullPath: string): string {
         @click="openProject(entry)"
       >
         <div class="flex size-8 shrink-0 items-center justify-center rounded-lg" :style="{ background: entry.color + '18' }">
-          <Icon name="i-lucide-folder" class="size-4" :style="{ color: entry.color }" />
+          <Folder class="size-4" :style="{ color: entry.color }" />
         </div>
         <p class="text-[11px] font-medium text-[var(--app-foreground)] truncate w-full text-center">{{ entry.name }}</p>
         <p class="text-[10px] text-[var(--app-muted)] truncate w-full text-center">{{ shortPath(entry.path) }}</p>

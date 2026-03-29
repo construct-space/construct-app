@@ -16,6 +16,7 @@ import CodeBlockCard from './CodeBlockCard.vue'
 import ProgressCard from './ProgressCard.vue'
 import ActionButtons from './ActionButtons.vue'
 import TableBlockVue from './TableBlock.vue'
+import { ExternalLink } from 'lucide-vue-next'
 
 const { renderMarkdown } = useMarkdown()
 
@@ -212,7 +213,7 @@ function getCustomRenderer(block: ResponseBlock) {
       <!-- Link -->
       <div v-else-if="block.type === 'link'" class="my-1.5 flex items-center gap-2 rounded-lg border border-app-border px-3 py-2 hover:bg-white/5 transition cursor-pointer" @click="openUrl(block.url)">
         <img v-if="block.favicon" :src="block.favicon" class="size-4 rounded" />
-        <Icon v-else name="i-lucide-external-link" class="size-3.5 text-app-muted" />
+        <ExternalLink v-else class="size-3.5 text-app-muted" />
         <div class="min-w-0">
           <p class="text-xs font-medium text-app truncate">{{ block.title || block.url }}</p>
           <p v-if="block.description" class="text-[10px] text-app-muted truncate">{{ block.description }}</p>
