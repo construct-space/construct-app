@@ -9,6 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
+)
+
+var (
+	spaceActionRegistrationMaxAttempts = 30
+	spaceActionRegistrationRetryDelay  = 2 * time.Second
 )
 
 // RegisterBridgeTools adds all bridge-backed automation tools to the registry.
@@ -313,59 +319,102 @@ func RegisterSpaceActionTools(r *Registry, bridge *desktop.Client, spaceIDs []st
 		return
 	}
 
-	for _, spaceID := range spaceIDs {
-		sid := spaceID
-		// Query space for its actions
-		result, err := bridge.Call(context.Background(), "space.list_actions", map[string]any{
-			"space_id": sid,
-		})
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[tools] space %q list_actions failed: %v\n", sid, err)
-			continue
-		}
+	pending := append([]string(nil), spaceIDs...)
+	lastErr := make(map[string]error, len(spaceIDs))
+	loggedRetry := make(map[string]bool, len(spaceIDs))
 
-		var resp struct {
-			SpaceID string `json:"space_id"`
-			Actions []struct {
-				ID          string         `json:"id"`
-				Description string         `json:"description"`
-				Params      map[string]any `json:"params"`
-			} `json:"actions"`
-		}
-		if err := json.Unmarshal(result, &resp); err != nil {
-			continue
-		}
+	for attempt := 1; attempt <= spaceActionRegistrationMaxAttempts && len(pending) > 0; attempt++ {
+		nextPending := make([]string, 0, len(pending))
 
-		for _, action := range resp.Actions {
-			act := action
-			toolName := fmt.Sprintf("%s.%s", sid, act.ID)
-			// Skip if already registered
-			if _, exists := r.Get(toolName); exists {
+		for _, sid := range pending {
+			resp, err := listSpaceActions(bridge, sid)
+			if err != nil {
+				lastErr[sid] = err
+				nextPending = append(nextPending, sid)
+				if attempt < spaceActionRegistrationMaxAttempts && !loggedRetry[sid] {
+					fmt.Fprintf(os.Stderr, "[tools] space %q list_actions not ready; retrying: %v\n", sid, err)
+					loggedRetry[sid] = true
+				}
 				continue
 			}
-			schema := act.Params
-			if schema == nil {
-				schema = map[string]any{"type": "object", "properties": map[string]any{}}
-			}
 
-			r.Register(&Tool{
-				Def: provider.ToolDef{
-					Name:        toolName,
-					Description: fmt.Sprintf("[%s] %s", sid, act.Description),
-					InputSchema: schema,
-				},
-				Executor: &spaceActionExec{
-					bridge:  bridge,
-					spaceID: sid,
-					action:  act.ID,
-				},
-				Source: "space:" + sid,
-			})
+			delete(lastErr, sid)
+			registerSpaceActionToolsForSpace(r, bridge, sid, resp.Actions)
 		}
 
-		if len(resp.Actions) > 0 {
-			fmt.Fprintf(os.Stderr, "[tools] registered %d actions for space %q\n", len(resp.Actions), sid)
+		if len(nextPending) == 0 {
+			return
 		}
+		if attempt < spaceActionRegistrationMaxAttempts {
+			time.Sleep(spaceActionRegistrationRetryDelay)
+		}
+		pending = nextPending
+	}
+
+	for _, sid := range pending {
+		if err := lastErr[sid]; err != nil {
+			fmt.Fprintf(os.Stderr, "[tools] space %q list_actions failed: %v\n", sid, err)
+		}
+	}
+}
+
+type spaceActionDescriptor struct {
+	ID          string         `json:"id"`
+	Description string         `json:"description"`
+	Params      map[string]any `json:"params"`
+}
+
+type spaceActionListResponse struct {
+	SpaceID string                  `json:"space_id"`
+	Actions []spaceActionDescriptor `json:"actions"`
+}
+
+func listSpaceActions(bridge *desktop.Client, sid string) (*spaceActionListResponse, error) {
+	result, err := bridge.Call(context.Background(), "space.list_actions", map[string]any{
+		"space_id": sid,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var resp spaceActionListResponse
+	if err := json.Unmarshal(result, &resp); err != nil {
+		return nil, err
+	}
+
+	return &resp, nil
+}
+
+func registerSpaceActionToolsForSpace(r *Registry, bridge *desktop.Client, sid string, actions []spaceActionDescriptor) {
+	for _, action := range actions {
+		act := action
+		toolName := fmt.Sprintf("%s.%s", sid, act.ID)
+		// Skip if already registered
+		if _, exists := r.Get(toolName); exists {
+			continue
+		}
+		schema := act.Params
+		if schema == nil {
+			schema = map[string]any{"type": "object", "properties": map[string]any{}}
+		}
+
+		r.Register(&Tool{
+			Def: provider.ToolDef{
+				Name:        toolName,
+				Description: fmt.Sprintf("[%s] %s", sid, act.Description),
+				InputSchema: schema,
+			},
+			Executor: &spaceActionExec{
+				bridge:  bridge,
+				spaceID: sid,
+				action:  act.ID,
+			},
+			Source: "space:" + sid,
+		})
+	}
+
+	if len(actions) > 0 {
+		fmt.Fprintf(os.Stderr, "[tools] registered %d actions for space %q\n", len(actions), sid)
 	}
 }
 
