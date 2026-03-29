@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Construct Data Flow</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'SF Mono','Fira Code','Cascadia Code',monospace;overflow-x:hidden}
+header{display:flex;align-items:center;gap:16px;padding:12px 24px;border-bottom:1px solid #21262d;flex-wrap:wrap;position:fixed;top:0;left:0;right:0;z-index:20;background:#0d1117}
+#flow-area{padding-top:52px}
+header h1{font-size:15px;color:#58a6ff;letter-spacing:1px;white-space:nowrap}
+select,button{background:#161b22;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 12px;font-family:inherit;font-size:12px;cursor:pointer}
+select:hover,button:hover{border-color:#58a6ff}
+.controls{display:flex;align-items:center;gap:10px;margin-left:auto}
+.speed-group{display:flex;align-items:center;gap:6px;font-size:11px;color:#8b949e}
+.speed-group input{width:80px;accent-color:#58a6ff}
+#play-btn{min-width:70px}
+.columns{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;position:relative}
+.col-header{text-align:center;padding:12px 8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px;border-bottom:1px solid #21262d;position:sticky;top:0;z-index:5;background:#0d1117}
+.col-header.frontend{color:#7ee787;border-right:1px solid #21262d}
+.col-header.desktop{color:#d2a8ff;border-right:1px solid #21262d}
+.col-header.operator{color:#ffa657;border-right:1px solid #21262d}
+.col-header.external{color:#f778ba}
+.column{border-right:1px solid #161b22;padding:8px;display:flex;flex-direction:column;gap:0;position:relative}
+.column:last-child{border-right:none}
+#canvas-wrap{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2}
+#canvas-wrap svg{width:100%;height:100%}
+.step-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;padding:0 8px;position:relative}
+.step-cell{padding:6px 8px;min-height:50px;display:flex;align-items:center;justify-content:center}
+.step-box{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 12px;width:100%;max-width:320px;opacity:0.25;transform:scale(0.96);transition:opacity .4s,transform .4s,border-color .4s,box-shadow .4s}
+.step-box.active{opacity:1;transform:scale(1);border-color:#58a6ff;box-shadow:0 0 16px rgba(88,166,255,.15)}
+.step-box.done{opacity:0.7;transform:scale(1);border-color:#30363d}
+.step-box .file{font-size:10px;color:#8b949e;margin-bottom:3px;word-break:break-all}
+.step-box .func{font-size:12px;font-weight:700;color:#e6edf3;margin-bottom:3px}
+.step-box .desc{font-size:10px;color:#8b949e;line-height:1.4}
+.step-box.col-frontend.active{border-color:#7ee787;box-shadow:0 0 16px rgba(126,231,135,.15)}
+.step-box.col-desktop.active{border-color:#d2a8ff;box-shadow:0 0 16px rgba(210,168,255,.15)}
+.step-box.col-operator.active{border-color:#ffa657;box-shadow:0 0 16px rgba(255,166,87,.15)}
+.step-box.col-external.active{border-color:#f778ba;box-shadow:0 0 16px rgba(247,120,186,.15)}
+.step-num{position:absolute;left:-2px;top:-2px;background:#21262d;color:#58a6ff;font-size:9px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:3}
+.step-box{position:relative}
+svg line.connector{stroke:#30363d;stroke-width:2;stroke-dasharray:6 4}
+svg circle.dot{r:4;fill:#58a6ff}
+.legend{position:fixed;bottom:12px;right:16px;display:flex;gap:14px;font-size:10px;color:#8b949e;z-index:10;background:#0d1117;padding:6px 12px;border-radius:6px;border:1px solid #21262d}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend .swatch{width:10px;height:10px;border-radius:2px;display:inline-block}
+</style>
+</head>
+<body>
+<header>
+  <h1>CONSTRUCT FLOW</h1>
+  <select id="scenario-picker"></select>
+  <div class="controls">
+    <button id="play-btn">Play</button>
+    <div class="speed-group">
+      <span>0.5x</span>
+      <input type="range" id="speed" min="0.5" max="3" step="0.25" value="1">
+      <span>3x</span>
+    </div>
+  </div>
+</header>
+<div id="flow-area"></div>
+<svg id="svg-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:4"></svg>
+<div class="legend">
+  <span><i class="swatch" style="background:#7ee787"></i>Frontend</span>
+  <span><i class="swatch" style="background:#d2a8ff"></i>Desktop</span>
+  <span><i class="swatch" style="background:#ffa657"></i>Operator</span>
+  <span><i class="swatch" style="background:#f778ba"></i>External</span>
+</div>
+<script>
+const SCENARIOS = [
+  {
+    name: "Architect Dispatch Stream",
+    steps: [
+      {col:"frontend",file:"ArchitectPage.vue",func:"handleSend()",desc:"User types prompt and hits send"},
+      {col:"frontend",file:"useAgentSession.ts",func:"send()",desc:"send({ agentId: 'architect', assistantType: 'architect', outputSchema: 'architect.v1' })"},
+      {col:"frontend",file:"client.ts",func:"dispatchStream()",desc:"Builds payload with assistant_type, output_schema"},
+      {col:"desktop",file:"lib.rs",func:"send_context_request",desc:"IPC bridge to operator"},
+      {col:"operator",file:"transport/tcp.go",func:"OnStream",desc:"Receives TCP stream request"},
+      {col:"operator",file:"module/module.go",func:"Router.DispatchStream()",desc:"Routes to handler"},
+      {col:"operator",file:"ai/module.go",func:"handleDispatchStream()",desc:"Parses payload, resolves agent"},
+      {col:"operator",file:"runner/runner.go",func:"Run()",desc:"Agent loop, builds system prompt"},
+      {col:"operator",file:"runner/output_schema.go",func:'builtinOutputSchema("architect.v1")',desc:"Attaches JSON schema"},
+      {col:"operator",file:"connectors/anthropic.go",func:"buildBody()",desc:"Sends to Claude API"},
+      {col:"operator",file:"ai/module.go",func:"stream events",desc:"Emitted back to caller"},
+      {col:"desktop",file:"lib.rs",func:"forward chunks",desc:"Forwards stream chunks via IPC"},
+      {col:"frontend",file:"client.ts",func:"stream listener",desc:"Receives chunks"},
+      {col:"frontend",file:"useAgentSession.ts",func:"normalize()",desc:"Appends to turn.response, on done calls normalize()"},
+      {col:"frontend",file:"normalize.ts",func:"dispatches",desc:"Dispatches to architect normalizer"},
+      {col:"frontend",file:"architect/normalizer.ts",func:"parse()",desc:"Parses architect.v1 -> architect:questions blocks"},
+      {col:"frontend",file:"ResponseBlocks.vue",func:"resolveBlockRenderer()",desc:"resolveBlockRenderer('architect:questions')"},
+      {col:"frontend",file:"ArchitectQuestionsBlock.vue",func:"render()",desc:"Renders interactive questions UI"},
+    ]
+  },
+  {
+    name: "General Chat",
+    steps: [
+      {col:"frontend",file:"AssistantPanel.vue",func:"handleSend()",desc:"send({ agentId: 'general', assistantType: 'general' })"},
+      {col:"frontend",file:"useAgentSession.ts",func:"send()",desc:"Dispatches to client"},
+      {col:"frontend",file:"client.ts",func:"dispatchStream()",desc:"Builds stream payload"},
+      {col:"desktop",file:"lib.rs",func:"IPC bridge",desc:"Forwards to operator"},
+      {col:"operator",file:"transport/tcp.go",func:"OnStream",desc:"Receives TCP stream"},
+      {col:"operator",file:"module/module.go",func:"Router.DispatchStream()",desc:"Routes to handler"},
+      {col:"operator",file:"ai/module.go",func:"handleDispatchStream()",desc:"Parses payload"},
+      {col:"operator",file:"runner/runner.go",func:"Run()",desc:"Agent loop (LLM -> tools -> LLM)"},
+      {col:"operator",file:"connectors/anthropic.go",func:"Complete/Stream",desc:"Calls Claude API"},
+      {col:"operator",file:"ai/module.go",func:"stream events",desc:"Emitted back"},
+      {col:"desktop",file:"lib.rs",func:"forward chunks",desc:"Forwards via IPC"},
+      {col:"frontend",file:"useAgentSession.ts",func:"builds blocks",desc:"Builds turn.response blocks"},
+      {col:"frontend",file:"ResponseBlocks.vue",func:"render()",desc:"Renders shared block components"},
+    ]
+  },
+  {
+    name: "MCP Tool Call",
+    steps: [
+      {col:"operator",file:"runner/runner.go",func:"Run()",desc:"LLM returns tool_use"},
+      {col:"operator",file:"runner/tool_exec.go",func:"executeToolCalls()",desc:"Dispatches tool execution"},
+      {col:"operator",file:"runner/tool_exec.go",func:"executeSingleTool()",desc:"Resolves tool from registry"},
+      {col:"operator",file:"mcp/client.go",func:"CallTool()",desc:"JSON-RPC 2.0 request"},
+      {col:"external",file:"MCP Server",func:"process",desc:"Processes tool call"},
+      {col:"operator",file:"mcp/client.go",func:"receive()",desc:"Receives JSON-RPC response"},
+      {col:"operator",file:"runner/runner.go",func:"append()",desc:"Appends tool result to messages"},
+      {col:"operator",file:"runner/runner.go",func:"Run() next",desc:"Next LLM turn with tool result"},
+    ]
+  },
+  {
+    name: "Space Loading",
+    steps: [
+      {col:"frontend",file:"coreSpaces.ts",func:"compile-time",desc:"Registers builtin spaces"},
+      {col:"frontend",file:"SpaceLoader.ts",func:"loadSpace()",desc:"Reads manifest.json"},
+      {col:"frontend",file:"SpaceLoader.ts",func:"execute()",desc:"Executes .iife.js bundle, extracts pages/widgets"},
+      {col:"frontend",file:"SpaceLoader.ts",func:"check manifest",desc:"Checks manifest.assistant field"},
+      {col:"frontend",file:"loader.ts",func:"loadSpaceAssistantTypes()",desc:"Registers assistant type"},
+      {col:"frontend",file:"registry.ts",func:"registerAssistantType()",desc:"Stores in Map"},
+      {col:"operator",file:"main.go",func:"bootstrap",desc:"Loads tools, hooks, skills from space dirs"},
+      {col:"operator",file:"space/space.go",func:"LoadAll()",desc:"Reads agent configs"},
+      {col:"operator",file:"main.go",func:"register",desc:"Registers agents, connects MCP servers"},
+    ]
+  },
+  {
+    name: "OAuth Login",
+    steps: [
+      {col:"frontend",file:"client.ts",func:"send('oauth.login')",desc:"send('oauth.login', { provider: 'anthropic' })"},
+      {col:"desktop",file:"lib.rs",func:"IPC bridge",desc:"Forwards to operator"},
+      {col:"operator",file:"transport/tcp.go",func:"OnRequest",desc:"Receives TCP request"},
+      {col:"operator",file:"module/module.go",func:"Router.Dispatch()",desc:"Routes to handler"},
+      {col:"operator",file:"oauth/module.go",func:"handleLogin()",desc:"Starts device flow"},
+      {col:"external",file:"Browser",func:"authenticate",desc:"User authenticates in browser"},
+      {col:"operator",file:"oauth/handler.go",func:"poll()",desc:"Polls for completion"},
+      {col:"operator",file:"oauth/module.go",func:"registerProvider()",desc:"Registers provider on runner"},
+      {col:"operator",file:"runner/provider.go",func:"AddProvider()",desc:"Adds to provider list"},
+      {col:"desktop",file:"lib.rs",func:"response back",desc:"Response back via IPC"},
+      {col:"frontend",file:"client.ts",func:"receives success",desc:"Receives success, refreshes providers"},
+    ]
+  }
+];
+
+const COLS = ["frontend","desktop","operator","external"];
+const COL_COLORS = {frontend:"#7ee787",desktop:"#d2a8ff",operator:"#ffa657",external:"#f778ba"};
+const COL_LABELS = {frontend:"Frontend",desktop:"Desktop",operator:"Operator",external:"External"};
+
+const picker = document.getElementById("scenario-picker");
+const playBtn = document.getElementById("play-btn");
+const speedInput = document.getElementById("speed");
+const flowArea = document.getElementById("flow-area");
+const svgOverlay = document.getElementById("svg-overlay");
+
+let currentScenario = 0;
+let playing = false;
+let animFrame = null;
+let stepIndex = -1;
+let lastStepTime = 0;
+let dots = [];
+
+SCENARIOS.forEach((s,i) => {
+  const opt = document.createElement("option");
+  opt.value = i; opt.textContent = s.name;
+  picker.appendChild(opt);
+});
+
+picker.addEventListener("change", () => { currentScenario = +picker.value; renderScenario(); });
+
+function renderScenario() {
+  stopAnimation();
+  const sc = SCENARIOS[currentScenario];
+  const usesExternal = sc.steps.some(s => s.col === "external");
+  const colCount = usesExternal ? 4 : 3;
+  const activeCols = usesExternal ? COLS : COLS.slice(0,3);
+
+  let html = `<div class="columns" style="grid-template-columns:repeat(${colCount},1fr)">`;
+  activeCols.forEach(c => {
+    html += `<div class="col-header ${c}">${COL_LABELS[c]}</div>`;
+  });
+  html += `</div>`;
+
+  sc.steps.forEach((step, i) => {
+    html += `<div class="step-row" style="grid-template-columns:repeat(${colCount},1fr)" data-step="${i}">`;
+    activeCols.forEach(c => {
+      html += `<div class="step-cell">`;
+      if (c === step.col) {
+        html += `<div class="step-box col-${c}" id="step-${i}">
+          <div class="step-num">${i+1}</div>
+          <div class="file">${step.file}</div>
+          <div class="func">${step.func}</div>
+          <div class="desc">${step.desc}</div>
+        </div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+  });
+
+  flowArea.innerHTML = html;
+  requestAnimationFrame(() => drawLines());
+}
+
+function drawLines() {
+  const sc = SCENARIOS[currentScenario];
+  svgOverlay.innerHTML = "";
+  const svgRect = svgOverlay.getBoundingClientRect();
+
+  for (let i = 0; i < sc.steps.length - 1; i++) {
+    const fromEl = document.getElementById(`step-${i}`);
+    const toEl = document.getElementById(`step-${i+1}`);
+    if (!fromEl || !toEl) continue;
+
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = toEl.getBoundingClientRect();
+
+    const x1 = fromRect.left + fromRect.width/2 - svgRect.left;
+    const y1 = fromRect.bottom - svgRect.top;
+    const x2 = toRect.left + toRect.width/2 - svgRect.left;
+    const y2 = toRect.top - svgRect.top;
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+    line.setAttribute("x1",x1); line.setAttribute("y1",y1);
+    line.setAttribute("x2",x2); line.setAttribute("y2",y2);
+    line.setAttribute("class","connector");
+    line.setAttribute("stroke","#30363d");
+    line.setAttribute("stroke-width","2");
+    line.setAttribute("stroke-dasharray","6 4");
+    line.id = `line-${i}`;
+    svgOverlay.appendChild(line);
+  }
+}
+
+function startAnimation() {
+  playing = true;
+  playBtn.textContent = "Pause";
+  stepIndex = -1;
+  lastStepTime = performance.now();
+
+  document.querySelectorAll(".step-box").forEach(el => {
+    el.classList.remove("active","done");
+  });
+
+  clearDots();
+  tick();
+}
+
+function stopAnimation() {
+  playing = false;
+  playBtn.textContent = "Play";
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animFrame = null;
+  clearDots();
+}
+
+function togglePlay() {
+  if (playing) stopAnimation();
+  else startAnimation();
+}
+
+playBtn.addEventListener("click", togglePlay);
+
+function getSpeed() { return +speedInput.value || 1; }
+function getDelay() { return 700 / getSpeed(); }
+
+function tick() {
+  if (!playing) return;
+  const now = performance.now();
+  const delay = getDelay();
+
+  if (now - lastStepTime >= delay) {
+    stepIndex++;
+    const sc = SCENARIOS[currentScenario];
+
+    if (stepIndex >= sc.steps.length) {
+      stopAnimation();
+      document.querySelectorAll(".step-box").forEach(el => {
+        el.classList.add("done"); el.classList.remove("active");
+      });
+      return;
+    }
+
+    document.querySelectorAll(".step-box.active").forEach(el => {
+      el.classList.remove("active"); el.classList.add("done");
+    });
+
+    const cur = document.getElementById(`step-${stepIndex}`);
+    if (cur) cur.classList.add("active");
+
+    // Activate line and spawn dot
+    if (stepIndex > 0) {
+      const line = document.getElementById(`line-${stepIndex-1}`);
+      if (line) {
+        line.setAttribute("stroke", COL_COLORS[sc.steps[stepIndex].col] || "#58a6ff");
+        spawnDot(stepIndex - 1, sc.steps[stepIndex].col);
+      }
+    }
+
+    // Scroll active step into view
+    if (cur) cur.scrollIntoView({behavior:"smooth",block:"center"});
+
+    lastStepTime = now;
+  }
+
+  // Animate dots
+  updateDots();
+
+  animFrame = requestAnimationFrame(tick);
+}
+
+function spawnDot(lineIndex, col) {
+  const line = document.getElementById(`line-${lineIndex}`);
+  if (!line) return;
+
+  const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  circle.setAttribute("r","4");
+  circle.setAttribute("fill", COL_COLORS[col] || "#58a6ff");
+  circle.setAttribute("filter","url(#glow)");
+  svgOverlay.appendChild(circle);
+
+  // Ensure glow filter
+  if (!document.getElementById("glow")) {
+    const defs = document.createElementNS("http://www.w3.org/2000/svg","defs");
+    const filter = document.createElementNS("http://www.w3.org/2000/svg","filter");
+    filter.id = "glow";
+    const blur = document.createElementNS("http://www.w3.org/2000/svg","feGaussianBlur");
+    blur.setAttribute("stdDeviation","3");
+    blur.setAttribute("result","blur");
+    const merge = document.createElementNS("http://www.w3.org/2000/svg","feMerge");
+    const m1 = document.createElementNS("http://www.w3.org/2000/svg","feMergeNode");
+    m1.setAttribute("in","blur");
+    const m2 = document.createElementNS("http://www.w3.org/2000/svg","feMergeNode");
+    m2.setAttribute("in","SourceGraphic");
+    merge.appendChild(m1); merge.appendChild(m2);
+    filter.appendChild(blur); filter.appendChild(merge);
+    defs.appendChild(filter);
+    svgOverlay.insertBefore(defs, svgOverlay.firstChild);
+  }
+
+  dots.push({
+    el: circle,
+    lineIndex,
+    progress: 0,
+    startTime: performance.now(),
+    duration: 400 / getSpeed()
+  });
+}
+
+function updateDots() {
+  const now = performance.now();
+  dots = dots.filter(d => {
+    const t = Math.min(1, (now - d.startTime) / d.duration);
+    const line = document.getElementById(`line-${d.lineIndex}`);
+    if (!line) { d.el.remove(); return false; }
+
+    const x1 = +line.getAttribute("x1"), y1 = +line.getAttribute("y1");
+    const x2 = +line.getAttribute("x2"), y2 = +line.getAttribute("y2");
+
+    // Ease out
+    const ease = 1 - Math.pow(1 - t, 3);
+    const cx = x1 + (x2 - x1) * ease;
+    const cy = y1 + (y2 - y1) * ease;
+
+    d.el.setAttribute("cx", cx);
+    d.el.setAttribute("cy", cy);
+
+    if (t >= 1) { d.el.remove(); return false; }
+    return true;
+  });
+}
+
+function clearDots() {
+  dots.forEach(d => d.el.remove());
+  dots = [];
+}
+
+// Redraw lines on resize
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => drawLines(), 100);
+});
+
+// Initial render
+renderScenario();
+
+// Auto-play on scenario change
+picker.addEventListener("change", () => {
+  setTimeout(() => startAnimation(), 300);
+});
+</script>
+</body>
+</html>

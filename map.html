@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Construct Architecture Map</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0d1117; color: #c9d1d9; font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace; overflow: hidden; }
+#canvas { width: 100vw; height: 100vh; cursor: grab; }
+#canvas.dragging { cursor: grabbing; }
+
+/* Detail panel */
+#detail {
+  position: fixed; top: 0; right: -420px; width: 420px; height: 100vh;
+  background: #161b22; border-left: 1px solid #30363d; padding: 20px;
+  transition: right 0.25s ease; overflow-y: auto; z-index: 100;
+  font-size: 13px; line-height: 1.6;
+}
+#detail.open { right: 0; }
+#detail h2 { color: #58a6ff; font-size: 16px; margin-bottom: 4px; }
+#detail h3 { color: #8b949e; font-size: 12px; font-weight: normal; margin-bottom: 16px; }
+#detail h4 { color: #f0883e; font-size: 13px; margin: 14px 0 6px; }
+#detail ul { list-style: none; padding: 0; }
+#detail li { padding: 2px 0; color: #c9d1d9; }
+#detail li::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+#detail li.file::before { background: #8b949e; }
+#detail li.import::before { background: #f97583; }
+#detail li.export::before { background: #56d364; }
+#detail li.conn::before { background: #d2a8ff; }
+#detail .close-btn {
+  position: absolute; top: 12px; right: 16px; cursor: pointer;
+  color: #8b949e; font-size: 18px; border: none; background: none;
+}
+#detail .close-btn:hover { color: #c9d1d9; }
+
+/* Legend */
+#legend {
+  position: fixed; bottom: 16px; left: 16px; background: #161b22;
+  border: 1px solid #30363d; border-radius: 6px; padding: 12px 16px;
+  font-size: 11px; z-index: 50; color: #8b949e;
+}
+#legend span { margin-right: 16px; }
+#legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+/* Controls */
+#controls {
+  position: fixed; top: 16px; left: 16px; background: #161b22;
+  border: 1px solid #30363d; border-radius: 6px; padding: 8px 14px;
+  font-size: 11px; z-index: 50; color: #8b949e;
+}
+
+/* Version badge */
+#version {
+  position: fixed; top: 16px; right: 16px; background: #161b22;
+  border: 1px solid #30363d; border-radius: 6px; padding: 8px 14px;
+  font-size: 12px; z-index: 50; color: #58a6ff;
+}
+</style>
+</head>
+<body>
+<svg id="canvas"></svg>
+
+<div id="detail">
+  <button class="close-btn" onclick="closeDetail()">&times;</button>
+  <h2 id="detail-title"></h2>
+  <h3 id="detail-path"></h3>
+  <div id="detail-content"></div>
+</div>
+
+<div id="legend">
+  <span><span class="dot" style="background:#58a6ff"></span> Frontend</span>
+  <span><span class="dot" style="background:#f97583"></span> Desktop</span>
+  <span><span class="dot" style="background:#56d364"></span> Operator</span>
+  <span style="color:#6e7681">Scroll to zoom / Drag to pan / Click nodes for details</span>
+</div>
+
+<div id="controls">Construct Architecture Map</div>
+<div id="version">v0.6.7</div>
+
+<script>
+// ─── Data ───────────────────────────────────────────────────────────────
+const tree = {
+  id: 'construct', label: 'Construct', color: '#c9d1d9', detail: {
+    path: '/',
+    files: ['operator/', 'frontend/', 'desktop/', 'scripts/', 'docs/'],
+    desc: 'AI-powered desktop development environment.\nVue 3 + Tauri 2 + Go operator.'
+  },
+  children: [
+    // ── Frontend ──────────────────────────────────────────────────────
+    { id: 'frontend', label: 'Frontend', color: '#58a6ff', detail: {
+        path: 'frontend/',
+        files: ['App.vue','main.ts','vite.config.ts','tsconfig.json','index.html'],
+        imports: ['Vue 3','Pinia','Vue Router','@construct-space/sdk'],
+        desc: 'Vue 3 SPA. Vite dev on :60200.'
+      }, children: [
+        { id: 'fe-assistant', label: 'assistant/', color: '#58a6ff', detail: {
+          path: 'frontend/assistant/',
+          files: ['index.ts','blocks.ts','schema.ts','normalize.ts','registry.ts','loader.ts','renderers.ts','runtime.ts','types.ts'],
+          imports: ['./blocks','./schema','./normalize','./registry','./loader','./renderers','./runtime'],
+          exports: ['registerAssistantType','getAssistantType','listAssistantTypes','normalizeAssistantEnvelope','normalize','resolveAssistantType','registerBlockRenderer','resolveBlockRenderer','loadCoreAssistantTypes','registerCoreBlockRenderers'],
+          connections: ['Normalizes streaming output from operator/runner/','Loaded by space_loader/ for per-space assistant types']
+        }},
+        { id: 'fe-operator', label: 'operator/', color: '#58a6ff', detail: {
+          path: 'frontend/operator/',
+          files: ['client.ts','index.ts','types.ts','streamEvents.ts','useAgentSession.ts','useAssistant.ts','useStreamStatus.ts','client.test.ts','useAgentSession.test.ts','useStreamStatus.test.ts'],
+          imports: ['vue','@/stores/auth','./types'],
+          exports: ['useOperator (client)','useAgentSession','useStreamStatus','StreamEvent types','AIProvider','OperatorAgent','DispatchResult','ChatResult','ToolCall','ToolResult'],
+          connections: ['TCP:60100 -> operator/transport/','Newline-delimited JSON via Tauri IPC bridge','Uses @/stores/auth for authentication']
+        }},
+        { id: 'fe-spaces', label: 'spaces/', color: '#58a6ff', detail: {
+          path: 'frontend/spaces/',
+          files: ['architect/','brainstorm/','coder/','project/'],
+          desc: 'Built-in spaces. Each has pages/, assistant/, components/, agent/ config.',
+          exports: ['Space page components','Agent config (config.md, tools/*.md, hooks/)','Assistant type definitions'],
+          connections: ['Loaded by space_loader/','Agent configs define contracts for operator/agent/builtin/']
+        }, children: [
+          { id: 'fe-space-architect', label: 'architect', color: '#79c0ff' },
+          { id: 'fe-space-brainstorm', label: 'brainstorm', color: '#79c0ff' },
+          { id: 'fe-space-coder', label: 'coder', color: '#79c0ff' },
+          { id: 'fe-space-project', label: 'project', color: '#79c0ff' },
+        ]},
+        { id: 'fe-spaceloader', label: 'space_loader/', color: '#58a6ff', detail: {
+          path: 'frontend/space_loader/',
+          files: ['SpaceLoader.ts','coreSpaces.ts','builtin.ts','DynamicSpacePage.vue','space.global.ts','_dynamic/'],
+          imports: ['@/lib/appPaths','./coreSpaces','@/lib/spaceContextBus','@/assistant/loader'],
+          exports: ['SpaceLoader','getCoreSpace','isCoreSpace','LoadedSpace interface'],
+          connections: ['Loads spaces from frontend/spaces/*/','Reads manifest.json + .iife.js bundles via Tauri FS','Registers space assistant types via assistant/loader']
+        }},
+        { id: 'fe-components', label: 'components/', color: '#58a6ff', detail: {
+          path: 'frontend/components/',
+          files: ['ai/AssistantPanel.vue','agent/AgentView.vue','agent/AgentInput.vue','agent/ResponseBlocks.vue','agent/ToolCard.vue','agent/CodeBlockCard.vue','agent/PlanBlock.vue','agent/ProgressCard.vue','agent/QuestionBlock.vue','agent/RequestBubble.vue','agent/TableBlock.vue','agent/TaskListBlock.vue','agent/ActionButtons.vue','common/','content/','home/','media/','oracle/','panels/','toolbar/'],
+          desc: 'Auto-imported Vue components.',
+          imports: ['@/operator/','@/assistant/','@/composables/','@/stores/'],
+          connections: ['ai/AssistantPanel.vue is the main chat UI','agent/ components render streaming agent responses']
+        }, children: [
+          { id: 'fe-comp-ai', label: 'ai/', color: '#79c0ff', detail: {
+            path: 'frontend/components/ai/',
+            files: ['AssistantPanel.vue'],
+            desc: 'Main assistant chat panel.'
+          }},
+          { id: 'fe-comp-agent', label: 'agent/', color: '#79c0ff', detail: {
+            path: 'frontend/components/agent/',
+            files: ['AgentView.vue','AgentInput.vue','ResponseBlocks.vue','ToolCard.vue','CodeBlockCard.vue','PlanBlock.vue','ProgressCard.vue','QuestionBlock.vue','RequestBubble.vue','TableBlock.vue','TaskListBlock.vue','ActionButtons.vue'],
+            desc: 'Agent response rendering blocks.'
+          }},
+        ]},
+        { id: 'fe-composables', label: 'composables/', color: '#58a6ff', detail: {
+          path: 'frontend/composables/',
+          files: ['useAIModel.ts','useApi.ts','useApiHealth.ts','useAppMenu.ts','useAppTheme.ts','useAssistantData.ts','useAuth.ts','useAuthorization.ts','useBasepodDeploy.ts','useBilling.ts','useConstructAuth.ts','useConstructConfig.ts','useConstructWindow.ts','useContextDB.ts','useContextMenus.ts','useCredits.ts','useDateFormat.ts','useDeepLink.ts','useDevMode.ts'],
+          desc: 'Auto-imported Vue composables (use* prefix).',
+          exports: ['useAIModel','useApi','useApiHealth','useAppMenu','useAppTheme','useAuth','useConstructConfig','useContextDB','useDevMode']
+        }},
+        { id: 'fe-stores', label: 'stores/', color: '#58a6ff', detail: {
+          path: 'frontend/stores/',
+          files: ['auth.ts','conversations.ts','panels.ts','pinned.ts','preferences.ts','project.ts','settings.ts'],
+          desc: 'Pinia stores. Auto-imported.',
+          exports: ['useAuthStore','useConversationsStore','usePanelsStore','usePinnedStore','usePreferencesStore','useProjectStore','useSettingsStore']
+        }},
+        { id: 'fe-router', label: 'router/', color: '#58a6ff', detail: {
+          path: 'frontend/router/',
+          files: ['index.ts','routes.ts','guards.ts','settingsNavigation.ts','__tests__/'],
+          desc: 'Hash-based routing with auth guards.',
+          imports: ['vue-router','@/stores/auth'],
+          exports: ['router instance','route definitions']
+        }},
+      ]
+    },
+    // ── Desktop ───────────────────────────────────────────────────────
+    { id: 'desktop', label: 'Desktop', color: '#f97583', detail: {
+        path: 'desktop/',
+        files: ['src/','tauri.conf.json','Cargo.toml','build.rs','icons/'],
+        desc: 'Rust/Tauri 2 native shell. Spawns operator as sidecar.'
+      }, children: [
+        { id: 'dt-lib', label: 'lib.rs', color: '#f97583', detail: {
+          path: 'desktop/src/lib.rs',
+          files: ['lib.rs'],
+          desc: 'Tauri runtime entry. Wires all modules, manages state, initializes plugins.',
+          imports: ['mod operator','mod bridge','mod browser','mod browser_bridge','mod config','mod dev_instance','mod lsp','mod menu','mod oauth','mod platform','mod pty','mod shell','mod automation'],
+          connections: ['Spawns operator/main.go as sidecar process','Bridge on :60101 -> operator/internal/desktop/','Initializes 15+ Tauri plugins']
+        }},
+        { id: 'dt-operator', label: 'operator.rs', color: '#f97583', detail: {
+          path: 'desktop/src/operator.rs',
+          files: ['operator.rs'],
+          desc: 'Operator sidecar spawn and lifecycle management.',
+          connections: ['Spawns Go operator binary','Manages operator process lifecycle','Connects via TCP :60100']
+        }},
+        { id: 'dt-bridge', label: 'bridge.rs', color: '#f97583', detail: {
+          path: 'desktop/src/bridge.rs',
+          files: ['bridge.rs'],
+          desc: 'Bridge listener on :60101 for desktop-operator communication.',
+          connections: ['Listens on :60101','Relays to operator/internal/desktop/']
+        }},
+        { id: 'dt-browser', label: 'browser.rs', color: '#f97583', detail: {
+          path: 'desktop/src/browser.rs',
+          files: ['browser.rs','browser_bridge.rs'],
+          desc: 'Browser automation and bridge.'
+        }},
+        { id: 'dt-modules', label: 'modules', color: '#f97583', detail: {
+          path: 'desktop/src/',
+          files: ['automation.rs','config.rs','dev_instance.rs','lsp.rs','menu.rs','oauth.rs','platform.rs','pty.rs','shell.rs'],
+          desc: 'Desktop-side modules: PTY, shell, LSP, OAuth, menus, platform detection.'
+        }},
+        { id: 'dt-config', label: 'tauri.conf', color: '#ffa198', detail: {
+          path: 'desktop/tauri.conf.json',
+          files: ['tauri.conf.json'],
+          desc: 'Window config, permissions, app identifier, CSP, updater config.'
+        }},
+        { id: 'dt-ports', label: 'ports', color: '#ffa198', detail: {
+          path: 'desktop/',
+          desc: 'Port assignments:',
+          files: [':60100 - Operator TCP',':60101 - Bridge listener',':60200 - Vite dev server']
+        }},
+      ]
+    },
+    // ── Operator ──────────────────────────────────────────────────────
+    { id: 'operator', label: 'Operator', color: '#56d364', detail: {
+        path: 'operator/',
+        files: ['main.go','go.mod','go.sum','internal/'],
+        desc: 'Go AI engine. v0.6.7. TCP server on :60100.'
+      }, children: [
+        { id: 'op-module', label: 'module/', color: '#56d364', detail: {
+          path: 'operator/internal/module/',
+          files: ['module.go'],
+          desc: 'Module interface, Router, Dependencies, AppState. Foundation for all operator packages.',
+          exports: ['Module interface','Router','Dependencies','AppState','NewAppState()'],
+          connections: ['Every operator package implements Module interface','AppState shared across all modules']
+        }},
+        { id: 'op-transport', label: 'transport/', color: '#56d364', detail: {
+          path: 'operator/internal/transport/',
+          files: ['transport.go','tcp.go','http.go','ws.go','recover.go','tcp_test.go','http_test.go','ws_test.go'],
+          desc: 'TCP server on :60100. HTTP and WebSocket transports.',
+          imports: ['module'],
+          connections: ['Receives connections from frontend/operator/client.ts','Newline-delimited JSON protocol','Routes requests to module handlers']
+        }},
+        { id: 'op-ai', label: 'ai/', color: '#56d364', detail: {
+          path: 'operator/internal/ai/',
+          files: ['module.go'],
+          desc: 'AI dispatch, chat, stream, agents, system prompt management.',
+          imports: ['module','runner','provider','agent'],
+          connections: ['Dispatches to runner/ for agent execution','Uses provider/ for LLM API calls']
+        }},
+        { id: 'op-runner', label: 'runner/', color: '#56d364', detail: {
+          path: 'operator/internal/runner/',
+          files: ['runner.go','spawn.go','tool_exec.go','provider.go','session.go','system_prompt.go','output_schema.go','retry.go','stuck_loop.go','compact.go','logging.go','plaintext_tools.go','runner_test.go'],
+          desc: 'Agent execution loop: spawn, tool exec, provider resolution, output schemas, retries.',
+          imports: ['module','provider','tool','agent','session','mcp','skill','hook'],
+          exports: ['Runner','Spawn()','ToolExec()'],
+          connections: ['Core agent loop - sends prompts, executes tools, streams results','Output streamed to frontend via transport/','Resolves providers via provider/']
+        }},
+        { id: 'op-provider', label: 'provider/', color: '#56d364', detail: {
+          path: 'operator/internal/provider/',
+          files: ['provider.go','connectors/','helpers/','bootstrap/'],
+          desc: 'LLM provider interface and connectors.',
+          imports: ['module'],
+          exports: ['Provider interface','Connector implementations'],
+          connections: ['Used by runner/ for LLM API calls','Bootstrap registers all connectors at startup']
+        }, children: [
+          { id: 'op-prov-anthropic', label: 'anthropic', color: '#7ee787' },
+          { id: 'op-prov-openai', label: 'openai_compat', color: '#7ee787' },
+          { id: 'op-prov-github', label: 'github_copilot', color: '#7ee787' },
+          { id: 'op-prov-google', label: 'google_gemini', color: '#7ee787' },
+          { id: 'op-prov-openrouter', label: 'openrouter', color: '#7ee787' },
+        ]},
+        { id: 'op-agent', label: 'agent/', color: '#56d364', detail: {
+          path: 'operator/internal/agent/',
+          files: ['builtin/core_agents.go','builtin/agent_architect.go','builtin/agent_brainstorm.go','builtin/agent_coder.go','builtin/agent_general.go','builtin/agent_project.go','builtin/agent_space.go','builtin/agent_coder_test.go'],
+          desc: 'Agent type definitions and builtin agents.',
+          imports: ['module'],
+          exports: ['Agent types','Builtin agent configs (architect, brainstorm, coder, general, project, space)'],
+          connections: ['Contracts defined by frontend/spaces/*/agent/','Used by runner/ for agent execution']
+        }, children: [
+          { id: 'op-ag-architect', label: 'architect', color: '#7ee787' },
+          { id: 'op-ag-brainstorm', label: 'brainstorm', color: '#7ee787' },
+          { id: 'op-ag-coder', label: 'coder', color: '#7ee787' },
+          { id: 'op-ag-general', label: 'general', color: '#7ee787' },
+          { id: 'op-ag-project', label: 'project', color: '#7ee787' },
+          { id: 'op-ag-space', label: 'space', color: '#7ee787' },
+        ]},
+        { id: 'op-tool', label: 'tool/', color: '#56d364', detail: {
+          path: 'operator/internal/tool/',
+          files: ['tool.go','module.go','handler.go','builtin.go','bridge.go','space_cli.go','builtin_read.go','builtin_write.go','builtin_edit.go','builtin_bash.go','builtin_glob.go','builtin_grep.go','builtin_listdir.go','tool_test.go','bridge_test.go'],
+          desc: 'Tool registry and builtin tools (read, write, edit, bash, glob, grep, listdir).',
+          imports: ['module'],
+          exports: ['Tool interface','Registry','Builtin tools'],
+          connections: ['Called by runner/tool_exec.go during agent loop','Bridge tools connect to desktop/src/bridge.rs']
+        }},
+        { id: 'op-mcp', label: 'mcp/', color: '#56d364', detail: {
+          path: 'operator/internal/mcp/',
+          files: ['module.go','client.go','handler.go','config.go','bootstrap.go','jsonrpc.go','transport_http.go','transport_stdio.go','client_test.go'],
+          desc: 'Model Context Protocol client: connectors, transports, handler.',
+          imports: ['module'],
+          exports: ['MCP client','HTTP and stdio transports'],
+          connections: ['Extends tool/ with external MCP tools','Supports stdio and HTTP transports']
+        }},
+        { id: 'op-skill', label: 'skill/', color: '#56d364', detail: {
+          path: 'operator/internal/skill/',
+          files: ['skill.go','module.go','registry.go','loader.go','handler.go','skill_test.go'],
+          desc: 'Skill types, registry, loader, handler.',
+          imports: ['module'],
+          connections: ['Skills loaded from space definitions','Available to runner/ during agent execution']
+        }},
+        { id: 'op-hook', label: 'hook/', color: '#56d364', detail: {
+          path: 'operator/internal/hook/',
+          files: ['hook.go','module.go','registry.go','executor.go','handler.go','hook_test.go'],
+          desc: 'Hook types, registry, executor. Pre/post tool execution hooks.',
+          imports: ['module'],
+          connections: ['Executor called by runner/ around tool calls','Hooks defined in frontend/spaces/*/agent/hooks/']
+        }},
+        { id: 'op-state', label: 'state/', color: '#56d364', detail: {
+          path: 'operator/internal/state/',
+          files: ['store.go','module.go','handler.go','kv.go','settings.go','project_settings.go','designs.go','pinned.go','runtime_states.go','storage.go','store_test.go'],
+          desc: 'State store and handler. ~23 routes for settings, projects, KV, pins, designs.',
+          imports: ['module','appdir'],
+          exports: ['Store','SettingGet/Set','KV operations','Project settings'],
+          connections: ['Persists to appdir/state/','Frontend reads/writes via operator/client.ts']
+        }},
+        { id: 'op-session', label: 'session/', color: '#56d364', detail: {
+          path: 'operator/internal/session/',
+          files: ['session.go','session_test.go'],
+          desc: 'Session store. Manages agent session state.',
+          imports: ['module'],
+          connections: ['Used by runner/ for session continuity','Sessions tracked per agent conversation']
+        }},
+        { id: 'op-oauth', label: 'oauth/', color: '#56d364', detail: {
+          path: 'operator/internal/oauth/',
+          files: ['types.go','module.go','handler.go','registry.go','storage.go','pkce.go','time.go','anthropic.go','github_copilot.go','google_gemini.go','openai_codex.go','openai_codex_test.go','storage_test.go'],
+          desc: 'OAuth types, flows, handler. Supports Anthropic, GitHub, Google, OpenAI.',
+          imports: ['module','appdir'],
+          connections: ['Manages API key OAuth flows','Used by provider/connectors/ for authentication']
+        }},
+        { id: 'op-desktop', label: 'desktop/', color: '#56d364', detail: {
+          path: 'operator/internal/desktop/',
+          files: ['(bridge endpoint)'],
+          desc: 'Desktop bridge module. Receives commands from Tauri bridge on :60101.',
+          connections: ['desktop/src/bridge.rs -> :60101 -> this module']
+        }},
+        { id: 'op-other', label: 'other modules', color: '#3fb950', detail: {
+          path: 'operator/internal/',
+          files: ['appdir/','auth/','chatsession/','config/','ctxmod/','health/','logging/','memory/','plugin/','space/','stream/','sessions/','router/'],
+          desc: 'Supporting modules: app directory, auth, chat sessions, config, context, health, logging, memory, plugins, space management, streaming, sessions handler, router.'
+        }},
+      ]
+    },
+  ]
+};
+
+// ─── Layout engine ──────────────────────────────────────────────────────
+const NODE_H = 28, NODE_PAD = 12, LEVEL_GAP = 300, SIBLING_GAP = 10;
+const nodes = [], edges = [];
+
+function measureText(text, fontSize) {
+  return text.length * fontSize * 0.62 + NODE_PAD * 2;
+}
+
+function layoutTree(node, depth, parentAngle, parentX, parentY) {
+  const w = measureText(node.label, 13);
+  const h = NODE_H;
+
+  if (depth === 0) {
+    node._x = 0; node._y = 0; node._w = w; node._h = h;
+    nodes.push(node);
+
+    const childCount = node.children ? node.children.length : 0;
+    if (node.children) {
+      // Distribute main branches: Frontend left-up, Desktop left-down, Operator right
+      const angles = [-0.15, -0.85, 0.5]; // in PI units
+      node.children.forEach((child, i) => {
+        layoutTree(child, depth + 1, angles[i] * Math.PI, 0, 0);
+      });
+    }
+    return;
+  }
+
+  const dist = LEVEL_GAP;
+  node._x = parentX + Math.cos(parentAngle) * dist;
+  node._y = parentY + Math.sin(parentAngle) * dist;
+  node._w = w; node._h = h;
+  nodes.push(node);
+  edges.push({ from: { x: parentX, y: parentY, w: measureText(tree.label, 13), h: NODE_H, node: findParent(node) }, to: node });
+
+  if (node.children && node.children.length > 0) {
+    const spread = Math.min(0.6, 0.15 * node.children.length);
+    const startAngle = parentAngle - spread * (node.children.length - 1) / 2;
+    node.children.forEach((child, i) => {
+      const angle = startAngle + spread * i;
+      layoutTree(child, depth + 1, angle, node._x, node._y);
+    });
+  }
+}
+
+function findParent(node) {
+  function search(n) {
+    if (n.children) {
+      for (const c of n.children) {
+        if (c === node) return n;
+        const r = search(c);
+        if (r) return r;
+      }
+    }
+    return null;
+  }
+  return search(tree);
+}
+
+// Fix edge connections to use actual parent nodes
+function layoutTreeFixed(node, depth, parentAngle, parentNode) {
+  const w = measureText(node.label, 13);
+  node._w = w; node._h = NODE_H;
+
+  if (depth === 0) {
+    node._x = 0; node._y = 0;
+    nodes.push(node);
+
+    if (node.children) {
+      const angles = [-0.15, -0.85, 0.5];
+      node.children.forEach((child, i) => {
+        layoutTreeFixed(child, depth + 1, angles[i] * Math.PI, node);
+      });
+    }
+    return;
+  }
+
+  const dist = depth === 1 ? LEVEL_GAP + 60 : LEVEL_GAP;
+  node._x = parentNode._x + Math.cos(parentAngle) * dist;
+  node._y = parentNode._y + Math.sin(parentAngle) * dist;
+  nodes.push(node);
+  edges.push({ from: parentNode, to: node });
+
+  if (node.children && node.children.length > 0) {
+    const spread = Math.min(0.8, 0.22 * node.children.length);
+    const startAngle = parentAngle - spread * (node.children.length - 1) / 2;
+    node.children.forEach((child, i) => {
+      const angle = startAngle + spread * i;
+      layoutTreeFixed(child, depth + 1, angle, node);
+    });
+  }
+}
+
+layoutTreeFixed(tree, 0, 0, null);
+
+// ─── Render SVG ─────────────────────────────────────────────────────────
+const svg = document.getElementById('canvas');
+let viewBox = { x: -1200, y: -800, w: 2400, h: 1600 };
+
+function updateViewBox() {
+  svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+}
+updateViewBox();
+
+// Render edges
+edges.forEach(e => {
+  const x1 = e.from._x, y1 = e.from._y;
+  const x2 = e.to._x, y2 = e.to._y;
+  const mx = (x1 + x2) / 2;
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', e.to.color + '40');
+  path.setAttribute('stroke-width', '2');
+  svg.appendChild(path);
+});
+
+// Render nodes
+nodes.forEach(n => {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.style.cursor = 'pointer';
+
+  const isRoot = n.id === 'construct';
+  const isLeaf = !n.children || n.children.length === 0;
+  const rx = isRoot ? 8 : 4;
+  const fontSize = isRoot ? 16 : (isLeaf ? 11 : 13);
+  const w = isRoot ? measureText(n.label, 16) : (isLeaf ? measureText(n.label, 11) : n._w);
+  const h = isRoot ? 36 : (isLeaf ? 24 : NODE_H);
+
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', n._x - w / 2);
+  rect.setAttribute('y', n._y - h / 2);
+  rect.setAttribute('width', w);
+  rect.setAttribute('height', h);
+  rect.setAttribute('rx', rx);
+  rect.setAttribute('fill', isRoot ? '#21262d' : '#0d1117');
+  rect.setAttribute('stroke', n.color);
+  rect.setAttribute('stroke-width', isRoot ? 2 : 1);
+  g.appendChild(rect);
+
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('x', n._x);
+  text.setAttribute('y', n._y + fontSize * 0.35);
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('fill', n.color);
+  text.setAttribute('font-size', fontSize);
+  text.setAttribute('font-family', "'SF Mono','Cascadia Code','Fira Code',monospace");
+  text.textContent = n.label;
+  g.appendChild(text);
+
+  // Hover effect
+  g.addEventListener('mouseenter', () => {
+    rect.setAttribute('fill', n.color + '18');
+    rect.setAttribute('stroke-width', isRoot ? 3 : 2);
+  });
+  g.addEventListener('mouseleave', () => {
+    rect.setAttribute('fill', isRoot ? '#21262d' : '#0d1117');
+    rect.setAttribute('stroke-width', isRoot ? 2 : 1);
+  });
+
+  // Click handler
+  g.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showDetail(n);
+  });
+
+  svg.appendChild(g);
+  n._el = g;
+});
+
+// ─── Detail panel ───────────────────────────────────────────────────────
+function showDetail(node) {
+  const detail = document.getElementById('detail');
+  const d = node.detail;
+  if (!d) {
+    document.getElementById('detail-title').textContent = node.label;
+    document.getElementById('detail-path').textContent = '';
+    document.getElementById('detail-content').innerHTML = '<p style="color:#8b949e">No additional details for this leaf node.</p>';
+    detail.classList.add('open');
+    return;
+  }
+
+  document.getElementById('detail-title').textContent = node.label;
+  document.getElementById('detail-path').textContent = d.path || '';
+
+  let html = '';
+  if (d.desc) {
+    html += `<p style="color:#8b949e;margin-bottom:12px">${d.desc.replace(/\n/g,'<br>')}</p>`;
+  }
+  if (d.files && d.files.length) {
+    html += '<h4>Files</h4><ul>';
+    d.files.forEach(f => html += `<li class="file">${f}</li>`);
+    html += '</ul>';
+  }
+  if (d.imports && d.imports.length) {
+    html += '<h4>Imports</h4><ul>';
+    d.imports.forEach(f => html += `<li class="import">${f}</li>`);
+    html += '</ul>';
+  }
+  if (d.exports && d.exports.length) {
+    html += '<h4>Exports</h4><ul>';
+    d.exports.forEach(f => html += `<li class="export">${f}</li>`);
+    html += '</ul>';
+  }
+  if (d.connections && d.connections.length) {
+    html += '<h4>Connections</h4><ul>';
+    d.connections.forEach(f => html += `<li class="conn">${f}</li>`);
+    html += '</ul>';
+  }
+
+  document.getElementById('detail-content').innerHTML = html;
+  detail.classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail').classList.remove('open');
+}
+
+// Close on background click
+svg.addEventListener('click', closeDetail);
+
+// ─── Pan & Zoom ─────────────────────────────────────────────────────────
+let isDragging = false, dragStart = { x: 0, y: 0 }, vbStart = { x: 0, y: 0 };
+
+svg.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  isDragging = true;
+  svg.classList.add('dragging');
+  dragStart = { x: e.clientX, y: e.clientY };
+  vbStart = { x: viewBox.x, y: viewBox.y };
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const scale = viewBox.w / svg.clientWidth;
+  viewBox.x = vbStart.x - (e.clientX - dragStart.x) * scale;
+  viewBox.y = vbStart.y - (e.clientY - dragStart.y) * scale;
+  updateViewBox();
+});
+
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+  svg.classList.remove('dragging');
+});
+
+svg.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 1.1 : 0.9;
+  const rect = svg.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / rect.width;
+  const my = (e.clientY - rect.top) / rect.height;
+
+  const newW = viewBox.w * factor;
+  const newH = viewBox.h * factor;
+
+  viewBox.x += (viewBox.w - newW) * mx;
+  viewBox.y += (viewBox.h - newH) * my;
+  viewBox.w = newW;
+  viewBox.h = newH;
+  updateViewBox();
+}, { passive: false });
+
+// ─── Keyboard ───────────────────────────────────────────────────────────
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeDetail();
+});
+
+// ─── Connection highlights ──────────────────────────────────────────────
+const KEY_CONNECTIONS = [
+  { label: 'TCP :60100', from: 'fe-operator', to: 'op-transport', color: '#58a6ff' },
+  { label: 'normalize', from: 'fe-assistant', to: 'op-runner', color: '#d2a8ff' },
+  { label: 'agent contracts', from: 'fe-spaces', to: 'op-agent', color: '#f0883e' },
+  { label: 'sidecar spawn', from: 'dt-lib', to: 'operator', color: '#f97583' },
+  { label: 'bridge :60101', from: 'dt-bridge', to: 'op-desktop', color: '#ffa198' },
+  { label: 'loads spaces', from: 'fe-spaceloader', to: 'fe-spaces', color: '#79c0ff' },
+];
+
+// Draw key connection arcs
+KEY_CONNECTIONS.forEach(conn => {
+  const fromNode = nodes.find(n => n.id === conn.from);
+  const toNode = nodes.find(n => n.id === conn.to);
+  if (!fromNode || !toNode) return;
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const x1 = fromNode._x, y1 = fromNode._y;
+  const x2 = toNode._x, y2 = toNode._y;
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+
+  // Curve the connection line slightly
+  const dx = x2 - x1, dy = y2 - y1;
+  const cx = mx - dy * 0.15, cy = my + dx * 0.15;
+
+  path.setAttribute('d', `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', conn.color + '30');
+  path.setAttribute('stroke-width', '1.5');
+  path.setAttribute('stroke-dasharray', '6,4');
+
+  // Insert before nodes so they appear behind
+  svg.insertBefore(path, svg.firstChild);
+
+  // Label
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  const lx = (x1 + cx + x2) / 3, ly = (y1 + cy + y2) / 3;
+  text.setAttribute('x', lx);
+  text.setAttribute('y', ly);
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('fill', conn.color + '60');
+  text.setAttribute('font-size', '9');
+  text.setAttribute('font-family', "'SF Mono',monospace");
+  text.textContent = conn.label;
+  svg.insertBefore(text, svg.firstChild.nextSibling);
+});
+</script>
+</body>
+</html>
