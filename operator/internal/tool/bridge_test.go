@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 
 	"testing"
 
@@ -160,5 +161,65 @@ func TestRegisterSpaceActionToolsInstant(t *testing.T) {
 
 	if _, ok := reg.Get("canvas.list_cards"); !ok {
 		t.Fatal("expected canvas.list_cards to be registered")
+	}
+}
+
+func TestRegisterSpaceActionToolsRetriesUntilProviderReady(t *testing.T) {
+	var calls atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req desktop.Request
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &req)
+
+		if req.Method != "space.list_actions" {
+			json.NewEncoder(w).Encode(desktop.Response{
+				ID:    req.ID,
+				Error: &desktop.BridgeError{Code: "not_found", Message: "unknown"},
+			})
+			return
+		}
+
+		attempt := calls.Add(1)
+		if attempt < 3 {
+			json.NewEncoder(w).Encode(desktop.Response{
+				ID:    req.ID,
+				Error: &desktop.BridgeError{Code: "handler_error", Message: "No automation provider registered for space: canvas"},
+			})
+			return
+		}
+
+		data, _ := json.Marshal(map[string]any{
+			"space_id": "canvas",
+			"actions": []map[string]any{
+				{
+					"id":          "list_cards",
+					"description": "List cards",
+					"params": map[string]any{
+						"type":       "object",
+						"properties": map[string]any{},
+					},
+				},
+			},
+		})
+		json.NewEncoder(w).Encode(desktop.Response{
+			ID:     req.ID,
+			Result: data,
+		})
+	}))
+	defer srv.Close()
+
+	bridge := &desktop.Client{}
+	bridge.SetAddrForTest(srv.URL)
+	bridge.SetTokenForTest("test")
+
+	reg := NewRegistry()
+	RegisterSpaceActionTools(reg, bridge, []string{"canvas"})
+
+	if _, ok := reg.Get("canvas.list_cards"); !ok {
+		t.Fatal("expected canvas.list_cards to be registered after provider becomes ready")
+	}
+	if got := calls.Load(); got != 3 {
+		t.Fatalf("expected 3 list_actions attempts, got %d", got)
 	}
 }

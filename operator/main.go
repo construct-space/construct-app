@@ -124,10 +124,12 @@ func run(args []string) int {
 		}
 	}
 
-	// Space action tools are registered on-demand when the frontend signals readiness
-	// via the "spaces.actions_ready" message (see tool module handler).
-	// Store spaceIDs for the handler to use.
+	// Pre-register space action tools from agent configs.
+	// Tools are registered with a bridge executor that calls space.run_action at execution time.
+	// This makes tools available instantly at startup — no bridge query needed for registration.
 	if bridge != nil {
+		tool.PreRegisterSpaceAgentTools(toolReg, bridge, allAgents, spaceIDs)
+		// Also set up for dynamic upgrade when frontend signals readiness (proper schemas)
 		tool.SetPendingSpaceActions(toolReg, bridge, spaceIDs)
 	}
 

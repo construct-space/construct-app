@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 )
 
 // Pending space action registration — set by main, triggered by frontend or agent dispatch
@@ -19,6 +20,9 @@ var (
 	pendingSpaceIDs []string
 	pendingMu       sync.Mutex
 	pendingDone     bool
+
+	spaceActionRegistrationMaxAttempts = 20
+	spaceActionRegistrationRetryDelay  = 250 * time.Millisecond
 )
 
 // SetPendingSpaceActions stores the info needed to register space actions later.
@@ -351,13 +355,42 @@ func RegisterSpaceActionTools(r *Registry, bridge *desktop.Client, spaceIDs []st
 		return
 	}
 
-	for _, sid := range spaceIDs {
-		resp, err := listSpaceActions(bridge, sid)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[tools] space %q list_actions failed: %v\n", sid, err)
-			continue
+	pending := append([]string(nil), spaceIDs...)
+	lastErr := make(map[string]error, len(spaceIDs))
+	loggedRetry := make(map[string]bool, len(spaceIDs))
+
+	for attempt := 1; attempt <= spaceActionRegistrationMaxAttempts && len(pending) > 0; attempt++ {
+		nextPending := make([]string, 0, len(pending))
+
+		for _, sid := range pending {
+			resp, err := listSpaceActions(bridge, sid)
+			if err != nil {
+				lastErr[sid] = err
+				nextPending = append(nextPending, sid)
+				if attempt < spaceActionRegistrationMaxAttempts && !loggedRetry[sid] {
+					fmt.Fprintf(os.Stderr, "[tools] space %q list_actions not ready; retrying: %v\n", sid, err)
+					loggedRetry[sid] = true
+				}
+				continue
+			}
+
+			delete(lastErr, sid)
+			registerSpaceActionToolsForSpace(r, bridge, sid, resp.Actions)
 		}
-		registerSpaceActionToolsForSpace(r, bridge, sid, resp.Actions)
+
+		if len(nextPending) == 0 {
+			return
+		}
+		if attempt < spaceActionRegistrationMaxAttempts {
+			time.Sleep(spaceActionRegistrationRetryDelay)
+		}
+		pending = nextPending
+	}
+
+	for _, sid := range pending {
+		if err := lastErr[sid]; err != nil {
+			fmt.Fprintf(os.Stderr, "[tools] space %q list_actions failed: %v\n", sid, err)
+		}
 	}
 }
 
