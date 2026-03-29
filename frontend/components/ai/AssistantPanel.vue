@@ -62,10 +62,10 @@ onMounted(async () => {
   inputRef.value?.focus()
 })
 
-// Send from AgentInput — always dispatch through the General entry agent.
-// Route context (active space/project) is carried as metadata, not as agent selection.
+// Send from AgentInput — dispatch through the currently selected agent.
 async function handleSend(blocks: RequestBlock[]) {
-  await send(blocks, { agentId: 'general', assistantType: 'general' })
+  const agentId = selectedAgent.value || 'general'
+  await send(blocks, { agentId, assistantType: agentId === 'general' ? 'general' : 'space' })
 }
 
 // Keyboard: Escape to stop
