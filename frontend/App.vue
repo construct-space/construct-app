@@ -10,8 +10,6 @@ import { useAppMenu } from '@/composables/useAppMenu'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { useTelemetry } from '@/composables/useTelemetry'
 import { useUpdater } from '@/composables/useUpdater'
-import { useGlobalShortcuts } from '@/composables/useGlobalShortcuts'
-
 const route = useRoute()
 const router = useRouter()
 
@@ -22,48 +20,6 @@ useAppMenu()
 useDeepLink()
 const telemetry = useTelemetry()
 const updater = useUpdater()
-
-// Global shortcuts (system-wide, works even when app not focused)
-useGlobalShortcuts(async (id) => {
-  switch (id) {
-    case 'global.toggle-app': {
-      try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window')
-        const win = getCurrentWindow()
-        if (await win.isVisible()) {
-          await win.hide()
-        } else {
-          await win.show()
-          await win.setFocus()
-        }
-      } catch (e) {
-        console.error('[GlobalShortcut] toggle-app failed:', e)
-      }
-      break
-    }
-    case 'global.toggle-assistant': {
-      try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window')
-        const win = getCurrentWindow()
-        await win.show()
-        await win.setFocus()
-      } catch { /* ignore */ }
-      window.dispatchEvent(new CustomEvent('construct:toggle-assistant'))
-      break
-    }
-    case 'global.quick-capture': {
-      try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window')
-        const win = getCurrentWindow()
-        await win.show()
-        await win.setFocus()
-      } catch { /* ignore */ }
-      // Emit a custom event that can be picked up by a notes/capture component
-      window.dispatchEvent(new CustomEvent('construct:quick-capture'))
-      break
-    }
-  }
-})
 
 // Check if we're in an app route (needs sidebar + toolbar)
 const showSidebar = computed(() => route.path.startsWith('/app'))
