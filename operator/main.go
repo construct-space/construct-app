@@ -34,7 +34,7 @@ import (
 	"construct-operator/internal/transport"
 )
 
-const Version = "0.6.7"
+const Version = "0.7.0"
 
 func main() {
 	os.Exit(run(os.Args[1:]))
