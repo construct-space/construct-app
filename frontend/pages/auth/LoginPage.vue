@@ -23,13 +23,11 @@ const handlePasskeyLogin = () => {
 }
 
 async function readClipboard(): Promise<string> {
-  // Try Tauri clipboard plugin first (no native paste banner)
   try {
     const { readText } = await import('@tauri-apps/plugin-clipboard-manager')
     const text = await readText()
     return text?.trim() ?? ''
   } catch {
-    // Fallback to web API
     try {
       return (await navigator.clipboard.readText()).trim()
     } catch {
