@@ -303,10 +303,11 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 		})
 
 		provReq := &provider.Request{
-			Model:    model,
-			Messages: messages,
-			Tools:    toolDefs,
-			System:   system,
+			Model:      model,
+			Messages:   messages,
+			Tools:      toolDefs,
+			ToolChoice: "auto",
+			System:     system,
 		}
 		// Attach structured output schema when requested.
 		// Providers that support structured output will use it; others ignore it.
