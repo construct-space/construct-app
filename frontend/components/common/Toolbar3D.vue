@@ -30,13 +30,12 @@ async function handleItemClick(item: { id: string; onClick?: () => void; to?: st
   } else if (item.to) {
     router.push(item.to)
   } else if (item.action) {
-    // Dispatch action to the active space
     const spaceName = frontPanel.value?.spaceName
     if (spaceName) {
-      const { loadSpace } = await import('@/space_loader/SpaceLoader')
-      const space = await loadSpace(spaceName)
-      if (space) {
-        await space.runAction(item.action)
+      const { getAutomationProvider } = await import('@/lib/spaceContextBus')
+      const provider = getAutomationProvider(spaceName)
+      if (provider) {
+        await provider.runAction(item.action)
       }
     }
   }

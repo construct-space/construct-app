@@ -239,7 +239,7 @@ function getCustomRenderer(block: ResponseBlock) {
       />
 
       <!-- Unknown block fallback -->
-      <div v-else class="my-1 px-3 py-2 text-xs text-app-muted bg-white/[0.02] rounded-lg border border-dashed border-app-border">
+      <div v-else class="my-1 px-3 py-2 text-xs text-app-muted bg-white/2 rounded-lg border border-dashed border-app-border">
         <span class="font-mono text-[10px]">{{ (block as any).type }}</span>
         <pre class="mt-1 text-[10px] overflow-x-auto">{{ JSON.stringify(block, null, 2) }}</pre>
       </div>

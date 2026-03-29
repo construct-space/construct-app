@@ -875,7 +875,6 @@ declare module 'vue' {
     readonly useFullscreen: UnwrapRef<typeof import('@vueuse/core')['useFullscreen']>
     readonly useGamepad: UnwrapRef<typeof import('@vueuse/core')['useGamepad']>
     readonly useGeolocation: UnwrapRef<typeof import('@vueuse/core')['useGeolocation']>
-    readonly useGlobalShortcuts: UnwrapRef<typeof import('./composables/useGlobalShortcuts')['useGlobalShortcuts']>
     readonly useGoogleFonts: UnwrapRef<typeof import('./composables/useGoogleFonts')['useGoogleFonts']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useIdle: UnwrapRef<typeof import('@vueuse/core')['useIdle']>
