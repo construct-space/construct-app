@@ -32,6 +32,10 @@ type Block struct {
 	Path     string `json:"path,omitempty"`
 	Size     int64  `json:"size,omitempty"`
 	Message  string `json:"message,omitempty"`
+
+	// Data preserves custom block payloads (e.g. architect:plan, architect:questions)
+	// so they round-trip through save/load without losing state.
+	Data json.RawMessage `json:"data,omitempty"`
 }
 
 // Turn represents one request/response exchange in a chat session.

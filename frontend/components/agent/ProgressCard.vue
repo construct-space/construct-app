@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProgressBlock } from '@/operator/useAgentSession'
+import type { ProgressBlock } from '@/assistant'
 
 defineProps<{
   block: ProgressBlock

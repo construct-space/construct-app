@@ -16,7 +16,7 @@ import (
 // Entry is a single memory item.
 type Entry struct {
 	ID          string    `json:"id"`
-	Type        string    `json:"type"`        // user, feedback, project, reference
+	Type        string    `json:"type"` // user, feedback, project, reference
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Content     string    `json:"content"`

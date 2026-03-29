@@ -64,13 +64,13 @@ func copilotURLs(domain string) (deviceCode, accessToken, copilotToken string) {
 
 // DeviceFlowState holds the state of an in-progress device code flow.
 type DeviceFlowState struct {
-	Domain         string `json:"domain"`
-	DeviceCode     string `json:"device_code"`
-	UserCode       string `json:"user_code"`
+	Domain          string `json:"domain"`
+	DeviceCode      string `json:"device_code"`
+	UserCode        string `json:"user_code"`
 	VerificationURI string `json:"verification_uri"`
-	AccessTokenURL string `json:"access_token_url"`
-	Interval       int    `json:"interval"`
-	ExpiresIn      int    `json:"expires_in"`
+	AccessTokenURL  string `json:"access_token_url"`
+	Interval        int    `json:"interval"`
+	ExpiresIn       int    `json:"expires_in"`
 }
 
 // StartCopilotDeviceFlow initiates the device code flow and returns the state

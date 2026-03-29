@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PlanBlock } from '@/operator/useAgentSession'
+import type { PlanBlock } from '@/assistant'
 
 defineProps<{
   block: PlanBlock

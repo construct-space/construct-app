@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CodeBlock } from '@/operator/useAgentSession'
+import type { CodeBlock } from '@/assistant'
 
 defineProps<{
   block: CodeBlock

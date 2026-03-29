@@ -5,7 +5,7 @@
  * Emits send(blocks) with text + any dropped images/files.
  */
 import { ref } from 'vue'
-import type { RequestBlock, ImageBlock } from '@/operator/useAgentSession'
+import type { RequestBlock, ImageBlock } from '@/assistant'
 
 defineProps<{
   disabled?: boolean
@@ -99,6 +99,32 @@ function handleDrop(e: DragEvent) {
   }
 }
 
+function handleFileSelect(e: Event) {
+  const files = (e.target as HTMLInputElement).files
+  if (!files) return
+  for (const file of files) {
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        attachments.value.push({
+          type: 'image',
+          src: reader.result as string,
+          alt: file.name,
+        })
+      }
+      reader.readAsDataURL(file)
+    } else {
+      attachments.value.push({
+        type: 'file',
+        name: file.name,
+        size: file.size,
+      })
+    }
+  }
+  // Reset input so same file can be selected again
+  ;(e.target as HTMLInputElement).value = ''
+}
+
 function removeAttachment(index: number) {
   attachments.value.splice(index, 1)
 }
@@ -141,14 +167,21 @@ defineExpose({ focus })
 
     <!-- Input row -->
     <div class="flex items-center gap-1.5 px-2 py-2">
-      <!-- Mic -->
+      <!-- + button (left) — upload/attach -->
       <button
         class="dock-btn"
-        :class="isRecording ? 'text-red-400 !bg-red-500/15 animate-pulse' : ''"
-        @click="toggleMic"
+        @click="($refs.fileInput as HTMLInputElement)?.click()"
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></svg>
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
       </button>
+      <input
+        ref="fileInput"
+        type="file"
+        class="hidden"
+        multiple
+        accept="image/*,.pdf,.txt,.md,.json,.csv"
+        @change="handleFileSelect"
+      />
 
       <!-- Text input -->
       <input
@@ -171,12 +204,20 @@ defineExpose({ focus })
       </button>
       <!-- Send button -->
       <button
-        v-else
+        v-if="!loading || input.trim()"
         class="dock-btn dock-btn--send"
         :disabled="(!input.trim() && !attachments.length) || disabled"
         @click="handleSend"
       >
         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+      </button>
+      <!-- Mic (right) -->
+      <button
+        class="dock-btn"
+        :class="isRecording ? 'text-red-400 !bg-red-500/15 animate-pulse' : ''"
+        @click="toggleMic"
+      >
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></svg>
       </button>
     </div>
 

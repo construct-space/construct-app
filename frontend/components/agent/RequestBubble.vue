@@ -3,7 +3,7 @@
  * RequestBubble — Renders request blocks (what the user sent)
  * Right-aligned bubble with text, image thumbnails, file chips.
  */
-import type { RequestBlock, ImageBlock, FileBlock } from '@/operator/useAgentSession'
+import type { RequestBlock, ImageBlock, FileBlock } from '@/assistant'
 
 defineProps<{
   blocks: RequestBlock[]

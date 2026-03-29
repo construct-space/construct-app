@@ -1,0 +1,1 @@
+export { brainstormAssistantConfig } from './config'

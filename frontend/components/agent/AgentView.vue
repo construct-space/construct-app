@@ -7,7 +7,7 @@
  * Used by AssistantPanel, Coder, and any space embedding AI.
  */
 import { ref, computed, watch, nextTick } from 'vue'
-import type { Turn } from '@/operator/useAgentSession'
+import type { Turn } from '@/assistant'
 import RequestBubble from './RequestBubble.vue'
 import ResponseBlocks from './ResponseBlocks.vue'
 
@@ -18,7 +18,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'question-answer': [questionId: string, answer: string]
+  'question-answer': [questionId: string, answer: string | string[]]
 }>()
 
 const scrollRef = ref<HTMLDivElement>()
@@ -74,7 +74,7 @@ watch(
 
       <!-- Response -->
       <div v-if="turn.response.length" class="max-w-[90%]">
-        <ResponseBlocks :blocks="turn.response" :streaming="turn.status === 'streaming'" @question-answer="(qId, answer) => emit('question-answer', qId, answer as string)" />
+        <ResponseBlocks :blocks="turn.response" :streaming="turn.status === 'streaming'" @question-answer="(qId, answer) => emit('question-answer', qId, answer)" />
       </div>
     </div>
 

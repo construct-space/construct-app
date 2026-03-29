@@ -29,41 +29,41 @@
 **Target File Structure:**
 - Modify: `operator/main.go`
   Purpose: shrink to flags, startup, runtime construction, and server launch only.
-- Create: `operator/runtime.go`
+- Create: `operator/internal/operatorapp/runtime.go`
   Purpose: own the assembled runtime state (`runner`, stores, registries, bridge, MCP client, client context maps, pending OAuth flows, agent list).
-- Create: `operator/runtime_helpers.go`
+- Create: `operator/internal/operatorapp/runtime_helpers.go`
   Purpose: pure helper functions for agent lookup, client keying, project lookup, and runner-context shaping.
-- Create: `operator/bootstrap_providers.go`
+- Create: `operator/internal/operatorapp/providers/bootstrap_providers.go`
   Purpose: provider and OAuth runtime assembly.
-- Create: `operator/bootstrap_tools_spaces.go`
+- Create: `operator/internal/operatorapp/bootstrap_tools_spaces.go`
   Purpose: tool registry, space loading, hooks, skills, plugins, and bridge-backed registrations.
-- Create: `operator/bootstrap_mcp.go`
+- Create: `operator/internal/operatorapp/bootstrap_mcp.go`
   Purpose: MCP config load/enable/register/list/persist behavior.
-- Create: `operator/stream_handlers.go`
+- Create: `operator/internal/operatorapp/stream_handlers.go`
   Purpose: all `_stream` request handling and shared streaming helpers.
-- Create: `operator/request_router.go`
+- Create: `operator/internal/operatorapp/request_router.go`
   Purpose: ordered sync request dispatch that preserves prefix and fallback behavior.
-- Create: `operator/request_handlers_system.go`
+- Create: `operator/internal/operatorapp/request_handlers_system.go`
   Purpose: `system.*`, `providers.*`, `agents.list`, `tools.list`, `stream.cancel`.
-- Create: `operator/request_handlers_ai_agents.go`
+- Create: `operator/internal/operatorapp/request_handlers_ai_agents.go`
   Purpose: `agents.dispatch`, `ai.chat`, and related request-to-runner bridging.
-- Create: `operator/request_handlers_oauth.go`
+- Create: `operator/internal/operatorapp/request_handlers_oauth.go`
   Purpose: `oauth.*` and `auth.*` endpoints.
-- Create: `operator/request_handlers_context.go`
+- Create: `operator/internal/operatorapp/request_handlers_context.go`
   Purpose: `context.*` endpoints and per-client state mutations.
-- Create: `operator/request_handlers_state.go`
+- Create: `operator/internal/operatorapp/request_handlers_state.go`
   Purpose: `storage.*`, `kv.*`, `settings.*`, `project_settings.*`, `pinned.*`, `designs.*`.
-- Create: `operator/request_handlers_tools.go`
+- Create: `operator/internal/operatorapp/request_handlers_tools.go`
   Purpose: `tool.*` and `tools.call`.
-- Create: `operator/request_handlers_mcp.go`
+- Create: `operator/internal/operatorapp/request_handlers_mcp.go`
   Purpose: `mcp.*`.
-- Create: `operator/request_handlers_skills_hooks.go`
+- Create: `operator/internal/operatorapp/request_handlers_skills_hooks.go`
   Purpose: `skills.*` and `hooks.*`.
-- Create: `operator/request_handlers_sessions.go`
+- Create: `operator/internal/operatorapp/request_handlers_sessions.go`
   Purpose: `sessions.*` and `ai.conversations.*`.
-- Create: `operator/runtime_test.go`
+- Create: `operator/internal/operatorapp/runtime_test.go`
   Purpose: characterization tests for live operator helper behavior.
-- Create: `operator/request_handlers_test.go`
+- Create: `operator/internal/operatorapp/request_handlers_test.go`
   Purpose: handler-level parity tests without booting the entire binary.
 - Modify: `operator/internal/transport/tcp.go`
   Purpose: shared panic recovery and stable cancel semantics for active streams.
@@ -131,7 +131,7 @@
 ### Task 1: Stabilize the Baseline Before Refactoring
 
 **Files:**
-- Modify: `operator/agent_coder_test.go`
+- Modify: `operator/internal/operatorapp/agents/agent_coder_test.go`
 - Modify: `operator/internal/transport/tcp.go`
 - Modify: `operator/internal/transport/tcp_test.go`
 - Create: `operator/internal/transport/recover.go`
@@ -147,8 +147,8 @@ Expected: failures in the root `operator` package and `internal/transport`, matc
 - [ ] **Step 2: Repair the stale coder-agent expectation**
 
 Read:
-- `operator/agent_coder.go`
-- `operator/agent_coder_test.go`
+- `operator/internal/operatorapp/agents/agent_coder.go`
+- `operator/internal/operatorapp/agents/agent_coder_test.go`
 
 Update the test to assert the actual stable space-workflow guidance that the shipped prompt intends to guarantee. Do not change the prompt unless the test is proving a real requirement that was accidentally removed.
 
@@ -166,7 +166,7 @@ While touching `tcp.go`, verify that panic recovery does not bypass:
 - [ ] **Step 5: Re-run the touched package tests**
 
 Run:
-- `go test .`
+- `go test ./internal/operatorapp`
 - `go test ./internal/transport`
 
 Expected: PASS.
@@ -183,8 +183,8 @@ Expected: PASS across `operator/...`.
 
 **Files:**
 - Modify: `operator/main.go`
-- Create: `operator/runtime_helpers.go`
-- Create: `operator/runtime_test.go`
+- Create: `operator/internal/operatorapp/runtime_helpers.go`
+- Create: `operator/internal/operatorapp/runtime_test.go`
 
 Pull pure logic out of `main()` first. This creates test seams without changing wiring or package boundaries.
 
@@ -221,7 +221,7 @@ Update `main.go` to use the extracted helpers while keeping behavior identical.
 - [ ] **Step 5: Verify helper extraction did not change runtime behavior**
 
 Run:
-- `go test .`
+- `go test ./internal/operatorapp`
 - `go test ./...`
 
 Expected: PASS.
@@ -232,7 +232,7 @@ Expected: PASS.
 
 **Files:**
 - Modify: `operator/main.go`
-- Create: `operator/runtime.go`
+- Create: `operator/internal/operatorapp/runtime.go`
 
 `main()` should stop owning all mutable runtime state. Create a struct that holds assembled dependencies and per-client maps, but keep it in `package main` for now.
 
@@ -274,7 +274,7 @@ Test the new struct methods directly without needing to boot the full TCP server
 - [ ] **Step 5: Verify no request behavior changed**
 
 Run:
-- `go test .`
+- `go test ./internal/operatorapp`
 - `go test ./...`
 
 Expected: PASS.
@@ -285,11 +285,11 @@ Expected: PASS.
 
 **Files:**
 - Modify: `operator/main.go`
-- Modify: `operator/oauth_runtime.go`
-- Create: `operator/bootstrap_providers.go`
-- Create: `operator/bootstrap_tools_spaces.go`
-- Create: `operator/bootstrap_mcp.go`
-- Create: `operator/bootstrap_test.go`
+- Modify: `operator/internal/operatorapp/providers/oauth_runtime.go`
+- Create: `operator/internal/operatorapp/providers/bootstrap_providers.go`
+- Create: `operator/internal/operatorapp/bootstrap_tools_spaces.go`
+- Create: `operator/internal/operatorapp/bootstrap_mcp.go`
+- Create: `operator/internal/operatorapp/bootstrap_test.go`
 
 The largest block in `main.go` today is bootstrapping. Extract it next, but keep it in `package main` and preserve the exact runtime order.
 
@@ -347,7 +347,7 @@ Expected: PASS.
 
 **Files:**
 - Modify: `operator/main.go`
-- Create: `operator/stream_handlers.go`
+- Create: `operator/internal/operatorapp/stream_handlers.go`
 - Create: `operator/stream_handlers_test.go`
 
 The stream switch in `srv.OnStream` is a distinct subsystem and should be extracted before the much larger sync request switch.
@@ -384,7 +384,7 @@ Cover:
 - [ ] **Step 5: Verify targeted packages**
 
 Run:
-- `go test .`
+- `go test ./internal/operatorapp`
 - `go test ./internal/transport`
 - `go test ./...`
 
@@ -396,17 +396,17 @@ Expected: PASS.
 
 **Files:**
 - Modify: `operator/main.go`
-- Create: `operator/request_router.go`
-- Create: `operator/request_handlers_system.go`
-- Create: `operator/request_handlers_ai_agents.go`
-- Create: `operator/request_handlers_oauth.go`
-- Create: `operator/request_handlers_context.go`
-- Create: `operator/request_handlers_state.go`
-- Create: `operator/request_handlers_tools.go`
-- Create: `operator/request_handlers_mcp.go`
-- Create: `operator/request_handlers_skills_hooks.go`
-- Create: `operator/request_handlers_sessions.go`
-- Create: `operator/request_handlers_test.go`
+- Create: `operator/internal/operatorapp/request_router.go`
+- Create: `operator/internal/operatorapp/request_handlers_system.go`
+- Create: `operator/internal/operatorapp/request_handlers_ai_agents.go`
+- Create: `operator/internal/operatorapp/request_handlers_oauth.go`
+- Create: `operator/internal/operatorapp/request_handlers_context.go`
+- Create: `operator/internal/operatorapp/request_handlers_state.go`
+- Create: `operator/internal/operatorapp/request_handlers_tools.go`
+- Create: `operator/internal/operatorapp/request_handlers_mcp.go`
+- Create: `operator/internal/operatorapp/request_handlers_skills_hooks.go`
+- Create: `operator/internal/operatorapp/request_handlers_sessions.go`
+- Create: `operator/internal/operatorapp/request_handlers_test.go`
 
 This is the highest-value structural change. Do it only after the runtime object and stream handlers exist.
 

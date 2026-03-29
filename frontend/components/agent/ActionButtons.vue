@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ActionBlock } from '@/operator/useAgentSession'
+import type { ActionBlock } from '@/assistant'
 
 defineProps<{
   block: ActionBlock

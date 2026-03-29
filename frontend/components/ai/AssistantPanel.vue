@@ -12,7 +12,7 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useAgentSession } from '@/operator'
 import { useAssistant } from '@/operator'
 import type { OperatorAgent } from '@/operator'
-import type { RequestBlock } from '@/operator/useAgentSession'
+import type { RequestBlock } from '@/assistant'
 import AgentView from '@/components/agent/AgentView.vue'
 import AgentInput from '@/components/agent/AgentInput.vue'
 import { useRouter } from 'vue-router'
@@ -62,9 +62,10 @@ onMounted(async () => {
   inputRef.value?.focus()
 })
 
-// Send from AgentInput
+// Send from AgentInput — always dispatch through the General entry agent.
+// Route context (active space/project) is carried as metadata, not as agent selection.
 async function handleSend(blocks: RequestBlock[]) {
-  await send(blocks)
+  await send(blocks, { agentId: 'general', assistantType: 'general' })
 }
 
 // Keyboard: Escape to stop

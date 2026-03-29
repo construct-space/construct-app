@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -495,6 +496,68 @@ func TestRun_StopsRepetitiveToolLoopsEarly(t *testing.T) {
 	}
 	if prov.requests >= 20 {
 		t.Fatalf("expected fewer than 20 provider calls, got %d", prov.requests)
+	}
+}
+
+func TestRunRequest_AssistantTypeMetadata(t *testing.T) {
+	// Verify that AssistantType and OutputSchema are carried through
+	// the RunRequest without affecting routing or execution.
+	prov := &sequenceProvider{
+		id:     "anthropic",
+		models: []string{"claude-sonnet-4-6"},
+		responses: []*provider.Response{
+			{Content: "done", StopReason: "end_turn"},
+		},
+	}
+	r := New(WithProvider(prov))
+
+	result, err := r.Run(context.Background(), &RunRequest{
+		Agent:         &agent.Config{ID: "test", Name: "Test"},
+		Task:          "hello",
+		Model:         "anthropic:claude-sonnet-4-6",
+		AssistantType: "architect",
+		OutputSchema:  "architect.v1",
+	})
+	if err != nil {
+		t.Fatalf("expected run to succeed, got %v", err)
+	}
+	if result.StopReason != "end_turn" {
+		t.Fatalf("expected end_turn, got %q", result.StopReason)
+	}
+	// The metadata should not change agent routing — the agent ID should
+	// remain what was passed in, not affected by assistant_type.
+	if result.AgentID != "test" {
+		t.Fatalf("expected agent_id=test, got %q", result.AgentID)
+	}
+}
+
+func TestRunRequest_AssistantTypeMetadataJSON(t *testing.T) {
+	// Verify the fields serialize correctly via JSON.
+	req := RunRequest{
+		AssistantType: "brainstorm",
+		OutputSchema:  "assistant.v1",
+	}
+	data, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	s := string(data)
+	if !strings.Contains(s, `"assistant_type":"brainstorm"`) {
+		t.Fatalf("expected assistant_type in JSON, got %s", s)
+	}
+	if !strings.Contains(s, `"output_schema":"assistant.v1"`) {
+		t.Fatalf("expected output_schema in JSON, got %s", s)
+	}
+
+	// Verify omitempty — empty values should not appear.
+	req2 := RunRequest{}
+	data2, _ := json.Marshal(req2)
+	s2 := string(data2)
+	if strings.Contains(s2, "assistant_type") {
+		t.Fatalf("expected assistant_type to be omitted when empty, got %s", s2)
+	}
+	if strings.Contains(s2, "output_schema") {
+		t.Fatalf("expected output_schema to be omitted when empty, got %s", s2)
 	}
 }
 

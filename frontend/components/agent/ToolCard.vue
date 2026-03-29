@@ -6,7 +6,7 @@
  * State indicator: spinner (running), check (done), x (error).
  */
 import { ref } from 'vue'
-import type { ToolBlock } from '@/operator/useAgentSession'
+import type { ToolBlock } from '@/assistant'
 
 defineProps<{
   block: ToolBlock

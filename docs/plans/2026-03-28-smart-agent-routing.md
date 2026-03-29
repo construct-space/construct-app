@@ -491,12 +491,12 @@ git commit -m "feat: AssistantPanel always uses General, passes active_context f
 ### Task 6: Backend Tests
 
 **Files:**
-- Create: `operator/agent_routing_test.go`
+- Create: `operator/internal/operatorapp/agent_routing_test.go`
 
 - [ ] **Step 1: Write test for findAgent**
 
 ```go
-package main
+package operatorapp
 
 import (
 	"strings"
@@ -642,15 +642,15 @@ func isSpawnAllowed(allowlist []string, agentID string) bool {
 
 ```bash
 cd /Users/flakerim/Construct/construct-app/operator
-go test ./ -run TestFindAgent -v
-go test ./ -run TestPrepareGeneral -v
-go test ./internal/runner/ -run TestSpawnAllowlist -v
+go test ./internal/operatorapp -run TestFindAgent -v
+go test ./internal/operatorapp -run TestPrepareGeneral -v
+go test ./internal/runner -run TestSpawnAllowlist -v
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add agent_routing_test.go internal/runner/spawn_test.go
+git add internal/operatorapp/agent_routing_test.go internal/runner/spawn_test.go
 git commit -m "test: add findAgent, prepareGeneralAgent, and spawn prefix matching tests"
 ```
 

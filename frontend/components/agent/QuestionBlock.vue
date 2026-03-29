@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { QuestionBlock } from '@/operator/useAgentSession'
+import type { QuestionBlock } from '@/assistant'
 
 const props = defineProps<{
   block: QuestionBlock

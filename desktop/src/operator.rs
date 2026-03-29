@@ -194,7 +194,7 @@ pub async fn start_context_service(
         let spaces_path = std::path::Path::new(manifest_dir)
             .parent()
             .unwrap_or_else(|| std::path::Path::new("."))
-            .join("src")
+            .join("frontend")
             .join("spaces");
         if spaces_path.exists() {
             eprintln!(

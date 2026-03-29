@@ -5,7 +5,8 @@
  * Each block type is rendered by its own sub-component.
  * Keeps this file small and lets Vue optimize per-block re-renders.
  */
-import type { ResponseBlock } from '@/operator/useAgentSession'
+import type { ResponseBlock } from '@/assistant'
+import { resolveBlockRenderer } from '@/assistant'
 import { useMarkdown } from '@/composables/useMarkdown'
 import ToolCard from './ToolCard.vue'
 import QuestionBlock from './QuestionBlock.vue'
@@ -126,6 +127,18 @@ function displayText(block: { content: string }, index: number): string {
 function openUrl(url: string) {
   window.open(url, '_blank')
 }
+
+/**
+ * Look up a custom renderer for namespaced block types (e.g. "architect:plan").
+ * Returns the Vue component if registered, undefined otherwise.
+ */
+function getCustomRenderer(block: ResponseBlock) {
+  const blockType = (block as any).type as string
+  if (blockType.includes(':')) {
+    return resolveBlockRenderer(blockType)
+  }
+  return undefined
+}
 </script>
 
 <template>
@@ -213,6 +226,16 @@ function openUrl(url: string) {
         </div>
         <pre class="px-3 py-2 text-xs font-mono overflow-x-auto"><code>{{ block.hunks }}</code></pre>
       </div>
+
+      <!-- Custom block renderer (namespaced types like "architect:plan") -->
+      <component
+        v-else-if="getCustomRenderer(block)"
+        :is="getCustomRenderer(block)!"
+        :data="(block as any).data"
+        :block="block"
+        @answer="(qId: string, answer: string | string[]) => emit('question-answer', qId, answer)"
+        @action="(id: string) => emit('action', id)"
+      />
 
       <!-- Unknown block fallback -->
       <div v-else class="my-1 px-3 py-2 text-xs text-app-muted bg-white/[0.02] rounded-lg border border-dashed border-app-border">

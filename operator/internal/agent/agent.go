@@ -9,18 +9,18 @@ import (
 
 // Config defines an agent's identity and capabilities.
 type Config struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Category    string   `json:"category"`
-	System      string   `json:"system"`       // System prompt (or template)
-	Model       string   `json:"model"`        // Preferred model ID
-	Tools       []string `json:"tools"`        // Allowed tool names (empty = all)
-	BlockTools  []string `json:"block_tools"`  // Blocked tool names
-	MaxTurns    int      `json:"max_turns"`    // Max agent loop iterations (0 = default 25)
-	CanSpawn     bool     `json:"can_spawn"`      // Can this agent spawn sub-agents?
-	SpawnAllowed []string `json:"spawn_allowed"`  // Which agent IDs can be spawned (empty + CanSpawn = any)
-	Temperature *float64 `json:"temperature,omitempty"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Category     string   `json:"category"`
+	System       string   `json:"system"`        // System prompt (or template)
+	Model        string   `json:"model"`         // Preferred model ID
+	Tools        []string `json:"tools"`         // Allowed tool names (empty = all)
+	BlockTools   []string `json:"block_tools"`   // Blocked tool names
+	MaxTurns     int      `json:"max_turns"`     // Max agent loop iterations (0 = default 25)
+	CanSpawn     bool     `json:"can_spawn"`     // Can this agent spawn sub-agents?
+	SpawnAllowed []string `json:"spawn_allowed"` // Which agent IDs can be spawned (empty + CanSpawn = any)
+	Temperature  *float64 `json:"temperature,omitempty"`
 }
 
 // DefaultMaxTurns is the fallback when Config.MaxTurns is 0.
@@ -49,10 +49,10 @@ type ToolExecution struct {
 
 // RunResult is the final output of an agent run.
 type RunResult struct {
-	AgentID    string          `json:"agent_id"`
-	SessionID  string          `json:"session_id"`
-	Content    string          `json:"content"`     // Final text response
-	Turns      []Turn          `json:"turns"`       // Full conversation history
-	Usage      provider.Usage  `json:"usage"`       // Aggregate token usage
-	StopReason string          `json:"stop_reason"` // why the loop stopped
+	AgentID    string         `json:"agent_id"`
+	SessionID  string         `json:"session_id"`
+	Content    string         `json:"content"`     // Final text response
+	Turns      []Turn         `json:"turns"`       // Full conversation history
+	Usage      provider.Usage `json:"usage"`       // Aggregate token usage
+	StopReason string         `json:"stop_reason"` // why the loop stopped
 }

@@ -9,15 +9,9 @@ package skill
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
-	"sync"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
 // Skill is an invocable capability.
@@ -42,225 +36,6 @@ type State struct {
 
 type Metrics struct {
 	LastUsed string `json:"lastUsed,omitempty"`
-}
-
-// Registry holds all available skills.
-type Registry struct {
-	mu      sync.RWMutex
-	skills  map[string]*Skill
-	states  map[string]State
-	metrics map[string]Metrics
-}
-
-func NewRegistry() *Registry {
-	return &Registry{
-		skills:  make(map[string]*Skill),
-		states:  make(map[string]State),
-		metrics: make(map[string]Metrics),
-	}
-}
-
-func (r *Registry) Register(s *Skill) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.skills[s.ID] = s
-	if s.Name == "" {
-		s.Name = s.ID
-	}
-	if s.Category == "" {
-		s.Category = "custom"
-	}
-	if _, ok := r.states[s.ID]; !ok {
-		now := nowUTC()
-		r.states[s.ID] = State{
-			Loaded:    true,
-			Enabled:   true,
-			LoadedAt:  now,
-			UpdatedAt: now,
-		}
-	}
-}
-
-func (r *Registry) Get(id string) (*Skill, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	s, ok := r.skills[id]
-	return s, ok
-}
-
-func (r *Registry) All() []*Skill {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := make([]*Skill, 0, len(r.skills))
-	for _, id := range r.sortedIDsLocked() {
-		result = append(result, r.skills[id])
-	}
-	return result
-}
-
-func (r *Registry) State(id string) (State, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	state, ok := r.states[id]
-	return state, ok
-}
-
-func (r *Registry) SetState(id string, state State) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.setStateLocked(id, state)
-}
-
-func (r *Registry) Load(id string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	state, ok := r.states[id]
-	if !ok {
-		return false
-	}
-	state.Loaded = true
-	if state.LoadedAt == "" {
-		state.LoadedAt = nowUTC()
-	}
-	state.UpdatedAt = nowUTC()
-	r.states[id] = state
-	return true
-}
-
-func (r *Registry) Unload(id string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	state, ok := r.states[id]
-	if !ok {
-		return false
-	}
-	state.Loaded = false
-	state.Enabled = false
-	state.UpdatedAt = nowUTC()
-	r.states[id] = state
-	return true
-}
-
-func (r *Registry) Enable(id string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	state, ok := r.states[id]
-	if !ok {
-		return false
-	}
-	state.Loaded = true
-	state.Enabled = true
-	if state.LoadedAt == "" {
-		state.LoadedAt = nowUTC()
-	}
-	state.UpdatedAt = nowUTC()
-	r.states[id] = state
-	return true
-}
-
-func (r *Registry) Disable(id string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	state, ok := r.states[id]
-	if !ok {
-		return false
-	}
-	state.Enabled = false
-	state.UpdatedAt = nowUTC()
-	r.states[id] = state
-	return true
-}
-
-func (r *Registry) Metrics() map[string]Metrics {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := make(map[string]Metrics, len(r.metrics))
-	for id, metric := range r.metrics {
-		result[id] = metric
-	}
-	return result
-}
-
-// AllForAgent returns all enabled skills available to a given agent.
-func (r *Registry) AllForAgent(agentID string) []*Skill {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var result []*Skill
-	for _, id := range r.sortedIDsLocked() {
-		s := r.skills[id]
-		state := r.states[id]
-		if !state.Loaded || !state.Enabled {
-			continue
-		}
-		if !matchesAgent(s.Agents, agentID) {
-			continue
-		}
-		result = append(result, s)
-	}
-	return result
-}
-
-// Match finds skills whose trigger matches the given input.
-func (r *Registry) Match(input string) []*Skill {
-	return r.MatchForAgent(input, "")
-}
-
-// MatchForAgent finds skills whose trigger matches the given input and agent.
-func (r *Registry) MatchForAgent(input, agentID string) []*Skill {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	var matches []*Skill
-	now := nowUTC()
-	for _, id := range r.sortedIDsLocked() {
-		s := r.skills[id]
-		state := r.states[id]
-		if !state.Loaded || !state.Enabled {
-			continue
-		}
-		if !matchesAgent(s.Agents, agentID) {
-			continue
-		}
-		if matchesExplicitSkillReference(s, input) || (s.Trigger != "" && matchesTrigger(s.Trigger, input)) {
-			matches = append(matches, s)
-			metric := r.metrics[id]
-			metric.LastUsed = now
-			r.metrics[id] = metric
-		}
-	}
-	return matches
-}
-
-func matchesAgent(agents []string, agentID string) bool {
-	if len(agents) == 0 {
-		return true
-	}
-	normalizedID := normalizeAgentID(agentID)
-	if normalizedID == "" {
-		return false
-	}
-	for _, candidate := range agents {
-		if normalizeAgentID(candidate) == normalizedID {
-			return true
-		}
-	}
-	return false
-}
-
-func normalizeAgentID(agentID string) string {
-	normalized := strings.ToLower(strings.TrimSpace(agentID))
-	normalized = strings.TrimPrefix(normalized, "space:")
-	return normalized
 }
 
 // Expand renders a skill's prompt template with the given context variables.
@@ -351,118 +126,26 @@ func normalizeSkillReference(value string) string {
 	return value
 }
 
-// --- Loading ---
-
-// LoadFromDir loads skills from a directory of .md files with YAML frontmatter.
-func LoadFromDir(dir, source string) ([]*Skill, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
+func matchesAgent(agents []string, agentID string) bool {
+	if len(agents) == 0 {
+		return true
 	}
-
-	var skills []*Skill
-	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
-		if err != nil {
-			continue
-		}
-		skill, err := parseSkillMarkdown(string(data), source)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[skill] warning: %s: %v\n", e.Name(), err)
-			continue
-		}
-		if skill.ID == "" {
-			skill.ID = strings.TrimSuffix(e.Name(), ".md")
-		}
-		skills = append(skills, skill)
-	}
-	return skills, nil
-}
-
-// LoadAll loads skills from multiple directories (spaces + user).
-func LoadAll(spacesDir, userSkillsDir string) []*Skill {
-	var all []*Skill
-
-	// Load from spaces
-	if entries, err := os.ReadDir(spacesDir); err == nil {
-		for _, e := range entries {
-			if !e.IsDir() {
-				continue
-			}
-			// Load skills from agent/skills/
-			for _, subDir := range []string{"agent/skills"} {
-				skillDir := filepath.Join(spacesDir, e.Name(), subDir)
-				if skills, err := LoadFromDir(skillDir, "space:"+e.Name()); err == nil {
-					all = append(all, skills...)
-				}
-			}
-		}
-	}
-
-	// Load from user skills directory
-	if skills, err := LoadFromDir(userSkillsDir, "user"); err == nil {
-		all = append(all, skills...)
-	}
-
-	return all
-}
-
-func parseSkillMarkdown(content, source string) (*Skill, error) {
-	frontmatter, body, err := splitFrontmatter(content)
-	if err != nil || frontmatter == "" {
-		return nil, fmt.Errorf("no frontmatter")
-	}
-
-	var skill Skill
-	if err := yaml.Unmarshal([]byte(frontmatter), &skill); err != nil {
-		return nil, err
-	}
-
-	skill.Prompt = strings.TrimSpace(body)
-	skill.Source = source
-	return &skill, nil
-}
-
-func splitFrontmatter(content string) (string, string, error) {
-	trimmed := strings.TrimSpace(content)
-	if !strings.HasPrefix(trimmed, "---") {
-		return "", trimmed, nil
-	}
-	trimmed = strings.TrimPrefix(trimmed, "---")
-	before, after, found := strings.Cut(trimmed, "\n---")
-	if !found {
-		return "", "", fmt.Errorf("unclosed frontmatter")
-	}
-	return strings.TrimSpace(before), strings.TrimSpace(after), nil
-}
-
-func (r *Registry) setStateLocked(id string, state State) bool {
-	if _, ok := r.skills[id]; !ok {
+	normalizedID := normalizeAgentID(agentID)
+	if normalizedID == "" {
 		return false
 	}
-	if state.Loaded && state.LoadedAt == "" {
-		state.LoadedAt = nowUTC()
+	for _, candidate := range agents {
+		if normalizeAgentID(candidate) == normalizedID {
+			return true
+		}
 	}
-	if state.UpdatedAt == "" {
-		state.UpdatedAt = nowUTC()
-	}
-	r.states[id] = state
-	return true
+	return false
 }
 
-func (r *Registry) sortedIDsLocked() []string {
-	ids := make([]string, 0, len(r.skills))
-	for id := range r.skills {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	return ids
+func normalizeAgentID(agentID string) string {
+	normalized := strings.ToLower(strings.TrimSpace(agentID))
+	normalized = strings.TrimPrefix(normalized, "space:")
+	return normalized
 }
 
 func nowUTC() string {

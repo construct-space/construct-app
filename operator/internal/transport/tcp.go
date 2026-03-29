@@ -25,14 +25,14 @@ type TCPServer struct {
 	onIdle    func()
 
 	// Active stream cancellation — keyed by request ID
-	activeStreams   map[string]context.CancelFunc
+	activeStreams  map[string]context.CancelFunc
 	activeStreamMu sync.Mutex
 }
 
 func NewTCPServer(addr string) *TCPServer {
 	return &TCPServer{
-		addr:         addr,
-		clients:      make(map[net.Conn]bool),
+		addr:          addr,
+		clients:       make(map[net.Conn]bool),
 		activeStreams: make(map[string]context.CancelFunc),
 	}
 }

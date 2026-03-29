@@ -86,6 +86,22 @@ export function useCoder() {
     saveSession(projectPath.value, messages.value, runnerSessionId.value, toolHistory.value)
   }
 
+  // Queue for mid-run steering — sent as next user message after current stream completes
+  const pendingSteer = ref<string | null>(null)
+
+  async function steer(text: string) {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    if (isRunning.value) {
+      // Queue the message — will be sent after current run completes
+      pendingSteer.value = trimmed
+      // Stop the current stream so the steer can take over
+      await stop()
+      return
+    }
+    await send(trimmed)
+  }
+
   async function send(text: string) {
     const trimmed = text.trim()
     if (!trimmed || isRunning.value) return
@@ -169,6 +185,13 @@ export function useCoder() {
     } finally {
       isRunning.value = false
       abortController = null
+
+      // Process queued steer message
+      if (pendingSteer.value) {
+        const steerText = pendingSteer.value
+        pendingSteer.value = null
+        await send(steerText)
+      }
     }
   }
 
@@ -180,8 +203,8 @@ export function useCoder() {
     if (unlisten) { unlisten(); unlisten = null }
     activeRequestId = null
     isRunning.value = false
+    persist()  // save BEFORE reset so tool history is preserved
     streamStatus.reset()
-    persist()
   }
 
   function clear() {
@@ -227,6 +250,7 @@ export function useCoder() {
     statusMessage,
 
     send,
+    steer,
     stop,
     clear,
     setProjectPath,

@@ -14,9 +14,9 @@ import (
 
 // TokenInfo holds metadata about a token.
 type TokenInfo struct {
-	Label   string `json:"label"`
-	Hash    string `json:"hash"`    // SHA-256 hex of the raw token
-	Masked  string `json:"masked"`  // e.g. "co-abc...xyz"
+	Label  string `json:"label"`
+	Hash   string `json:"hash"`   // SHA-256 hex of the raw token
+	Masked string `json:"masked"` // e.g. "co-abc...xyz"
 }
 
 // TokenAuth manages API tokens.

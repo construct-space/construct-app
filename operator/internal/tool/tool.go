@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"construct-operator/internal/provider"
+	"construct-operator/internal/provider/helpers"
 )
 
 // legacySanitizeName mirrors the older registry-time sanitization scheme.
@@ -81,7 +82,7 @@ func (r *Registry) Get(name string) (*Tool, bool) {
 		return t, ok
 	}
 
-	if decoded := provider.UnsanitizeToolName(name); decoded != name {
+	if decoded := helpers.UnsanitizeToolName(name); decoded != name {
 		t, ok = r.tools[decoded]
 		if ok {
 			return t, true
@@ -213,7 +214,7 @@ func (r *Registry) canonicalizeNameLocked(name string) string {
 	if canonical, ok := r.aliases[name]; ok {
 		return canonical
 	}
-	if decoded := provider.UnsanitizeToolName(name); decoded != name {
+	if decoded := helpers.UnsanitizeToolName(name); decoded != name {
 		if canonical, ok := r.aliases[decoded]; ok {
 			return canonical
 		}

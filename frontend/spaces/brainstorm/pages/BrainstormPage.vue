@@ -3,7 +3,8 @@
  * Chat — general chat with session persistence.
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useAgentSession, type RequestBlock } from '@/operator/useAgentSession'
+import { useAgentSession } from '@/operator/useAgentSession'
+import type { RequestBlock } from '@/assistant'
 import AgentView from '@/components/agent/AgentView.vue'
 import AgentInput from '@/components/agent/AgentInput.vue'
 import { Slideover } from '@construct-space/ui'
@@ -60,8 +61,9 @@ function startNewChat() {
   showSessions.value = false
 }
 
-function handleQuestionAnswer(_questionId: string, answer: string) {
-  handleSend([{ type: 'text', content: answer }])
+function handleQuestionAnswer(questionId: string, answer: string | string[]) {
+  const text = Array.isArray(answer) ? answer.join(', ') : answer
+  handleSend([{ type: 'text', content: questionId ? `[${questionId}]: ${text}` : text }])
 }
 
 async function handleSend(blocks: RequestBlock[]) {
@@ -70,7 +72,7 @@ async function handleSend(blocks: RequestBlock[]) {
     .map(b => b.content)
     .join('\n')
   if (!text.trim()) return
-  await session.send(blocks, { agentId: 'brainstorm' })
+  await session.send(blocks, { agentId: 'brainstorm', assistantType: 'brainstorm' })
 }
 
 // ─── Cookie crumbs animation ───

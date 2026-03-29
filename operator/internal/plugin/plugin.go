@@ -183,13 +183,13 @@ func (m *Manager) RegisterPlugin(manifest *PluginManifest, toolReg *tool.Registr
 	if manifest.Type == TypeHook && hookReg != nil {
 		for _, hd := range manifest.Hooks {
 			hookReg.Register(hook.Hook{
-				ID:       manifest.ID + ":" + hd.ID,
-				Type:     hd.Type,
-				Tools:    hd.Tools,
-				Patterns: hd.Patterns,
-				Command:  fmt.Sprintf(`printf '%%s' "$HOOK_RPC_REQUEST" | %s`, manifest.EntryPoint),
+				ID:        manifest.ID + ":" + hd.ID,
+				Type:      hd.Type,
+				Tools:     hd.Tools,
+				Patterns:  hd.Patterns,
+				Command:   fmt.Sprintf(`printf '%%s' "$HOOK_RPC_REQUEST" | %s`, manifest.EntryPoint),
 				RpcHookID: hd.ID,
-				Source:   "plugin:" + manifest.ID,
+				Source:    "plugin:" + manifest.ID,
 			})
 		}
 	}

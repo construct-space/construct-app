@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TaskListBlock } from '@/operator/useAgentSession'
+import type { TaskListBlock } from '@/assistant'
 
 defineProps<{
   block: TaskListBlock

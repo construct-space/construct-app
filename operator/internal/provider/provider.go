@@ -2,7 +2,10 @@
 // Operator uses a unified message-based interface that works with any LLM.
 package provider
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 // Message is a provider-agnostic chat message.
 type Message struct {
@@ -44,6 +47,20 @@ type Request struct {
 	Temperature *float64  `json:"temperature,omitempty"`
 	System      string    `json:"system,omitempty"`
 	Stream      bool      `json:"stream,omitempty"`
+
+	// OutputSchema requests structured output from the model.
+	// The provider should use this for native JSON schema enforcement
+	// when the model supports it, and ignore it otherwise.
+	// SchemaName is a human label (e.g. "architect.v1").
+	// SchemaJSON is the JSON Schema definition as raw bytes.
+	OutputSchema *OutputSchemaConfig `json:"output_schema,omitempty"`
+}
+
+// OutputSchemaConfig describes a structured output request.
+type OutputSchemaConfig struct {
+	Name   string          `json:"name"`
+	Schema json.RawMessage `json:"schema"`
+	Strict bool            `json:"strict,omitempty"`
 }
 
 // Response is a provider-agnostic completion response.
@@ -65,11 +82,11 @@ type Usage struct {
 
 // StreamEvent is a chunk from a streaming response.
 type StreamEvent struct {
-	Type      string    `json:"type"` // text_delta, tool_call_start, tool_call_delta, done, error
-	Text      string    `json:"text,omitempty"`
-	ToolCall  *ToolCall `json:"tool_call,omitempty"`
-	Response  *Response `json:"response,omitempty"` // Set on "done"
-	Error     string    `json:"error,omitempty"`
+	Type     string    `json:"type"` // text_delta, tool_call_start, tool_call_delta, done, error
+	Text     string    `json:"text,omitempty"`
+	ToolCall *ToolCall `json:"tool_call,omitempty"`
+	Response *Response `json:"response,omitempty"` // Set on "done"
+	Error    string    `json:"error,omitempty"`
 }
 
 // Provider is the interface every LLM backend must implement.
@@ -85,4 +102,18 @@ type Provider interface {
 
 	// Stream sends a request and returns a channel of streaming events.
 	Stream(ctx context.Context, req *Request) (<-chan StreamEvent, error)
+}
+
+// ModelMeta holds display metadata for a model. Providers that implement
+// ModelMetaProvider can supply this for richer UI display.
+type ModelMeta struct {
+	ID           string   `json:"id"`
+	Label        string   `json:"label"`
+	Capabilities []string `json:"capabilities,omitempty"` // e.g. "tools", "vision", "reasoning"
+}
+
+// ModelMetaProvider is an optional interface providers can implement to
+// supply per-model metadata beyond just the ID string.
+type ModelMetaProvider interface {
+	ModelsMeta() []ModelMeta
 }

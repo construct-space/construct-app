@@ -1,0 +1,1 @@
+export { coderAssistantConfig } from './config'

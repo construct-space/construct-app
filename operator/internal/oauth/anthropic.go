@@ -38,9 +38,9 @@ func anthropicRedirectURI() string {
 // AnthropicProvider implements Anthropic OAuth (Claude Pro/Max).
 type AnthropicProvider struct{}
 
-func (p *AnthropicProvider) ID() string                  { return "anthropic" }
-func (p *AnthropicProvider) Name() string                { return "Anthropic (Claude Pro/Max)" }
-func (p *AnthropicProvider) UsesCallbackServer() bool    { return true }
+func (p *AnthropicProvider) ID() string                      { return "anthropic" }
+func (p *AnthropicProvider) Name() string                    { return "Anthropic (Claude Pro/Max)" }
+func (p *AnthropicProvider) UsesCallbackServer() bool        { return true }
 func (p *AnthropicProvider) GetAPIKey(c *Credentials) string { return c.Access }
 
 func (p *AnthropicProvider) Login(callbacks LoginCallbacks) (*Credentials, error) {
@@ -69,13 +69,13 @@ func loginAnthropic(callbacks LoginCallbacks) (*Credentials, error) {
 	// Build authorization URL
 	params := url.Values{
 		"code":                  {"true"},
-		"client_id":            {anthropicClientID},
-		"response_type":        {"code"},
-		"redirect_uri":         {anthropicRedirectURI()},
-		"scope":                {anthropicScopes},
-		"code_challenge":       {challenge},
+		"client_id":             {anthropicClientID},
+		"response_type":         {"code"},
+		"redirect_uri":          {anthropicRedirectURI()},
+		"scope":                 {anthropicScopes},
+		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
-		"state":                {verifier},
+		"state":                 {verifier},
 	}
 	authURL := anthropicAuthorizeURL + "?" + params.Encode()
 
@@ -278,4 +278,3 @@ func parseAuthorizationCode(input string) string {
 	// Assume raw code
 	return input
 }
-

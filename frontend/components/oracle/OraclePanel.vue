@@ -4,7 +4,8 @@
  * Persistent across navigation. Uses useAgentSession for streaming.
  */
 import { ref, computed, watch } from 'vue'
-import { useAgentSession, type RequestBlock } from '@/operator/useAgentSession'
+import { useAgentSession } from '@/operator/useAgentSession'
+import type { RequestBlock } from '@/assistant'
 import AgentView from '@/components/agent/AgentView.vue'
 import AgentInput from '@/components/agent/AgentInput.vue'
 
@@ -17,8 +18,9 @@ const inputPlaceholder = computed(() =>
     : 'Continue...'
 )
 
-function handleQuestionAnswer(_questionId: string, answer: string) {
-  handleSend([{ type: 'text', content: answer }])
+function handleQuestionAnswer(questionId: string, answer: string | string[]) {
+  const text = Array.isArray(answer) ? answer.join(', ') : answer
+  handleSend([{ type: 'text', content: questionId ? `[${questionId}]: ${text}` : text }])
 }
 
 async function handleSend(blocks: RequestBlock[]) {

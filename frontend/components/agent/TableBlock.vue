@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TableBlock } from '@/operator/useAgentSession'
+import type { TableBlock } from '@/assistant'
 
 defineProps<{
   block: TableBlock

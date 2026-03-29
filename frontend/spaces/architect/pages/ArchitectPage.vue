@@ -8,7 +8,8 @@
  */
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAgentSession, type RequestBlock } from '@/operator/useAgentSession'
+import { useAgentSession } from '@/operator/useAgentSession'
+import type { RequestBlock } from '@/assistant'
 import { useProjectStore } from '@/stores/project'
 import { useProjectSummary } from '@/spaces/project/composables/useProjectSummary'
 import { DraftingCompass, FileText, Folder, File } from 'lucide-vue-next'
@@ -69,8 +70,9 @@ const detectedProjectPath = computed(() => {
   return ''
 })
 
-function handleQuestionAnswer(_questionId: string, answer: string) {
-  handleSend([{ type: 'text', content: answer }])
+function handleQuestionAnswer(questionId: string, answer: string | string[]) {
+  const text = Array.isArray(answer) ? answer.join(', ') : answer
+  handleSend([{ type: 'text', content: `[${questionId}]: ${text}` }])
 }
 
 async function handleSend(blocks: RequestBlock[]) {
@@ -91,6 +93,8 @@ async function handleSend(blocks: RequestBlock[]) {
 
   await session.send(blocks, {
     agentId: 'architect',
+    assistantType: 'architect',
+    outputSchema: 'architect.v1',
     projectPath: path || undefined,
     taskOverride,
   })

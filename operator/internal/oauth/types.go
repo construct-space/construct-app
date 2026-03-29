@@ -9,10 +9,10 @@ package oauth
 
 // Credentials holds OAuth token data for any provider.
 type Credentials struct {
-	Refresh  string         `json:"refresh"`
-	Access   string         `json:"access"`
-	Expires  int64          `json:"expires"` // Unix millis
-	Extra    map[string]any `json:"extra,omitempty"`
+	Refresh string         `json:"refresh"`
+	Access  string         `json:"access"`
+	Expires int64          `json:"expires"` // Unix millis
+	Extra   map[string]any `json:"extra,omitempty"`
 }
 
 // IsExpired returns true if the access token has expired.
@@ -35,9 +35,9 @@ type Prompt struct {
 
 // LoginCallbacks are the UI callbacks used during login flows.
 type LoginCallbacks struct {
-	OnAuth           func(info AuthInfo)
-	OnPrompt         func(prompt Prompt) (string, error)
-	OnProgress       func(message string)
+	OnAuth            func(info AuthInfo)
+	OnPrompt          func(prompt Prompt) (string, error)
+	OnProgress        func(message string)
 	OnManualCodeInput func() (string, error)
 }
 

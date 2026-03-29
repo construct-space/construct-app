@@ -64,7 +64,7 @@ declare module 'vue' {
     ScrollArea: typeof import('./components/ui/ScrollArea.vue')['default']
     ScrollWheel: typeof import('./components/common/ScrollWheel.vue')['default']
     Search: typeof import('./components/toolbar/Search.vue')['default']
-    Select: typeof import('./components/ui/Select.vue')['default']
+    Select: typeof import('@construct-space/ui')['Select']
     SelectMenu: typeof import('./components/ui/SelectMenu.vue')['default']
     Separator: typeof import('./components/ui/Separator.vue')['default']
     Sidebar3D: typeof import('./components/common/Sidebar3D.vue')['default']

@@ -50,8 +50,8 @@ type Monitor struct {
 	startTime time.Time
 
 	// Thresholds for status determination.
-	degradedErrorThreshold  int64 // consecutive errors before "degraded"
-	unhealthyErrorThreshold int64 // consecutive errors before "unhealthy"
+	degradedErrorThreshold  int64         // consecutive errors before "degraded"
+	unhealthyErrorThreshold int64         // consecutive errors before "unhealthy"
 	staleThreshold          time.Duration // time since last success before "unhealthy"
 }
 

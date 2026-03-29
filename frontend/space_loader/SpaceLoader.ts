@@ -20,6 +20,7 @@ import type { SpaceContextMenuConfig } from '@/lib/contextMenuTypes'
 import { getCoreSpace, isCoreSpace } from './coreSpaces'
 import { registerAutomationProvider } from '@/lib/spaceContextBus'
 import type { AutomationProvider, AutomationAction, ActionResult } from '@/types/automation'
+import { loadSpaceAssistantTypes } from '@/assistant/loader'
 
 export interface LoadedSpace {
   id: string
@@ -80,6 +81,17 @@ export interface SpaceManifest {
   recommended?: boolean
   agent?: string
   skills?: string[]
+  assistant?: {
+    id?: string
+    label?: string
+    entryAgent?: string
+    renderMode?: 'blocks' | 'timeline' | 'custom'
+    customRenderer?: string
+    finalSchema?: string | null
+    sessionScope?: 'global' | 'assistant' | 'project'
+    supportsAttachments?: boolean
+    requiresProjectPath?: boolean
+  }
   build?: {
     checksum: string
     size: number
@@ -141,6 +153,10 @@ export async function loadSpace(spaceId: string): Promise<LoadedSpace | null> {
     const devSpace = await loadSpaceFromDir(spaceId, devOverrideDir)
     if (devSpace) {
       loadedSpaces.set(spaceId, devSpace)
+      // Register assistant type if the manifest declares one
+      if (devSpace.manifest.assistant) {
+        loadSpaceAssistantTypes([devSpace])
+      }
       return devSpace
     }
   }
@@ -149,6 +165,10 @@ export async function loadSpace(spaceId: string): Promise<LoadedSpace | null> {
   const prodSpace = await loadSpaceFromDisk(spaceId)
   if (prodSpace) {
     loadedSpaces.set(spaceId, prodSpace)
+    // Register assistant type if the manifest declares one
+    if (prodSpace.manifest.assistant) {
+      loadSpaceAssistantTypes([prodSpace])
+    }
     return prodSpace
   }
 

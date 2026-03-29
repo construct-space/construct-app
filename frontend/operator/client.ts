@@ -163,6 +163,8 @@ export function useOperator() {
       projectPath?: string
       projectName?: string
       sessionId?: string
+      assistantType?: string
+      outputSchema?: string
     },
   ): Promise<DispatchResult> {
     return send<DispatchResult>('agents.dispatch', {
@@ -172,6 +174,8 @@ export function useOperator() {
       ...(options?.projectPath ? { project_path: options.projectPath } : {}),
       ...(options?.projectName ? { project_name: options.projectName } : {}),
       ...(options?.sessionId ? { session_id: options.sessionId } : {}),
+      ...(options?.assistantType ? { assistant_type: options.assistantType } : {}),
+      ...(options?.outputSchema ? { output_schema: options.outputSchema } : {}),
     })
   }
 
@@ -319,6 +323,8 @@ export function useOperator() {
       projectPath?: string
       projectName?: string
       sessionId?: string
+      assistantType?: string
+      outputSchema?: string
     },
     onStart?: (requestId: string) => void,
   ): Promise<() => void> {
@@ -331,6 +337,8 @@ export function useOperator() {
         ...(options?.projectPath ? { project_path: options.projectPath } : {}),
         ...(options?.projectName ? { project_name: options.projectName } : {}),
         ...(options?.sessionId ? { session_id: options.sessionId } : {}),
+        ...(options?.assistantType ? { assistant_type: options.assistantType } : {}),
+        ...(options?.outputSchema ? { output_schema: options.outputSchema } : {}),
       },
       onChunk,
       (data) => onDone?.(data as unknown as DispatchResult),

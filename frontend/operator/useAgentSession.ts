@@ -13,260 +13,19 @@ import { useAIModel } from '@/composables/useAIModel'
 import { StreamType } from './streamEvents'
 import { showAssistant } from './useAssistant'
 import type { StreamEvent, DispatchResult } from './types'
-
-// ─── Block Types ───
-// Extensible block system — each space can render blocks it understands,
-// unknown blocks fall back to text/JSON display.
-
-// --- Universal blocks (all spaces) ---
-
-export interface TextBlock {
-  type: 'text'
-  content: string
-}
-
-export interface ImageBlock {
-  type: 'image'
-  src: string
-  alt?: string
-}
-
-export interface FileBlock {
-  type: 'file'
-  name: string
-  path?: string
-  size?: number
-}
-
-export interface ToolBlock {
-  type: 'tool'
-  tool: string
-  title: string
-  callId: string
-  input?: string
-  result?: string
-  state: 'running' | 'done' | 'error'
-}
-
-export interface CodeBlock {
-  type: 'code'
-  language: string
-  content: string
-  filename?: string
-}
-
-export interface SvgBlock {
-  type: 'svg'
-  content: string
-}
-
-export interface ErrorBlock {
-  type: 'error'
-  message: string
-}
-
-export interface StatusBlock {
-  type: 'status'
-  state: string
-  message: string
-  turn?: number
-  maxTurns?: number
-}
-
-// --- Architect blocks ---
-
-export interface QuestionBlock {
-  type: 'question'
-  id: string
-  question: string
-  questionType: 'single' | 'multi'
-  options: { value: string; label: string; icon?: string; description?: string }[]
-  answer?: string | string[]
-}
-
-export interface PlanBlock {
-  type: 'plan'
-  name: string
-  description: string
-  planType?: string  // 'construct-space' | 'web-app' | 'api' | etc.
-  spaceId?: string
-  decisions?: Record<string, unknown>
-  stack?: Record<string, unknown>
-  features?: { name: string; description: string; priority?: string }[]
-  tasks?: {
-    id: number
-    title: string
-    description: string
-    files?: string[]
-    steps?: string[]
-    depends?: number[]
-    commit?: string
-  }[]
-  phases?: { name: string; tasks: string[] }[]
-}
-
-export interface TaskListBlock {
-  type: 'tasklist'
-  tasks: {
-    id: string | number
-    title: string
-    description?: string
-    status: 'pending' | 'running' | 'done' | 'error' | 'skipped'
-    commit?: string
-  }[]
-}
-
-export interface ProgressBlock {
-  type: 'progress'
-  headline: string
-  detail?: string
-  phase?: string
-  percent?: number
-}
-
-// --- Data/Table blocks ---
-
-export interface TableBlock {
-  type: 'table'
-  headers: string[]
-  rows: string[][]
-  caption?: string
-}
-
-export interface JsonBlock {
-  type: 'json'
-  data: unknown
-  label?: string
-  collapsed?: boolean
-}
-
-// --- Interactive blocks ---
-
-export interface ActionBlock {
-  type: 'action'
-  actions: {
-    id: string
-    label: string
-    icon?: string
-    variant?: 'primary' | 'secondary' | 'danger'
-    disabled?: boolean
-  }[]
-}
-
-export interface LinkBlock {
-  type: 'link'
-  url: string
-  title?: string
-  description?: string
-  favicon?: string
-}
-
-// --- Diff/Change blocks ---
-
-export interface DiffBlock {
-  type: 'diff'
-  filename: string
-  hunks: string
-  language?: string
-}
-
-// ─── Question Detection ───
-// Parses agent text to detect multiple-choice questions and converts to QuestionBlocks.
-
-const OPTION_LINE = /^\s*(?:[-*]|\(?([a-z0-9])\)?[.):]\s*\*{0,2})(.+?)(?:\*{0,2}\s*[-—]\s*(.+))?$/i
-
-/**
- * Try to split a completed text block into text + question block.
- * Returns null if no question pattern is detected.
- */
-export function extractQuestion(text: string): { before: string; question: QuestionBlock } | null {
-  const trimmed = text.trimEnd()
-
-  // Skip short responses and responses without a question
-  if (trimmed.length < 40) return null
-  if (!trimmed.includes('?')) return null
-
-  const lines = trimmed.split('\n')
-
-  // Walk backwards to find consecutive option lines
-  const optionEnd = lines.length
-  let optionStart = optionEnd
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i].trim()
-    if (!line) { if (optionStart < optionEnd) break; continue }
-    if (OPTION_LINE.test(line)) {
-      optionStart = i
-    } else {
-      break
-    }
-  }
-
-  if (optionStart >= optionEnd || optionEnd - optionStart < 2) return null
-
-  // Parse options
-  const options: QuestionBlock['options'] = []
-  for (let i = optionStart; i < optionEnd; i++) {
-    const m = lines[i].trim().match(OPTION_LINE)
-    if (!m) continue
-    const rawLabel = (m[2] || '').replace(/\*{1,2}/g, '').trim()
-    const description = (m[3] || '').replace(/\*{1,2}/g, '').trim() || undefined
-    // If label is generic (Option A, Option 1, etc.) and we have a description, use description as label
-    const isGenericLabel = /^option\s+[a-z0-9]$/i.test(rawLabel)
-    const label = (isGenericLabel && description) ? description : rawLabel
-    const desc = (isGenericLabel && description) ? undefined : description
-    if (label) options.push({ value: label, label, description: desc })
-  }
-
-  if (options.length < 2) return null
-
-  // Find the question line (first non-empty line above options)
-  let questionLine = ''
-  for (let i = optionStart - 1; i >= 0; i--) {
-    const line = lines[i].trim()
-    if (line) { questionLine = line.replace(/^#+\s*/, '').replace(/\*{1,2}/g, ''); break }
-  }
-  if (!questionLine) return null
-
-  // Everything before the question line is "before" text
-  let beforeEnd = optionStart - 1
-  for (; beforeEnd >= 0; beforeEnd--) {
-    if (lines[beforeEnd].trim() === questionLine.trim() || lines[beforeEnd].trim().replace(/^#+\s*/, '').replace(/\*{1,2}/g, '') === questionLine) {
-      break
-    }
-  }
-  const before = lines.slice(0, beforeEnd).join('\n').trimEnd()
-
-  // Detect multi-select intent from surrounding text
-  const fullBlock = trimmed.toLowerCase()
-  const isMulti = /select\s*(multiple|all|any)|choose\s*(multiple|all|any)|pick\s*(multiple|all|any)|multi.?select|more\s+than\s+one|allow\s+multiple/i.test(fullBlock)
-
-  return {
-    before,
-    question: {
-      type: 'question',
-      id: `q-${Date.now()}`,
-      question: questionLine,
-      questionType: isMulti ? 'multi' : 'single',
-      options,
-    },
-  }
-}
-
-export type RequestBlock = TextBlock | ImageBlock | FileBlock
-export type ResponseBlock =
-  | TextBlock | ToolBlock | CodeBlock | SvgBlock | ImageBlock | ErrorBlock | StatusBlock
-  | QuestionBlock | PlanBlock | TaskListBlock | ProgressBlock
-  | TableBlock | JsonBlock | ActionBlock | LinkBlock | DiffBlock
-
-export interface Turn {
-  id: string
-  request: RequestBlock[]
-  response: ResponseBlock[]
-  agentId: string
-  status: 'pending' | 'streaming' | 'done' | 'error'
-  timestamp: number
-  turns?: number
-}
+import {
+  extractQuestion,
+  normalizeAssistantEnvelope,
+  tryParseAssistantEnvelope,
+  normalize,
+} from '@/assistant'
+import type {
+  RequestBlock,
+  ResponseBlock,
+  TextBlock,
+  ToolBlock,
+  Turn,
+} from '@/assistant'
 
 // ─── Session State ───
 
@@ -308,7 +67,37 @@ export function useAgentSession() {
     }
   }
 
-  function handleStreamChunk(turn: Turn, chunk: StreamEvent) {
+  function appendNormalizedFinalResponse(turn: Turn, content: string): boolean {
+    const envelope = tryParseAssistantEnvelope(content)
+    if (!envelope) return false
+    turn.response.push(...normalizeAssistantEnvelope(envelope))
+    return true
+  }
+
+  function extractQuestionFromLastText(turn: Turn) {
+    let lastTextIdx = -1
+    for (let i = turn.response.length - 1; i >= 0; i -= 1) {
+      if (turn.response[i]?.type === 'text') {
+        lastTextIdx = i
+        break
+      }
+    }
+
+    if (lastTextIdx < 0) return
+
+    const lastText = turn.response[lastTextIdx] as TextBlock
+    const parsed = extractQuestion(lastText.content)
+    if (!parsed) return
+
+    if (parsed.before.trim()) {
+      lastText.content = parsed.before
+    } else {
+      turn.response.splice(lastTextIdx, 1)
+    }
+    turn.response.push(parsed.question)
+  }
+
+  function handleStreamChunk(turn: Turn, chunk: StreamEvent, assistantType?: string) {
     streamStatus.handleChunk(chunk)
     const type = chunk.type
     const data = chunk.data || {}
@@ -316,6 +105,23 @@ export function useAgentSession() {
     // Text content — append to current or new text block
     const text = chunk.content || (data.text as string) || ''
     if (text && type !== StreamType.ToolCall && type !== StreamType.ToolResult && type !== StreamType.Status) {
+      // When an assistantType is set, buffer text silently if it looks like JSON.
+      // Show a skeleton placeholder instead of raw JSON streaming.
+      if (assistantType) {
+        // Accumulate in a hidden buffer on the turn
+        if (!(turn as any)._buffer) (turn as any)._buffer = ''
+        ;(turn as any)._buffer += text
+
+        const buf = ((turn as any)._buffer as string).trim()
+        if (buf.startsWith('{') || buf.startsWith('[')) {
+          // Remove any text blocks, show skeleton
+          turn.response = turn.response.filter(b => b.type !== 'text' && !(b as any)._skeleton)
+          turn.response.push({ type: 'status', message: 'Thinking...', _skeleton: true } as any)
+          triggerRef(turns)
+          return
+        }
+      }
+
       appendTextToResponse(turn, text)
       triggerRef(turns)
       return
@@ -375,6 +181,8 @@ export function useAgentSession() {
       space?: string
       projectPath?: string
       taskOverride?: string  // send this to agent instead of block text
+      assistantType?: string
+      outputSchema?: string
     },
   ): Promise<void> {
     if (isLoading.value) return
@@ -411,7 +219,7 @@ export function useAgentSession() {
       unlisten = await operator.dispatchStream(
         agentId,
         task,
-        (chunk) => handleStreamChunk(turn, chunk),
+        (chunk) => handleStreamChunk(turn, chunk, options?.assistantType),
         (result) => {
           streamStatus.handleDone()
           turn.status = 'done'
@@ -428,33 +236,42 @@ export function useAgentSession() {
 
           // Append final content if it wasn't already streamed
           if (result.content) {
-            const existingText = turn.response
-              .filter((b): b is TextBlock => b.type === 'text')
-              .map(b => b.content)
-              .join('')
-            // Only append if the result content isn't already present
-            if (!existingText.includes(result.content.slice(0, 50))) {
+            // Gather text from buffer (if skeleton was active) or from text blocks
+            const buffered = ((turn as any)._buffer as string) || ''
+            const existingText = buffered.trim()
+              ? buffered
+              : turn.response
+                .filter((b): b is TextBlock => b.type === 'text')
+                .map(b => b.content)
+                .join('')
+
+            // Use per-type normalizer when an assistantType is known.
+            const textToParse = existingText.trim() ? existingText : result.content
+            const appendedStructured = options?.assistantType
+              ? (() => {
+                  // Remove skeleton and any raw text blocks
+                  turn.response = turn.response.filter(b => !(b as any)._skeleton && b.type !== 'text')
+                  delete (turn as any)._buffer
+                  const blocks = normalize(options.assistantType!, textToParse)
+                  // If the normalizer only returned a plain text block identical to input, skip
+                  if (blocks.length === 1 && blocks[0].type === 'text' && (blocks[0] as TextBlock).content === textToParse) {
+                    return false
+                  }
+                  // Replace streamed text blocks with properly normalized blocks
+                  if (existingText.trim()) {
+                    turn.response = turn.response.filter(b => b.type !== 'text')
+                  }
+                  turn.response.push(...blocks)
+                  return true
+                })()
+              : !existingText.trim() && appendNormalizedFinalResponse(turn, result.content)
+
+            if (!appendedStructured && !existingText.includes(result.content.slice(0, 50))) {
               turn.response.push({ type: 'text', content: result.content })
             }
           }
 
-          // Try to extract a question from the last text block
-          let lastTextIdx = -1
-          for (let i = turn.response.length - 1; i >= 0; i--) {
-            if (turn.response[i].type === 'text') { lastTextIdx = i; break }
-          }
-          if (lastTextIdx >= 0) {
-            const lastText = turn.response[lastTextIdx] as TextBlock
-            const parsed = extractQuestion(lastText.content)
-            if (parsed) {
-              if (parsed.before.trim()) {
-                lastText.content = parsed.before
-              } else {
-                turn.response.splice(lastTextIdx, 1)
-              }
-              turn.response.push(parsed.question)
-            }
-          }
+          extractQuestionFromLastText(turn)
 
           const errMsg = (result as unknown as Record<string, unknown>).error as string | undefined
           if (errMsg) {
@@ -481,6 +298,8 @@ export function useAgentSession() {
         {
           ...(options?.projectPath ? { projectPath: options.projectPath } : {}),
           ...(runnerSessionId.value ? { sessionId: runnerSessionId.value } : {}),
+          ...(options?.assistantType ? { assistantType: options.assistantType } : {}),
+          ...(options?.outputSchema ? { outputSchema: options.outputSchema } : {}),
         },
         (requestId) => {
           activeRequestId = requestId
@@ -498,9 +317,26 @@ export function useAgentSession() {
           {
             ...(options?.projectPath ? { projectPath: options.projectPath } : {}),
             ...(runnerSessionId.value ? { sessionId: runnerSessionId.value } : {}),
+            ...(options?.assistantType ? { assistantType: options.assistantType } : {}),
+            ...(options?.outputSchema ? { outputSchema: options.outputSchema } : {}),
           },
         )
-        turn.response.push({ type: 'text', content: result.content })
+        // Use per-type normalizer when an assistantType is known.
+        // Pass raw content directly — per-type normalizers handle their own parsing.
+        const syncNormalized = options?.assistantType
+          ? (() => {
+              const blocks = normalize(options.assistantType!, result.content)
+              if (blocks.length === 1 && blocks[0].type === 'text' && (blocks[0] as TextBlock).content === result.content) {
+                return false
+              }
+              turn.response.push(...blocks)
+              return true
+            })()
+          : appendNormalizedFinalResponse(turn, result.content)
+        if (!syncNormalized) {
+          turn.response.push({ type: 'text', content: result.content })
+        }
+        extractQuestionFromLastText(turn)
         turn.status = 'done'
         turn.agentId = result.agent_id
         turn.turns = result.turns
