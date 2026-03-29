@@ -52,7 +52,7 @@ func (p *AnthropicProvider) Complete(ctx context.Context, req *provider.Request)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-api-key", p.apiKey)
-	httpReq.Header.Set("anthropic-version", "2024-01-01")
+	httpReq.Header.Set("anthropic-version", "2025-01-01")
 
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
@@ -87,7 +87,7 @@ func (p *AnthropicProvider) Stream(ctx context.Context, req *provider.Request) (
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-api-key", p.apiKey)
-	httpReq.Header.Set("anthropic-version", "2024-01-01")
+	httpReq.Header.Set("anthropic-version", "2025-01-01")
 
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
@@ -168,14 +168,18 @@ func (p *AnthropicProvider) buildBody(req *provider.Request) map[string]any {
 		body["temperature"] = *req.Temperature
 	}
 
-	// Structured output: Anthropic doesn't have native response_format,
-	// so we append the schema as a system prompt instruction.
+	// Structured output: use native output_config for schema-constrained decoding.
 	if req.OutputSchema != nil {
-		schemaInstruction := "\n\nYou MUST respond with valid JSON matching this schema:\n```json\n" + string(req.OutputSchema.Schema) + "\n```\nDo not include any text outside the JSON object."
-		if sys, ok := body["system"].(string); ok {
-			body["system"] = sys + schemaInstruction
-		} else {
-			body["system"] = schemaInstruction
+		var schemaObj any
+		json.Unmarshal(req.OutputSchema.Schema, &schemaObj)
+		body["output_config"] = map[string]any{
+			"format": map[string]any{
+				"type": "json_schema",
+				"json_schema": map[string]any{
+					"name":   req.OutputSchema.Name,
+					"schema": schemaObj,
+				},
+			},
 		}
 	}
 

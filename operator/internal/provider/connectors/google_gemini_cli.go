@@ -258,14 +258,21 @@ func (p *GoogleGeminiCLIOAuthProvider) buildBody(req *provider.Request) map[stri
 			"parts": []map[string]any{{"text": req.System}},
 		}
 	}
-	if req.MaxTokens > 0 || req.Temperature != nil {
-		generationConfig := map[string]any{}
-		if req.MaxTokens > 0 {
-			generationConfig["maxOutputTokens"] = req.MaxTokens
-		}
-		if req.Temperature != nil {
-			generationConfig["temperature"] = *req.Temperature
-		}
+	generationConfig := map[string]any{}
+	if req.MaxTokens > 0 {
+		generationConfig["maxOutputTokens"] = req.MaxTokens
+	}
+	if req.Temperature != nil {
+		generationConfig["temperature"] = *req.Temperature
+	}
+	// Structured output: use responseMimeType + responseSchema for constrained decoding.
+	if req.OutputSchema != nil {
+		var schemaObj any
+		json.Unmarshal(req.OutputSchema.Schema, &schemaObj)
+		generationConfig["responseMimeType"] = "application/json"
+		generationConfig["responseSchema"] = schemaObj
+	}
+	if len(generationConfig) > 0 {
 		request["generationConfig"] = generationConfig
 	}
 	if len(req.Tools) > 0 {
