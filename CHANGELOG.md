@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.7.0] — 2026-03-29
+
+### Added
+- **OpenRouter provider** — Free model discovery, capability badges, and LLM settings overhaul
+- **OAuth providers** — Anthropic, OpenAI Codex, GitHub Copilot, Google Gemini OAuth login flows with branded callback page
+- **Space widgets system** — Dashboard widgets: Pinned Projects (4x4, 4x2), Deploy Status, Quick Open, Project Stats, Vibe/Architect 1x1 shortcuts. Drag-to-move, auto-downsize, swap overlap protection
+- **Space actions framework** — Graph integration, space bridge, and space action tools in operator
+- **Superpowers skills** — Brainstorming, planning, TDD, debugging, and verification skills embedded in Architect and Vibe agents
+- **Oracle agent** — General chat agent (cookie icon), session persistence, centered chat UI, slideover sessions panel
+- **Architect redesign** — Asks questions first, auto-scroll on stream, tool status, Open Project button. Context-aware empty state with project files sidebar
+- **Vibe split UI** — Text narration on left, tool activity on right. Auto-start from project context
+- **Smart doc builder** — Detects project type (game/space/app/landing/api), writes appropriate docs
+- **Agent block types** — Question, plan, tasklist, progress, table, json, action, link, diff blocks with clickable choice buttons
+- **Per-project colors** — Folder icons with unique colors on project cards
+
+### Changed
+- **Vibe → Coder** — Replaced Vibe with clean autonomous coding agent. Enforces implementation after planning
+- **Agent naming** — Oracle (brainstorm), Architect (planning), Coder (execution). Removed Agent Smith label
+- **Operator modular architecture** — Extracted handlers into domain modules: stream, front, context, state, session, tool, MCP. Ordered request router, runtime container, bootstrap helpers
+- **Operator entrypoint** — Moved from `operator/cmd/operator/` to `operator/main.go`
+- **Desktop refactor** — Split `lib.rs` (5881 lines) into 12 focused modules. Removed 10 unused Tauri plugins
+- **Project layout** — Flat structure (no `.construct/`, no `code/` subdir). Frontend configs moved into `frontend/`
+- **Architect agent** — Follows Superpowers pattern: brainstorm → bite-sized plan → coder goals. Restricted to planning-only tools
+- **Sandbox security** — All tools sandboxed to project root with `guardPath`. Bash path guard hook, `~/ConstructProjects` allowlist
+- **Sub-agent streaming** — Parent stream forwarded to sub-agents so spawned agent progress is visible in UI
+- **Project detail page** — Two-column layout with file tree sidebar, README rendering, docs list with clickable preview modal
+
+### Fixed
+- **Operator orphans** — Operator self-terminates when parent Construct app dies
+- **OAuth token exchange** — Routed to accounts service, fixed shared callback page
+- **Splash screen flash** — No longer flashes login page by trusting persisted auth state
+- **Anthropic OAuth streaming** — Was losing text content after tool calls
+- **MCP panic** — Added panic recovery to background connect
+- **Error display** — Parse JSON errors into human-readable key-value pairs, increased text contrast
+
+## [0.6.7] — 2026-03-26
+
+### Changed
+- Externalize `@tauri-apps/api/window` in build for UI useTheme
+- Upgrade UI to 0.3.5, rename `paasUrl` to `graphUrl`, use SDK theme
+
+## [0.6.6] — 2026-03-25
+
+### Fixed
+- HomeGrid layout fixes
+- Direct enrollment API call instead of opening browser
+
 ## [0.6.5] — 2026-03-25
 
 ### Fixed
