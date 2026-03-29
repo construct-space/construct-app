@@ -473,6 +473,15 @@ export function useAssistant() {
       }
 
       await win.setFocus()
+
+      // Send current agent context to the popout window
+      const channel = new BroadcastChannel('construct-assistant')
+      channel.postMessage({
+        type: 'assistant-context',
+        agent: selectedAgentState.value,
+      })
+      channel.close()
+
       showAssistant.value = false
     } catch (e) {
       console.error('[useAssistant] Failed to open window:', e)

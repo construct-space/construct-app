@@ -46,8 +46,8 @@ type AgentMarkdown struct {
 	Category        string   `yaml:"category"`
 	Description     string   `yaml:"description"`
 	MaxIterations   int      `yaml:"maxIterations"`
-	AllowedTools    []string `yaml:"allowedTools"`
-	BlockedTools    []string `yaml:"blockedTools"`
+	AllowedTools    []string `yaml:"tools"`
+	BlockedTools    []string `yaml:"blockTools"`
 	CanInvokeAgents []string `yaml:"canInvokeAgents"`
 	SystemPrompt    string   `yaml:"-"` // markdown body
 }

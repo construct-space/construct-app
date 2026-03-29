@@ -338,7 +338,7 @@ func RegisterSpaceActionTools(r *Registry, bridge *desktop.Client, spaceIDs []st
 
 		for _, action := range resp.Actions {
 			act := action
-			toolName := fmt.Sprintf("%s_%s", sid, act.ID)
+			toolName := fmt.Sprintf("%s.%s", sid, act.ID)
 			// Skip if already registered
 			if _, exists := r.Get(toolName); exists {
 				continue

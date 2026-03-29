@@ -65,7 +65,7 @@ onMounted(async () => {
 // Send from AgentInput — dispatch through the currently selected agent.
 async function handleSend(blocks: RequestBlock[]) {
   const agentId = selectedAgent.value || 'general'
-  await send(blocks, { agentId, assistantType: agentId === 'general' ? 'general' : 'space' })
+  await send(blocks, { agentId })
 }
 
 // Keyboard: Escape to stop
