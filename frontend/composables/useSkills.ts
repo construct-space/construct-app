@@ -358,6 +358,40 @@ export function useSkills() {
     }
   }
 
+  // Save a skill (.md file to ~/Library/Application Support/Construct/skills/)
+  const saveSkill = async (filename: string, content: string): Promise<{ id: string; name: string; path: string } | null> => {
+    if (!isTauri) return null
+
+    try {
+      const result = await invoke<{ id: string; name: string; path: string }>('send_context_request', {
+        requestType: 'skills.save',
+        payload: { filename, content },
+      })
+      await listSkills()
+      return result
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      return null
+    }
+  }
+
+  // Delete a user skill
+  const deleteSkill = async (skillId: string): Promise<boolean> => {
+    if (!isTauri) return false
+
+    try {
+      await invoke('send_context_request', {
+        requestType: 'skills.delete',
+        payload: { id: skillId },
+      })
+      await listSkills()
+      return true
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      return false
+    }
+  }
+
   // Refresh all data
   const refresh = async () => {
     await Promise.all([listSkills(), listHooks()])
@@ -496,6 +530,10 @@ export function useSkills() {
     // Instruction-Style
     getInstructions,
     formatForAI,
+
+    // CRUD
+    saveSkill,
+    deleteSkill,
 
     // Utils
     refresh,

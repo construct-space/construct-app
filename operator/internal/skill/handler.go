@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
+	"construct-operator/internal/appdir"
 	"construct-operator/internal/hook"
 	"construct-operator/internal/state"
 	"construct-operator/internal/tool"
@@ -256,6 +259,83 @@ func (m *SkillModule) handleFormatForAI(_ context.Context, req transport.Request
 	formatted := fmt.Sprintf("# Skill: %s\n\nDescription: %s\n\nCategory: %s\n\nTools: %s\n\nInstructions:\n%s",
 		s.Name, s.Description, s.Category, strings.Join(s.Tools, ", "), s.Prompt)
 	return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"formatted": formatted}}
+}
+
+func (m *SkillModule) handleSave(_ context.Context, req transport.Request) transport.Response {
+	var payload struct {
+		Filename string `json:"filename"`
+		Content  string `json:"content"`
+	}
+	if req.Payload != nil {
+		json.Unmarshal(req.Payload, &payload)
+	}
+	if payload.Filename == "" || payload.Content == "" {
+		return transport.Response{ID: req.ID, Success: false, Error: "filename and content are required"}
+	}
+
+	// Sanitize filename
+	filename := strings.TrimSpace(payload.Filename)
+	if !strings.HasSuffix(filename, ".md") {
+		filename += ".md"
+	}
+	// Prevent path traversal
+	filename = filepath.Base(filename)
+
+	// Parse to validate it's a valid skill markdown
+	skill, err := parseSkillMarkdown(payload.Content, "user")
+	if err != nil {
+		return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("invalid skill markdown: %v", err)}
+	}
+	if skill.ID == "" {
+		skill.ID = strings.TrimSuffix(filename, ".md")
+	}
+
+	// Write to user skills directory
+	skillsDir := appdir.SkillsDir()
+	if err := os.MkdirAll(skillsDir, 0755); err != nil {
+		return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("cannot create skills dir: %v", err)}
+	}
+	path := filepath.Join(skillsDir, filename)
+	if err := os.WriteFile(path, []byte(payload.Content), 0644); err != nil {
+		return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("write failed: %v", err)}
+	}
+
+	// Register and enable the skill
+	m.registry.Register(skill)
+	m.registry.Enable(skill.ID)
+	m.persistSkillState(skill.ID)
+
+	return transport.Response{ID: req.ID, Success: true, Data: map[string]any{
+		"id":   skill.ID,
+		"name": skill.Name,
+		"path": path,
+	}}
+}
+
+func (m *SkillModule) handleDelete(_ context.Context, req transport.Request) transport.Response {
+	var payload struct {
+		ID string `json:"id"`
+	}
+	if req.Payload != nil {
+		json.Unmarshal(req.Payload, &payload)
+	}
+	s, ok := m.registry.Get(payload.ID)
+	if !ok {
+		return transport.Response{ID: req.ID, Success: false, Error: "skill not found"}
+	}
+	if s.Source != "user" {
+		return transport.Response{ID: req.ID, Success: false, Error: "can only delete user skills"}
+	}
+
+	// Delete file
+	path := filepath.Join(appdir.SkillsDir(), payload.ID+".md")
+	os.Remove(path)
+
+	// Unregister
+	m.registry.Unload(payload.ID)
+	m.registry.Remove(payload.ID)
+
+	return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
 }
 
 // --- Helper functions ---

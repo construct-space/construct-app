@@ -126,6 +126,14 @@ func (r *Registry) Enable(id string) bool {
 	return true
 }
 
+func (r *Registry) Remove(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.skills, id)
+	delete(r.states, id)
+	delete(r.metrics, id)
+}
+
 func (r *Registry) Disable(id string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
