@@ -12,32 +12,41 @@ import (
 	"sync"
 )
 
-// Pending space action registration — set by main, triggered by frontend
+// Pending space action registration — set by main, triggered by frontend or agent dispatch
 var (
 	pendingRegistry *Registry
 	pendingBridge   *desktop.Client
 	pendingSpaceIDs []string
-	pendingOnce     sync.Once
+	pendingMu       sync.Mutex
+	pendingDone     bool
 )
 
 // SetPendingSpaceActions stores the info needed to register space actions later.
-// Called from main.go. Registration happens when the frontend signals readiness.
 func SetPendingSpaceActions(r *Registry, bridge *desktop.Client, spaceIDs []string) {
 	pendingRegistry = r
 	pendingBridge = bridge
 	pendingSpaceIDs = spaceIDs
 }
 
-// RegisterPendingSpaceActions registers all space action tools.
-// Called when the frontend signals that automation providers are ready.
-// Safe to call multiple times — only runs once.
-func RegisterPendingSpaceActions() {
-	pendingOnce.Do(func() {
-		if pendingRegistry == nil || pendingBridge == nil || len(pendingSpaceIDs) == 0 {
+// EnsureSpaceActionsRegistered registers space action tools if not already done.
+// Called from the frontend signal AND before agent dispatch (whichever comes first).
+// If the bridge isn't ready yet, it fails silently — the frontend signal will retry later.
+func EnsureSpaceActionsRegistered() {
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	if pendingDone || pendingRegistry == nil || pendingBridge == nil || len(pendingSpaceIDs) == 0 {
+		return
+	}
+	RegisterSpaceActionTools(pendingRegistry, pendingBridge, pendingSpaceIDs)
+	// Check if any actions were actually registered
+	for _, sid := range pendingSpaceIDs {
+		toolName := fmt.Sprintf("%s.list_cards", sid)
+		if _, ok := pendingRegistry.Get(toolName); ok {
+			pendingDone = true
 			return
 		}
-		RegisterSpaceActionTools(pendingRegistry, pendingBridge, pendingSpaceIDs)
-	})
+	}
+	// Not ready yet — will retry on next call
 }
 
 // RegisterBridgeTools adds all bridge-backed automation tools to the registry.

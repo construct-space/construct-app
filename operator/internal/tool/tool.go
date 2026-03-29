@@ -242,6 +242,11 @@ func (r *Registry) toCanonicalSetLocked(items []string) map[string]bool {
 	return m
 }
 
+// EnsureSpaceActions triggers lazy registration of space action tools.
+func (r *Registry) EnsureSpaceActions() {
+	EnsureSpaceActionsRegistered()
+}
+
 func toSet(ss []string) map[string]bool {
 	m := make(map[string]bool, len(ss))
 	for _, s := range ss {

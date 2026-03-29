@@ -128,6 +128,9 @@ type RunRequest struct {
 //  4. If LLM returns end_turn → return final content
 //  5. If max turns reached → return with partial result
 func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, error) {
+	// Ensure space action tools are registered before dispatch
+	r.tools.EnsureSpaceActions()
+
 	if req != nil && req.Agent != nil {
 		ctx = hook.WithAgentID(ctx, req.Agent.ID)
 	}

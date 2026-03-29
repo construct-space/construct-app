@@ -67,6 +67,6 @@ func (m *ToolModule) handleCall(reqCtx context.Context, req transport.Request) t
 // handleSpaceActionsReady is called by the frontend after all space
 // automation providers are registered. Registers space action tools instantly.
 func (m *ToolModule) handleSpaceActionsReady(_ context.Context, req transport.Request) transport.Response {
-	RegisterPendingSpaceActions()
+	EnsureSpaceActionsRegistered()
 	return transport.Response{ID: req.ID, Success: true, Data: map[string]any{"ok": true}}
 }
