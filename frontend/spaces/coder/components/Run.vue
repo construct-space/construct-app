@@ -4,6 +4,7 @@
  * Detects project type and provides run/debug options
  */
 import { useProjectRunner, type RunConfiguration } from '../composables/useProjectRunner'
+import { PlayCircle, Loader2, FileQuestion, Play, AlertCircle } from 'lucide-vue-next'
 
 const props = defineProps<{
   projectPath: string
@@ -60,7 +61,7 @@ function getIconColor(type: string): string {
   <div class="h-full flex flex-col bg-app">
     <!-- Header -->
     <div class="px-3 py-2 border-b border-app-border flex items-center gap-2">
-      <Icon name="i-lucide-play-circle" class="size-4 text-app-muted" />
+      <PlayCircle class="size-4 text-app-muted" />
       <span class="text-xs font-medium text-app-muted uppercase tracking-wide">Run & Debug</span>
     </div>
 
@@ -68,13 +69,13 @@ function getIconColor(type: string): string {
     <div class="flex-1 overflow-auto p-3">
       <!-- Loading State -->
       <div v-if="isDetecting" class="flex items-center gap-2 text-app-muted">
-        <Icon name="i-lucide-loader-2" class="size-4 animate-spin" />
+        <Loader2 class="size-4 animate-spin" />
         <span class="text-sm">Detecting project type...</span>
       </div>
 
       <!-- No Project Detected -->
       <div v-else-if="!detectedProject" class="text-center py-8">
-        <Icon name="i-lucide-folder-question" class="size-8 text-app-muted mx-auto mb-2" />
+        <FileQuestion class="size-8 text-app-muted mx-auto mb-2" />
         <p class="text-sm text-app-muted">No project detected</p>
         <p class="text-xs text-app-muted/60 mt-1">Open a folder with a recognized project type</p>
       </div>
@@ -107,14 +108,12 @@ function getIconColor(type: string): string {
           >
             <!-- Play/Loading Icon -->
             <div class="relative">
-              <Icon
+              <Loader2
                 v-if="runningConfigId === config.id"
-                name="i-lucide-loader-2"
                 class="size-5 animate-spin text-app-accent"
               />
-              <Icon
+              <Play
                 v-else
-                name="i-lucide-play"
                 class="size-5 text-app-muted group-hover:text-green-500 transition-colors"
               />
             </div>
@@ -140,7 +139,7 @@ function getIconColor(type: string): string {
         <!-- Error Display -->
         <div v-if="error" class="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
           <div class="flex items-center gap-2 text-red-500 text-sm">
-            <Icon name="i-lucide-alert-circle" class="size-4" />
+            <AlertCircle class="size-4" />
             <span class="font-medium">Error</span>
           </div>
           <p class="text-xs text-red-400 mt-1">{{ error }}</p>

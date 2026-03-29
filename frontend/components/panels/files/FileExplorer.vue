@@ -3,6 +3,7 @@
  * File Explorer Panel - Browse and select files from filesystem
  * Ported from construct-mono (Nuxt) to Vue/Vite
  */
+import { RefreshCw, FilePlus, FolderPlus, FolderOpen, Loader2 } from 'lucide-vue-next'
 import { FileTreeContextKey, type FileEntry } from './fileTreeContext'
 import { openContextMenu } from '~/composables/useContextMenus'
 // Space composable provided at runtime by IIFE bundle
@@ -150,7 +151,7 @@ onMounted(async () => {
           title="Refresh"
           @click="loadDirectory(state.rootPath)"
         >
-          <Icon name="i-lucide-refresh-cw" class="size-3.5" />
+          <RefreshCw class="size-3.5" />
         </button>
         <button
           v-if="state.rootPath"
@@ -158,7 +159,7 @@ onMounted(async () => {
           title="New File"
           @click="startCreateRoot('file')"
         >
-          <Icon name="i-lucide-file-plus" class="size-3.5" />
+          <FilePlus class="size-3.5" />
         </button>
         <button
           v-if="state.rootPath"
@@ -166,14 +167,14 @@ onMounted(async () => {
           title="New Folder"
           @click="startCreateRoot('folder')"
         >
-          <Icon name="i-lucide-folder-plus" class="size-3.5" />
+          <FolderPlus class="size-3.5" />
         </button>
         <button
           class="p-1 rounded hover:bg-white/10 text-app-muted hover:text-app transition-colors"
           title="Open Folder"
           @click="openFolder"
         >
-          <Icon name="i-lucide-folder-open" class="size-3.5" />
+          <FolderOpen class="size-3.5" />
         </button>
       </div>
     </div>
@@ -182,7 +183,7 @@ onMounted(async () => {
     <div class="flex-1 overflow-y-auto">
       <!-- Empty state -->
       <div v-if="!state.rootPath" class="p-4 text-center">
-        <Icon name="i-lucide-folder-open" class="size-12 text-app-muted mx-auto mb-3" />
+        <FolderOpen class="size-12 text-app-muted mx-auto mb-3" />
         <p class="text-sm text-app-muted mb-3">No folder open</p>
         <Button
           icon="i-lucide-folder-open"
@@ -224,7 +225,7 @@ onMounted(async () => {
 
           <!-- Loading state -->
           <div v-if="state.isLoading" class="flex items-center justify-center py-8">
-            <Icon name="i-lucide-loader-2" class="size-5 animate-spin text-app-muted" />
+            <Loader2 class="size-5 animate-spin text-app-muted" />
           </div>
 
           <!-- File tree items -->

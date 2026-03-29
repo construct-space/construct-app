@@ -3,6 +3,7 @@
  * ToolbarSearch - Toggleable search for toolbar
  * Starts as an icon, expands to input on click
  */
+import { Search, X } from 'lucide-vue-next'
 
 const { searchPlaceholder, hasSearchHandler, executeSearch } = useToolbar()
 
@@ -59,13 +60,13 @@ onMounted(() => {
         class="flex items-center justify-center w-7 h-7 rounded-lg text-app-muted hover:text-app hover:bg-white/5 transition-all duration-200"
         @click="toggleSearch"
       >
-        <Icon name="i-lucide-search" class="size-4" />
+        <Search class="size-4" />
       </button>
     </Tooltip>
 
     <div v-else class="flex items-center gap-1">
       <div class="relative flex items-center">
-        <Icon name="i-lucide-search" class="absolute left-2 size-3.5 text-app-muted pointer-events-none" />
+        <Search class="absolute left-2 size-3.5 text-app-muted pointer-events-none" />
         <input
           ref="inputRef"
           v-model="query"
@@ -79,7 +80,7 @@ onMounted(() => {
           class="absolute right-1.5 flex items-center justify-center w-4 h-4 rounded text-app-muted hover:text-app transition-colors"
           @click="toggleSearch"
         >
-          <Icon name="i-lucide-x" class="size-3" />
+          <X class="size-3" />
         </button>
       </div>
     </div>

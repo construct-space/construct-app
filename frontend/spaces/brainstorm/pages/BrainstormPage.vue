@@ -8,6 +8,7 @@ import type { RequestBlock } from '@/assistant'
 import AgentView from '@/components/agent/AgentView.vue'
 import AgentInput from '@/components/agent/AgentInput.vue'
 import { Slideover } from '@construct-space/ui'
+import { Cookie, Plus, PanelRight, Trash2 } from 'lucide-vue-next'
 
 const session = useAgentSession()
 const { turns, isLoading, statusMessage } = session
@@ -192,7 +193,7 @@ function formatTime(dateStr: string): string {
         <AgentView :turns="turns" :is-loading="isLoading" :status-message="statusMessage"
           @question-answer="handleQuestionAnswer">
           <template #empty>
-            <Icon name="i-lucide-cookie" class="size-12 text-orange-700/30 mb-4" />
+            <Cookie class="size-12 text-orange-700/30 mb-4" />
             <h2 class="text-xl font-semibold text-orange-200/50 mb-1">Chat</h2>
             <p class="text-sm text-orange-400/25">Ask anything</p>
           </template>
@@ -213,7 +214,7 @@ function formatTime(dateStr: string): string {
         <button
           class="w-full rounded-lg px-3 py-2.5 text-xs font-medium text-app hover:bg-white/5 transition flex items-center gap-2 border border-dashed border-app-border"
           @click="startNewChat">
-          <Icon name="i-lucide-plus" class="size-3.5" />
+          <Plus class="size-3.5" />
           New chat
         </button>
 
@@ -232,7 +233,7 @@ function formatTime(dateStr: string): string {
           <span
             class="absolute top-1 right-1 p-0.5 rounded text-transparent group-hover:text-app-muted hover:!text-red-400 transition cursor-pointer"
             @click.stop="deleteSessionEntry(s.id)">
-            <Icon name="i-lucide-trash-2" class="size-3" />
+            <Trash2 class="size-3" />
           </span>
         </div>
       </div>

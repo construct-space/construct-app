@@ -13,7 +13,7 @@ import GoalProgress from '../components/GoalProgress.vue'
 import RunControls from '../components/RunControls.vue'
 import type { RequestBlock } from '@/assistant'
 import type { ToolActivity } from '@/operator/useStreamStatus'
-import { Terminal } from 'lucide-vue-next'
+import { Terminal, AlertCircle, Loader2, Check, X, ChevronUp, ChevronDown } from 'lucide-vue-next'
 
 const route = useRoute()
 const projectStore = useProjectStore()
@@ -280,7 +280,7 @@ function onSend(blocks: RequestBlock[]) {
 
           <!-- Error banner -->
           <div v-if="coder.error.value" class="shrink-0 flex items-start gap-2 px-4 py-2.5 border-b border-red-500/20 bg-red-500/8">
-            <Icon name="i-lucide-alert-circle" class="size-4 text-red-400 mt-0.5 shrink-0" />
+            <AlertCircle class="size-4 text-red-400 mt-0.5 shrink-0" />
             <p class="text-sm text-red-300 flex-1">{{ coder.error.value }}</p>
           </div>
 
@@ -304,20 +304,15 @@ function onSend(blocks: RequestBlock[]) {
                       class="flex items-start gap-2 py-0.5 select-none cursor-pointer hover:bg-white/[0.03] -mx-1 px-1 rounded"
                       @click="toggleTool(item.tool!.callId)"
                     >
-                      <Icon
-                        :name="item.tool.state === 'running' ? 'i-lucide-loader-2' : item.tool.state === 'done' ? 'i-lucide-check' : 'i-lucide-x'"
-                        class="mt-1 size-3 shrink-0"
-                        :class="{
-                          'text-[var(--app-accent)] animate-spin': item.tool.state === 'running',
-                          'text-[var(--app-accent)]': item.tool.state === 'done',
-                          'text-red-400': item.tool.state === 'error',
-                        }"
-                      />
+                      <Loader2 v-if="item.tool.state === 'running'" class="mt-1 size-3 shrink-0 text-[var(--app-accent)] animate-spin" />
+                      <Check v-else-if="item.tool.state === 'done'" class="mt-1 size-3 shrink-0 text-[var(--app-accent)]" />
+                      <X v-else class="mt-1 size-3 shrink-0 text-red-400" />
                       <span class="min-w-0 flex-1">
                         <span class="text-[var(--app-accent)]">{{ getToolDisplay(item.tool).displayName }}</span>
                         <span v-if="getToolDisplay(item.tool).primaryArg && !expandedTools.has(item.tool.callId)" class="text-app-muted/70">('{{ getToolDisplay(item.tool).shortArg }}')</span>
                       </span>
-                      <Icon :name="expandedTools.has(item.tool.callId) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3 mt-1 shrink-0 text-app-muted/30" />
+                      <ChevronUp v-if="expandedTools.has(item.tool.callId)" class="size-3 mt-1 shrink-0 text-app-muted/30" />
+                      <ChevronDown v-else class="size-3 mt-1 shrink-0 text-app-muted/30" />
                     </div>
                     <div v-if="expandedTools.has(item.tool.callId)" class="ml-5 mt-1 mb-1.5 space-y-1.5">
                       <div v-if="getToolDisplay(item.tool).primaryArg" class="rounded-lg bg-black/30 px-3 py-2 text-[11px] text-app-muted/80 whitespace-pre-wrap break-all">{{ getToolDisplay(item.tool).primaryArg }}</div>

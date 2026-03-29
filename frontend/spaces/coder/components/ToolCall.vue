@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { Loader2, Check, X, Square, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import type { ToolActivity } from '@/operator/useStreamStatus'
 import { getToolDisplay } from '../utils/toolDisplay'
 
@@ -22,15 +23,9 @@ const display = computed(() => getToolDisplay(props.call))
       :class="display.hasDetails && 'cursor-pointer hover:bg-white/[0.03] -mx-1 px-1 rounded'"
       @click="display.hasDetails && (expanded = !expanded)"
     >
-      <Icon
-        :name="call.state === 'running' ? 'i-lucide-loader-2' : call.state === 'done' ? 'i-lucide-check' : 'i-lucide-x'"
-        class="mt-1 size-3 shrink-0"
-        :class="{
-          'text-[var(--app-accent)] animate-spin': call.state === 'running',
-          'text-[var(--app-accent)]': call.state === 'done',
-          'text-red-400': call.state === 'error',
-        }"
-      />
+      <Loader2 v-if="call.state === 'running'" class="mt-1 size-3 shrink-0 text-[var(--app-accent)] animate-spin" />
+      <Check v-else-if="call.state === 'done'" class="mt-1 size-3 shrink-0 text-[var(--app-accent)]" />
+      <X v-else class="mt-1 size-3 shrink-0 text-red-400" />
       <span class="min-w-0 flex-1">
         <span class="text-[var(--app-accent)]">{{ display.displayName }}</span>
         <span v-if="display.primaryArg && !expanded" class="text-app-muted/70">('{{ display.shortArg }}')</span>
@@ -40,10 +35,13 @@ const display = computed(() => getToolDisplay(props.call))
         class="rounded-md border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-red-200 transition hover:bg-red-500/15"
         @click.stop="emit('stop')"
       >
-        <Icon name="i-lucide-square" class="mr-1 inline size-3" />
+        <Square class="mr-1 inline size-3" />
         Stop
       </button>
-      <Icon v-if="display.hasDetails" :name="expanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3 mt-1 shrink-0 text-app-muted/30" />
+      <template v-if="display.hasDetails">
+        <ChevronUp v-if="expanded" class="size-3 mt-1 shrink-0 text-app-muted/30" />
+        <ChevronDown v-else class="size-3 mt-1 shrink-0 text-app-muted/30" />
+      </template>
     </div>
     <div v-if="expanded" class="ml-5 mt-1 mb-1.5 space-y-1.5">
       <div v-if="display.primaryArg" class="rounded-lg bg-black/30 px-3 py-2 text-[11px] text-app-muted/80 whitespace-pre-wrap break-all">{{ display.primaryArg }}</div>

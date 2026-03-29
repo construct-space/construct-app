@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { buildProjectRoutePath } from '@/utils/projectRoutes'
-import { Pin } from 'lucide-vue-next'
+import { Pin, Folder, PinOff } from 'lucide-vue-next'
 
 const router = useRouter()
 const projectStore = useProjectStore()
@@ -79,7 +79,7 @@ function shortPath(fullPath: string): string {
       >
         <!-- Icon -->
         <div class="flex size-9 shrink-0 items-center justify-center rounded-lg" :style="{ background: entry.color + '18' }">
-          <Icon name="i-lucide-folder" class="size-4.5" :style="{ color: entry.color }" />
+          <Folder class="size-4.5" :style="{ color: entry.color }" />
         </div>
 
         <!-- Text -->
@@ -96,7 +96,7 @@ function shortPath(fullPath: string): string {
           title="Unpin"
           @click.stop="unpin(entry)"
         >
-          <Icon name="i-lucide-pin-off" class="size-2.5 text-[var(--app-muted)]" />
+          <PinOff class="size-2.5 text-[var(--app-muted)]" />
         </button>
       </div>
     </div>

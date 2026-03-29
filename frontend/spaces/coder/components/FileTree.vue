@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Plus, Pencil, Eye } from 'lucide-vue-next'
 import type { ToolActivity } from '@/operator/useStreamStatus'
 
 const props = defineProps<{
@@ -92,7 +93,7 @@ const read = computed(() => files.value.filter(f => f.action === 'read' || f.act
       <div v-if="created.length" class="space-y-0.5">
         <p class="text-[10px] uppercase tracking-[0.12em] text-emerald-400/70 font-medium mb-1">Created</p>
         <div v-for="f in created" :key="f.path" class="flex items-center gap-2 py-0.5 font-mono text-xs" :title="f.path">
-          <Icon name="i-lucide-plus" class="size-3 shrink-0 text-emerald-400" />
+          <Plus class="size-3 shrink-0 text-emerald-400" />
           <span class="text-emerald-300/80 truncate">{{ f.short }}</span>
         </div>
       </div>
@@ -101,7 +102,7 @@ const read = computed(() => files.value.filter(f => f.action === 'read' || f.act
       <div v-if="modified.length" class="space-y-0.5">
         <p class="text-[10px] uppercase tracking-[0.12em] text-amber-400/70 font-medium mb-1">Modified</p>
         <div v-for="f in modified" :key="f.path" class="flex items-center gap-2 py-0.5 font-mono text-xs" :title="f.path">
-          <Icon name="i-lucide-pencil" class="size-3 shrink-0 text-amber-400" />
+          <Pencil class="size-3 shrink-0 text-amber-400" />
           <span class="text-amber-300/80 truncate">{{ f.short }}</span>
         </div>
       </div>
@@ -110,7 +111,7 @@ const read = computed(() => files.value.filter(f => f.action === 'read' || f.act
       <div v-if="read.length" class="space-y-0.5">
         <p class="text-[10px] uppercase tracking-[0.12em] text-app-muted/40 font-medium mb-1">Read</p>
         <div v-for="f in read" :key="f.path" class="flex items-center gap-2 py-0.5 font-mono text-xs" :title="f.path">
-          <Icon name="i-lucide-eye" class="size-3 shrink-0 text-app-muted/40" />
+          <Eye class="size-3 shrink-0 text-app-muted/40" />
           <span class="text-app-muted/50 truncate">{{ f.short }}</span>
         </div>
       </div>

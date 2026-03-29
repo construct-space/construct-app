@@ -27,7 +27,7 @@
 
         <div v-if="isDestructive" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
           <div class="flex items-start gap-2">
-            <Icon name="i-lucide-alert-triangle" class="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5" />
+            <AlertTriangle class="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5" />
             <p class="text-sm text-red-700 dark:text-red-300">
               This action cannot be undone. Please proceed with caution.
             </p>
@@ -50,6 +50,8 @@
 </template>
 
 <script setup lang="ts">
+import { AlertTriangle } from 'lucide-vue-next'
+
 interface Props {
   modelValue: boolean
   title?: string

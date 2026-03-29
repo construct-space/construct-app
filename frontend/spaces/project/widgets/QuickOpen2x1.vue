@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search } from 'lucide-vue-next'
+import { Search, Folder } from 'lucide-vue-next'
 import { buildProjectRoutePath } from '@/utils/projectRoutes'
 
 const router = useRouter()
@@ -62,7 +62,7 @@ function handleKeydown(e: KeyboardEvent) {
         class="flex items-center gap-2 w-full px-3 py-1.5 text-left hover:bg-[var(--app-accent)]/5 transition-colors"
         @mousedown.prevent="openProject(project)"
       >
-        <Icon name="i-lucide-folder" class="size-3.5 text-[var(--app-muted)]" />
+        <Folder class="size-3.5 text-[var(--app-muted)]" />
         <span class="text-xs text-[var(--app-foreground)] truncate">{{ project.name }}</span>
       </button>
     </div>

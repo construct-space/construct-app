@@ -4,6 +4,7 @@
  * Thin orchestrator — delegates UI to components.
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Plus, FolderOpen, DraftingCompass, Zap } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/project'
 import type { LocalProject } from '@/types/project'
@@ -240,24 +241,24 @@ onUnmounted(() => {
             <button
               class="rounded-full px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[color-mix(in_srgb,var(--app-foreground)_10%,transparent)]"
               @click="showCreateModal = true">
-              <Icon name="i-lucide-plus" class="size-4 inline mr-1.5 -mt-0.5" />Add new Project
+              <Plus class="size-4 inline mr-1.5 -mt-0.5" />Add new Project
             </button>
             <button
               class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-[color-mix(in_srgb,var(--app-foreground)_10%,transparent)] hover:text-app-foreground"
               @click="handleAddFolder">
-              <Icon name="i-lucide-folder-open" class="size-4 inline mr-1.5 -mt-0.5" />Open project
+              <FolderOpen class="size-4 inline mr-1.5 -mt-0.5" />Open project
             </button>
           </div>
           <div class="inline-flex rounded-full bg-[color-mix(in_srgb,var(--app-foreground)_8%,transparent)] p-1">
             <button
               class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-blue-500/15 hover:text-blue-400"
               @click="$router.push('/app/architect')">
-              <Icon name="i-lucide-drafting-compass" class="size-4 inline mr-1.5 -mt-0.5" />Let's Plan
+              <DraftingCompass class="size-4 inline mr-1.5 -mt-0.5" />Let's Plan
             </button>
             <button
               class="rounded-full px-4 py-2 text-sm font-medium text-app-muted transition hover:bg-emerald-500/15 hover:text-emerald-500"
               @click="$router.push('/app/coder')">
-              <Icon name="i-lucide-zap" class="size-4 inline mr-1.5 -mt-0.5" />Let's Code
+              <Zap class="size-4 inline mr-1.5 -mt-0.5" />Let's Code
             </button>
           </div>
         </div>
@@ -271,7 +272,7 @@ onUnmounted(() => {
               <button
                 class="p-5 rounded-xl border border-[var(--app-border)] text-left transition-all hover:border-[var(--app-accent)] hover:bg-[color-mix(in_srgb,var(--app-accent)_5%,transparent)] group"
                 @click="showCreateModal = true">
-                <Icon name="i-lucide-plus"
+                <Plus
                   class="size-5 text-[var(--app-muted)] group-hover:text-[var(--app-accent)] mb-3" />
                 <p class="text-sm font-semibold text-[var(--app-foreground)] mb-1">New Project</p>
                 <p class="text-xs text-[var(--app-muted)] leading-relaxed">
@@ -284,7 +285,7 @@ Create an empty project and set it up
               <button
                 class="p-5 rounded-xl border border-[var(--app-border)] text-left transition-all hover:border-[var(--app-foreground)]/30 hover:bg-[color-mix(in_srgb,var(--app-foreground)_5%,transparent)] group"
                 @click="handleAddFolder">
-                <Icon name="i-lucide-folder-open"
+                <FolderOpen
                   class="size-5 text-[var(--app-muted)] group-hover:text-[var(--app-foreground)] mb-3" />
                 <p class="text-sm font-semibold text-[var(--app-foreground)] mb-1">Open Folder</p>
                 <p class="text-xs text-[var(--app-muted)] leading-relaxed">
@@ -296,7 +297,7 @@ Open an existing project from your filesystem
               <button
                 class="p-5 rounded-xl border border-[var(--app-border)] text-left transition-all hover:border-blue-500/40 hover:bg-blue-500/5 group"
                 @click="$router.push('/app/architect')">
-                <Icon name="i-lucide-drafting-compass"
+                <DraftingCompass
                   class="size-5 text-[var(--app-muted)] group-hover:text-blue-400 mb-3" />
                 <p class="text-sm font-semibold text-[var(--app-foreground)] mb-1">Let's Plan</p>
                 <p class="text-xs text-[var(--app-muted)] leading-relaxed">
@@ -309,7 +310,7 @@ Describe your idea — Architect creates the
               <button
                 class="p-5 rounded-xl border border-[var(--app-border)] text-left transition-all hover:border-[#00ff41]/30 hover:bg-[#00ff41]/5 group"
                 @click="$router.push('/app/coder')">
-                <Icon name="i-lucide-zap" class="size-5 text-[var(--app-muted)] group-hover:text-[#00ff41] mb-3" />
+                <Zap class="size-5 text-[var(--app-muted)] group-hover:text-[#00ff41] mb-3" />
                 <p class="text-sm font-semibold text-[var(--app-foreground)] mb-1">Let's Code</p>
                 <p class="text-xs text-[var(--app-muted)] leading-relaxed">
 Jump straight in — Coder reads your docs or
