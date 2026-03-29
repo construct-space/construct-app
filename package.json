@@ -48,7 +48,6 @@
     "@vueuse/core": "^14.2.1",
     "@vueuse/integrations": "^14.2.1",
     "async-validator": "^4.2.5",
-    "axios": "^1.14.0",
     "change-case": "^5.4.4",
     "date-fns": "^4.1.0",
     "dexie": "^4.4.1",
