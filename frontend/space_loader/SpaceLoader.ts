@@ -412,33 +412,29 @@ export async function watchSpace(
  * Called at app startup so agent tools are available immediately.
  */
 export async function preloadSpaceActions(): Promise<void> {
-  console.log('[SpaceLoader] preloadSpaceActions: starting')
   try {
     const { readDir, exists } = await import('@tauri-apps/plugin-fs')
     const { getSpacesDirPath } = await import('@/lib/appPaths')
     const { homeDir } = await import('@tauri-apps/api/path')
     const home = await homeDir()
     const spacesDir = getSpacesDirPath(home)
-    console.log('[SpaceLoader] preloadSpaceActions: spacesDir =', spacesDir)
-    if (!spacesDir || !(await exists(spacesDir))) {
-      console.log('[SpaceLoader] preloadSpaceActions: spacesDir not found')
-      return
-    }
+    if (!spacesDir || !(await exists(spacesDir))) return
 
     const entries = await readDir(spacesDir)
-    console.log('[SpaceLoader] preloadSpaceActions: found', entries.length, 'entries')
     // Save current space context
     const savedSpaceId = (window as any).construct?.space?.id || ''
 
+    const loaded: string[] = []
+    const failed: string[] = []
     for (const entry of entries) {
       if (!entry.isDirectory) continue
       const spaceId = entry.name
       if (loadedSpaces.has(spaceId)) continue
       try {
-        console.log(`[SpaceLoader] preloadSpaceActions: loading "${spaceId}"`)
         await loadSpace(spaceId)
-        console.log(`[SpaceLoader] preloadSpaceActions: loaded "${spaceId}"`)
+        loaded.push(spaceId)
       } catch (e) {
+        failed.push(spaceId)
         console.warn(`[SpaceLoader] preloadSpaceActions: failed "${spaceId}":`, e)
       }
     }
@@ -447,7 +443,8 @@ export async function preloadSpaceActions(): Promise<void> {
     if ((window as any).construct) {
       (window as any).construct.space = { id: savedSpaceId }
     }
-    console.log('[SpaceLoader] preloadSpaceActions: done')
+    console.debug(`[SpaceLoader] preloadSpaceActions: loaded ${loaded.length} spaces`, loaded.join(', '))
+    if (failed.length) console.warn(`[SpaceLoader] preloadSpaceActions: ${failed.length} failed`, failed.join(', '))
   } catch (e) {
     console.warn('[SpaceLoader] preloadSpaceActions error:', e)
   }
@@ -522,5 +519,4 @@ function registerSpaceActions(spaceId: string, actions: Record<string, SpaceActi
   }
 
   registerAutomationProvider(spaceId, provider)
-  console.log(`[SpaceLoader] Registered ${Object.keys(actions).length} actions for "${spaceId}"`)
 }

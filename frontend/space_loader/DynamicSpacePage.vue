@@ -140,7 +140,6 @@ function updateSidebarForSpace(loaded: LoadedSpace) {
 async function load() {
   loading.value = true
   error.value = null
-  console.log(`[DynamicSpacePage] Loading "${props.spaceName}" page="${currentPagePath.value || '(index)'}"`)
   try {
     if (isSpaceDisabled(props.spaceName)) {
       console.warn(`[DynamicSpacePage] "${props.spaceName}" is disabled`)
@@ -150,7 +149,6 @@ async function load() {
     const loaded = await loadSpace(props.spaceName)
     applyLoaded(loaded)
     if (loaded) {
-      console.log(`[DynamicSpacePage] "${props.spaceName}" ready — rendering page="${currentPagePath.value || '(index)'}"`)
       // Rotate sidebar to show subspace pages if space has multiple pages
       // Only for standalone space routes (not project-scoped — ProjectLayout handles those)
       if (!props.projectId) {
