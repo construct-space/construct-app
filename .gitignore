@@ -40,3 +40,4 @@ context/bin/
 *.log
 *.jsonl
 target/
+eval/
