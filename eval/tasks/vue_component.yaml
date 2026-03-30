@@ -1,0 +1,66 @@
+# Eval task: Build a Vue 3 component
+# Tests Coder's ability to produce working Vue components with proper composition API usage.
+
+id: vue_component
+name: "Vue 3 Data Table Component"
+agent: coder
+category: frontend
+
+prompt: |
+  Build a reusable DataTable Vue 3 component with: sortable columns, search/filter,
+  pagination (10/25/50 per page), row selection with checkboxes, and an empty state.
+  Use Composition API with script setup. Include TypeScript types. Style with Tailwind.
+  Create a demo page that uses the component with sample user data.
+
+scaffold:
+  docs/plan.md: |
+    # DataTable Component
+    ## Stack: Vue 3 + TypeScript + Tailwind
+    ## Features: Sort, filter, paginate, select, empty state
+    ## Output: src/components/DataTable.vue + src/App.vue demo
+
+metrics:
+  - id: component_exists
+    check: file_exists
+    args: { path: "src/components/DataTable.vue" }
+    weight: 0.25
+
+  - id: demo_exists
+    check: file_exists
+    args: { path: "src/App.vue" }
+    weight: 0.15
+
+  - id: uses_composition_api
+    check: content_contains_all
+    args:
+      path: "src/components/DataTable.vue"
+      patterns:
+        - "script setup"
+        - "defineProps"
+        - "ref"
+    weight: 0.2
+
+  - id: has_features
+    check: content_contains_all
+    args:
+      path: "src/components/DataTable.vue"
+      patterns:
+        - "sort"
+        - "filter"
+        - "page"
+    weight: 0.2
+
+  - id: has_types
+    check: content_contains_any
+    args:
+      path: "src/components/DataTable.vue"
+      patterns:
+        - "interface"
+        - "type "
+        - "defineProps<"
+    weight: 0.1
+
+  - id: token_efficiency
+    check: token_budget
+    args: { max_input: 40000, max_output: 12000 }
+    weight: 0.1

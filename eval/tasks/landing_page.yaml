@@ -1,0 +1,67 @@
+# Eval task: Build a landing page from a brief
+# Tests the Coder agent's ability to produce complete, working frontend code.
+
+id: landing_page
+name: "Landing Page from Brief"
+agent: coder
+category: frontend
+
+# The task prompt sent to the agent
+prompt: |
+  Build a landing page for a SaaS product called "Tempo" — a time tracking tool
+  for freelancers. The page needs: hero section with headline + CTA, features grid
+  (3 features with icons), pricing table (free/pro/team), testimonials section,
+  and a footer. Use Tailwind CSS. Make it dark-themed and distinctive.
+
+# Project scaffold — files created before the agent runs
+scaffold:
+  docs/plan.md: |
+    # Tempo Landing Page
+    ## Stack: Vite + Tailwind CSS
+    ## Sections: Hero, Features, Pricing, Testimonials, Footer
+    ## Style: Dark theme, modern, distinctive typography
+  package.json: |
+    {
+      "name": "tempo-landing",
+      "scripts": { "dev": "vite" },
+      "devDependencies": { "vite": "^6", "tailwindcss": "^4" }
+    }
+
+# Success criteria — each is a metric function + args
+metrics:
+  # Did the agent produce an index.html?
+  - id: file_exists
+    check: file_exists
+    args: { path: "index.html" }
+    weight: 0.3
+
+  # Does the HTML contain all required sections?
+  - id: sections_present
+    check: content_contains_all
+    args:
+      path: "index.html"
+      patterns:
+        - "hero"
+        - "features"
+        - "pricing"
+        - "testimonial"
+        - "footer"
+    weight: 0.3
+
+  # Is the file substantial (not a stub)?
+  - id: not_a_stub
+    check: file_min_lines
+    args: { path: "index.html", min_lines: 100 }
+    weight: 0.2
+
+  # Token efficiency — fewer tokens = better
+  - id: token_efficiency
+    check: token_budget
+    args: { max_input: 50000, max_output: 15000 }
+    weight: 0.1
+
+  # Turn count — fewer turns = more decisive
+  - id: turn_count
+    check: max_turns
+    args: { max_turns: 10 }
+    weight: 0.1
