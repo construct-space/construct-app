@@ -106,16 +106,18 @@ export function normalizeArchitectOutput(raw: unknown): ResponseBlock[] {
   // transition period.
   // ──────────────────────────────────────────────────────────────────────────
 
-  /** @deprecated Legacy: questions array without architect.v1 envelope */
+  /** @deprecated Legacy: questions array without architect.v1 envelope.
+   * Truncates to the FIRST question only to match the v1 single-question contract.
+   * TODO(0.8): Remove this fallback entirely. */
   const questions = (obj.questions || obj.interview) as Array<Record<string, unknown>> | undefined
   if (Array.isArray(questions) && questions.length > 0) {
     const withOptions = questions.filter(q => q.options || q.choices)
     if (withOptions.length > 0) {
       return [customBlock('architect:questions', {
-        questions: withOptions.map(normalizeQuestion),
+        questions: [normalizeQuestion(withOptions[0])],
       })]
     }
-    return questions.map(q => textBlock((q.question as string) || (q.text as string) || (q.label as string) || ''))
+    return [textBlock((questions[0].question as string) || (questions[0].text as string) || (questions[0].label as string) || '')]
   }
 
   /** @deprecated Legacy: single question object without envelope */

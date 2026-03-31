@@ -20,6 +20,7 @@
  */
 
 import type { LoadedSpace, SpaceManifest } from './SpaceLoader'
+import { validateHostNativeManifest } from '@/types/space'
 
 // Page components
 import BrainstormPage from '@/spaces/brainstorm/pages/BrainstormPage.vue'
@@ -44,11 +45,19 @@ import DeployStatus2x2 from '@/spaces/project/widgets/DeployStatus2x2.vue'
 import QuickOpen2x1 from '@/spaces/project/widgets/QuickOpen2x1.vue'
 import ProjectStats4x2 from '@/spaces/project/widgets/ProjectStats4x2.vue'
 
-// Manifests
+// Manifests — validated at import time against the HostNativeManifest contract
 import brainstormManifest from '@/spaces/brainstorm/manifest.json'
 import coderManifest from '@/spaces/coder/manifest.json'
 import architectManifest from '@/spaces/architect/manifest.json'
 import projectManifest from '@/spaces/project/manifest.json'
+
+// Runtime validation: fail fast if a built-in manifest drifts from the contract
+for (const [id, manifest] of Object.entries({ brainstorm: brainstormManifest, coder: coderManifest, architect: architectManifest, project: projectManifest })) {
+  const errors = validateHostNativeManifest(manifest)
+  if (errors.length > 0) {
+    console.error(`[CoreSpaces] Host-native manifest "${id}" failed validation:`, errors)
+  }
+}
 
 const CORE_SPACES: Record<string, LoadedSpace> = {
   brainstorm: {

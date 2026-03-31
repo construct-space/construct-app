@@ -51,7 +51,11 @@ func (m *ToolModule) handleCall(reqCtx context.Context, req transport.Request) t
 		return transport.Response{ID: req.ID, Success: false, Error: "unknown tool: " + payload.Name}
 	}
 	if m.hooks != nil {
-		if hookResult, err := m.hooks.RunPre(reqCtx, payload.Name, payload.Input); err == nil && hookResult != nil && hookResult.Block {
+		hookResult, hookErr := m.hooks.RunPre(reqCtx, payload.Name, payload.Input)
+		if hookErr != nil {
+			return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("pre-hook execution failed: %v", hookErr)}
+		}
+		if hookResult != nil && hookResult.Block {
 			return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("blocked by hook: %s", hookResult.Message)}
 		}
 	}
