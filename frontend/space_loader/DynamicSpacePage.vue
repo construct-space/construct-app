@@ -17,7 +17,8 @@ import { getSpace as getSpaceTheme } from '@/config/spaces'
 import { useSpaces } from '@/composables/useSpaces'
 import { useTelemetry } from '@/composables/useTelemetry'
 import { useSidebar, type SpaceNavItem } from '@/composables/useSidebar'
-import { Loader2, AlertCircle, RefreshCw, ShoppingBag, Wrench } from 'lucide-vue-next'
+import { detectErrorPhase, getErrorActions, type ErrorAction } from '@/space_loader/errorActions'
+import { Loader2, AlertCircle, ArrowRight, RefreshCw, ShoppingBag, Wrench } from 'lucide-vue-next'
 import { shallowRef, markRaw } from 'vue'
 
 /**
@@ -66,6 +67,13 @@ const space = shallowRef<LoadedSpace | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const loadError = ref<SpaceLoadError | null>(null)
+
+/** Actionable suggestions derived from the error message */
+const errorActions = computed<ErrorAction[]>(() => {
+  if (!error.value) return []
+  const phase = detectErrorPhase(error.value)
+  return getErrorActions(phase)
+})
 
 /** The current page path ('' for index, 'editor', 'terminal', etc.) */
 const currentPagePath = computed(() => props.subPage ?? '')
@@ -286,7 +294,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Error state — detailed error boundary (Slice D.1) -->
+    <!-- Error state — detailed error boundary -->
     <div v-else-if="error" class="flex-1 flex items-center justify-center p-6">
       <div class="max-w-md w-full">
         <!-- Error icon and title -->
@@ -321,7 +329,7 @@ onUnmounted(() => {
             </p>
           </div>
 
-          <!-- Suggested actions -->
+          <!-- Suggested actions from error-to-action mapping -->
           <div class="px-4 py-3 border-t border-[var(--app-border)] bg-[color-mix(in_srgb,var(--app-muted)_3%,transparent)]">
             <p class="text-xs font-medium text-[var(--app-muted)] mb-2">Suggested actions:</p>
             <ul class="space-y-1">

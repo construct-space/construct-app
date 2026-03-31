@@ -1,0 +1,20 @@
+<script setup lang="ts">
+/**
+ * Arcade Instant — Home page
+ *
+ * Host-provided packages (vue, pinia, @vueuse/core, @construct/sdk, etc.)
+ * are available as imports — they resolve to the host at runtime.
+ */
+import { ref } from 'vue'
+
+const greeting = ref('Your space is ready. Start building!')
+</script>
+
+<template>
+  <div class="h-full flex items-center justify-center">
+    <div class="text-center">
+      <h1 class="text-2xl font-bold text-[var(--app-foreground)] mb-2">Arcade Instant</h1>
+      <p class="text-sm text-[var(--app-muted)]">{{ greeting }}</p>
+    </div>
+  </div>
+</template>

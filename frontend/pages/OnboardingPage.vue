@@ -10,13 +10,60 @@
 import { useProjectDirectory } from '@/composables/useProjectDirectory'
 import { useAuthStore } from '@/stores/auth'
 import { useOperator } from '@/operator'
-import { ArrowRight, Sparkles, Check, Loader2 } from 'lucide-vue-next'
+import { ArrowRight, Sparkles, Check, Loader2, DraftingCompass, MessageCircle, Terminal, FolderOpen } from 'lucide-vue-next'
 
 const router = useRouter()
 const toast = useNotification()
 const projectDir = useProjectDirectory()
 const authStore = useAuthStore()
 const operator = useOperator()
+
+// Step tracking: 'providers' -> 'getting-started'
+const currentStep = ref<'providers' | 'getting-started'>('providers')
+
+// Built-in spaces for the Getting Started section
+const builtinSpaces = [
+  {
+    id: 'architect',
+    name: 'Architect',
+    description: 'Plan your project structure and generate technical specs',
+    icon: DraftingCompass,
+    color: 'text-blue-400',
+    hoverBorder: 'hover:border-blue-500/40',
+    hoverBg: 'hover:bg-blue-500/5',
+    route: '/app/architect',
+  },
+  {
+    id: 'brainstorm',
+    name: 'Chat',
+    description: 'Explore ideas and refine your vision with AI',
+    icon: MessageCircle,
+    color: 'text-purple-400',
+    hoverBorder: 'hover:border-purple-500/40',
+    hoverBg: 'hover:bg-purple-500/5',
+    route: '/app/brainstorm',
+  },
+  {
+    id: 'coder',
+    name: 'Coder',
+    description: 'Autonomous coding agent that reads, writes, and runs code',
+    icon: Terminal,
+    color: 'text-emerald-400',
+    hoverBorder: 'hover:border-emerald-500/40',
+    hoverBg: 'hover:bg-emerald-500/5',
+    route: '/app/coder',
+  },
+  {
+    id: 'project',
+    name: 'Projects',
+    description: 'Manage projects, track progress, and deploy',
+    icon: FolderOpen,
+    color: 'text-amber-400',
+    hoverBorder: 'hover:border-amber-500/40',
+    hoverBg: 'hover:bg-amber-500/5',
+    route: '/app/projects',
+  },
+]
 
 // Per-user onboarding key
 const onboardingKey = computed(() => {
@@ -89,6 +136,15 @@ async function connectProvider(providerId: string) {
   }
 }
 
+function continueToGettingStarted() {
+  currentStep.value = 'getting-started'
+}
+
+function launchSpace(route: string) {
+  localStorage.setItem(onboardingKey.value, 'true')
+  router.push(route)
+}
+
 async function getStarted() {
   loading.value = true
   try {
@@ -113,50 +169,96 @@ async function getStarted() {
               d="M378.22 451.578C393.077 451.578 405.121 460.85 405.121 472.289C405.121 483.727 393.077 493 378.22 493H160.945C146.089 493 134.044 483.727 134.044 472.289C134.044 460.85 146.089 451.578 160.945 451.578H378.22Z" />
           </svg>
 
-          <h1 class="text-3xl font-bold text-[var(--app-foreground)] mb-3">Welcome to Construct</h1>
+          <h1 class="text-3xl font-bold text-[var(--app-foreground)] mb-3">
+            {{ currentStep === 'providers' ? 'Welcome to Construct' : 'Getting Started' }}
+          </h1>
           <p class="text-sm text-[var(--app-muted)] max-w-md mx-auto leading-relaxed">
-            Construct is your operating environment. It loads the spaces you need — code, design, docs, tasks, AI — and
-            connects them into one place. Install what you need, build what you want.
+            <template v-if="currentStep === 'providers'">
+              Construct is your operating environment. It loads the spaces you need — code, design, docs, tasks, AI — and
+              connects them into one place. Install what you need, build what you want.
+            </template>
+            <template v-else>
+              Here are the built-in spaces available to you. Pick one to jump right in, or head to the dashboard.
+            </template>
           </p>
         </div>
 
-        <!-- AI Providers -->
-        <div class="mb-8">
-          <div class="flex items-center gap-2 mb-4">
-            <Sparkles class="size-4 text-app-accent" />
-            <p class="text-sm font-medium text-[var(--app-foreground)]">Connect AI to get started</p>
-            <span v-if="connectedCount > 0" class="text-xs text-green-400 ml-auto">{{ connectedCount }} connected</span>
+        <!-- Step 1: AI Providers -->
+        <template v-if="currentStep === 'providers'">
+          <div class="mb-8">
+            <div class="flex items-center gap-2 mb-4">
+              <Sparkles class="size-4 text-app-accent" />
+              <p class="text-sm font-medium text-[var(--app-foreground)]">Connect AI to get started</p>
+              <span v-if="connectedCount > 0" class="text-xs text-green-400 ml-auto">{{ connectedCount }} connected</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <button v-for="provider in oauthProviders" :key="provider.id"
+                class="p-4 rounded-xl border-2 text-left transition-all" :class="[
+                  provider.connected
+                    ? 'border-green-500/30 bg-green-500/5'
+                    : 'border-[var(--app-border)] hover:border-[color-mix(in_srgb,var(--app-accent)_30%,transparent)]'
+                ]" :disabled="provider.loading || provider.connected" @click="connectProvider(provider.id)">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-lg">{{ provider.icon }}</span>
+                  <Check v-if="provider.connected" class="size-4 text-green-400" />
+                  <Loader2 v-else-if="provider.loading" class="size-4 text-app-accent animate-spin" />
+                </div>
+                <p class="text-sm font-semibold text-[var(--app-foreground)]">{{ provider.name }}</p>
+                <p class="text-xs text-[var(--app-muted)]">{{ provider.description }}</p>
+              </button>
+            </div>
+
+            <p class="text-xs text-[var(--app-muted)] mt-3 text-center">
+              You can add more providers and API keys later in Settings.
+            </p>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
-            <button v-for="provider in oauthProviders" :key="provider.id"
-              class="p-4 rounded-xl border-2 text-left transition-all" :class="[
-                provider.connected
-                  ? 'border-green-500/30 bg-green-500/5'
-                  : 'border-[var(--app-border)] hover:border-[color-mix(in_srgb,var(--app-accent)_30%,transparent)]'
-              ]" :disabled="provider.loading || provider.connected" @click="connectProvider(provider.id)">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-lg">{{ provider.icon }}</span>
-                <Check v-if="provider.connected" class="size-4 text-green-400" />
-                <Loader2 v-else-if="provider.loading" class="size-4 text-app-accent animate-spin" />
-              </div>
-              <p class="text-sm font-semibold text-[var(--app-foreground)]">{{ provider.name }}</p>
-              <p class="text-xs text-[var(--app-muted)]">{{ provider.description }}</p>
-            </button>
+          <!-- Continue button -->
+          <button
+            class="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-app-accent text-white font-medium text-sm hover:opacity-90 transition-opacity"
+            @click="continueToGettingStarted">
+            Continue
+            <ArrowRight class="size-4" />
+          </button>
+        </template>
+
+        <!-- Step 2: Getting Started — built-in spaces -->
+        <template v-else>
+          <div class="mb-8">
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                v-for="space in builtinSpaces"
+                :key="space.id"
+                class="p-5 rounded-xl border border-[var(--app-border)] text-left transition-all group"
+                :class="[space.hoverBorder, space.hoverBg]"
+                @click="launchSpace(space.route)"
+              >
+                <component
+                  :is="space.icon"
+                  class="size-5 text-[var(--app-muted)] mb-3 transition-colors"
+                  :class="`group-hover:${space.color}`"
+                />
+                <p class="text-sm font-semibold text-[var(--app-foreground)] mb-1">{{ space.name }}</p>
+                <p class="text-xs text-[var(--app-muted)] leading-relaxed">{{ space.description }}</p>
+              </button>
+            </div>
           </div>
 
-          <p class="text-xs text-[var(--app-muted)] mt-3 text-center">
-            You can add more providers and API keys later in Settings.
-          </p>
-        </div>
+          <!-- Skip to dashboard -->
+          <button
+            class="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-app-accent text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            :disabled="loading" @click="getStarted">
+            {{ loading ? 'Loading...' : 'Go to Dashboard' }}
+            <ArrowRight v-if="!loading" class="size-4" />
+          </button>
 
-        <!-- Get Started button -->
-        <button
-          class="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-app-accent text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-          :disabled="loading" @click="getStarted">
-          {{ loading ? 'Loading...' : 'Get Started' }}
-          <ArrowRight v-if="!loading" class="size-4" />
-        </button>
+          <button
+            class="w-full mt-3 flex items-center justify-center gap-2 px-6 py-2 text-sm text-[var(--app-muted)] hover:text-[var(--app-foreground)] transition-colors"
+            @click="currentStep = 'providers'">
+            Back to provider setup
+          </button>
+        </template>
       </div>
     </div>
   </div>

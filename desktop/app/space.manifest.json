@@ -1,0 +1,36 @@
+{
+  "id": "arcade-instant",
+  "name": "Arcade Instant",
+  "version": "0.1.0",
+  "description": "A standalone arcade storefront for discovering, launching, rating, and replaying instant-play arcade games.",
+  "author": {
+    "name": "Construct Team"
+  },
+  "icon": "i-lucide-gamepad-2",
+  "scope": "global",
+  "minConstructVersion": "0.2.0",
+  "navigation": {
+    "label": "Arcade Instant",
+    "icon": "i-lucide-gamepad-2",
+    "to": "arcade-instant",
+    "order": 20
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Storefront",
+      "icon": "i-lucide-home",
+      "default": true
+    },
+    {
+      "path": "game/:slug",
+      "label": "Game Detail",
+      "icon": "i-lucide-info"
+    },
+    {
+      "path": "play/:slug",
+      "label": "Play",
+      "icon": "i-lucide-play"
+    }
+  ]
+}

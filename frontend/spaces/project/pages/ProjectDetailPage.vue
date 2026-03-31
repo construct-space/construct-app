@@ -10,7 +10,9 @@ import { routeParamString } from '@/utils/projectRoutes'
 import { useProjectSummary } from '../composables/useProjectSummary'
 import { useBasepodDeploy } from '@/composables/useBasepodDeploy'
 import { useOperator } from '@/operator'
-import { Rocket, Zap, ExternalLink, FolderTree, FileText, GitBranch, Globe, Calendar, Layers, Loader2, Folder, File, X, DraftingCompass } from 'lucide-vue-next'
+import { spaceDoctor, type SpaceHealthReport } from '@/space_loader/spaceDoctor'
+import { getErrorActions } from '@/space_loader/errorActions'
+import { Rocket, Zap, ExternalLink, FolderTree, FileText, GitBranch, Globe, Calendar, Layers, Loader2, Folder, File, X, DraftingCompass, CheckCircle2, AlertTriangle, XCircle, HeartPulse } from 'lucide-vue-next'
 import { useMarkdown } from '@/composables/useMarkdown'
 import ProjectDeployModal from '../components/ProjectDeployModal.vue'
 
@@ -55,9 +57,48 @@ const { summary } = useProjectSummary(projectPath)
 const showDeployModal = ref(false)
 const deployInfo = ref<{ name: string; url: string; domain: string; deployed_at: string } | null>(null)
 
+// Space health for this project
+const spaceHealthReports = ref<SpaceHealthReport[]>([])
+const spaceHealthLoaded = ref(false)
+
+const activeSpaces = computed(() =>
+  spaceHealthReports.value.filter(r => r.status !== 'error')
+)
+const errorSpaces = computed(() =>
+  spaceHealthReports.value.filter(r => r.status === 'error')
+)
+
+async function loadSpaceHealth() {
+  try {
+    spaceHealthReports.value = await spaceDoctor()
+    spaceHealthLoaded.value = true
+  } catch {
+    // non-critical
+  }
+}
+
+const healthStatusIcon = (status: string) => {
+  switch (status) {
+    case 'healthy': return CheckCircle2
+    case 'warning': return AlertTriangle
+    case 'error': return XCircle
+    default: return CheckCircle2
+  }
+}
+
+const healthStatusColor = (status: string) => {
+  switch (status) {
+    case 'healthy': return 'text-green-400'
+    case 'warning': return 'text-amber-400'
+    case 'error': return 'text-red-400'
+    default: return 'text-green-400'
+  }
+}
+
 watchEffect(async () => {
   if (projectPath.value) {
     deployInfo.value = await loadDeployInfo(projectPath.value)
+    loadSpaceHealth()
   }
 })
 
@@ -231,6 +272,36 @@ function getExtLabel(ext: string): string {
                 <Folder v-if="file.type === 'directory'" class="size-3.5 text-amber-400 shrink-0" />
                 <File v-else class="size-3.5 text-[var(--app-muted)] shrink-0" />
                 <span :class="file.type === 'directory' ? 'text-[var(--app-foreground)] font-medium' : 'text-[var(--app-muted)]'">{{ file.name }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Space Health -->
+          <div v-if="spaceHealthLoaded">
+            <div class="flex items-center gap-2 mb-2">
+              <HeartPulse class="size-3.5 text-[var(--app-accent)]" />
+              <p class="text-xs text-[var(--app-muted)] uppercase tracking-wider font-medium">Spaces</p>
+            </div>
+            <div class="space-y-1">
+              <div
+                v-for="report in spaceHealthReports"
+                :key="report.spaceId"
+                class="flex items-center gap-2 py-0.5"
+              >
+                <component :is="healthStatusIcon(report.status)" class="size-3 shrink-0" :class="healthStatusColor(report.status)" />
+                <span class="text-xs text-[var(--app-foreground)]">{{ report.name }}</span>
+                <span v-if="report.isCore" class="text-[9px] text-[var(--app-muted)] ml-auto">core</span>
+                <span v-else class="text-[9px] text-[var(--app-muted)] ml-auto">v{{ report.version }}</span>
+              </div>
+            </div>
+            <!-- Error details -->
+            <div v-if="errorSpaces.length > 0" class="mt-2 space-y-1">
+              <div v-for="report in errorSpaces" :key="report.spaceId"
+                class="text-xs p-2 rounded border border-red-500/20 bg-red-500/5">
+                <p class="text-red-400 font-medium mb-0.5">{{ report.name }}</p>
+                <p v-for="issue in report.issues" :key="issue.message" class="text-[var(--app-muted)]">
+                  {{ issue.message }}
+                </p>
               </div>
             </div>
           </div>
