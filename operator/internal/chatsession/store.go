@@ -8,6 +8,7 @@ package chatsession
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -129,10 +130,12 @@ func (s *Store) List() ([]SessionMeta, error) {
 		}
 		data, err := os.ReadFile(filepath.Join(s.dir, e.Name()))
 		if err != nil {
+			log.Printf("[chatsession] failed to read %s: %v", e.Name(), err)
 			continue
 		}
 		var sess Session
 		if err := json.Unmarshal(data, &sess); err != nil {
+			log.Printf("[chatsession] failed to parse %s: %v", e.Name(), err)
 			continue
 		}
 		metas = append(metas, SessionMeta{

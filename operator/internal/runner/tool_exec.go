@@ -4,13 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"construct-operator/internal/agent"
 	"construct-operator/internal/provider"
 	"construct-operator/internal/stream"
 )
+
+// DefaultToolTimeout is the default per-tool execution timeout.
+// Individual tools can override via ToolTimeouts on the Runner.
+const DefaultToolTimeout = 5 * time.Minute
 
 // executeToolCalls runs tool calls, using parallel execution when there are
 // multiple independent calls (no data dependencies between tool calls).
@@ -46,8 +52,17 @@ func (r *Runner) executeSingleTool(ctx context.Context, req *RunRequest, tc prov
 		logToolCall(req.Project.RootPath, req.Agent, tc)
 	}
 
-	// Pre-hooks
-	if hookResult, err := r.hooks.RunPre(ctx, tc.Name, tc.Input); err == nil && hookResult != nil {
+	// Pre-hooks — hook errors on blocking hooks must stop execution
+	hookResult, hookErr := r.hooks.RunPre(ctx, tc.Name, tc.Input)
+	if hookErr != nil {
+		exec.Result = provider.ToolResult{
+			CallID:  tc.ID,
+			Content: fmt.Sprintf("pre-hook execution failed: %v", hookErr),
+			IsError: true,
+		}
+		return exec
+	}
+	if hookResult != nil {
 		exec.Hooks = append(exec.Hooks, *hookResult)
 		if hookResult.Block {
 			exec.Result = provider.ToolResult{
@@ -73,11 +88,24 @@ func (r *Runner) executeSingleTool(ctx context.Context, req *RunRequest, tc prov
 			IsError: true,
 		}
 	} else {
-		result, execErr := t.Executor.Execute(ctx, tc.Input)
+		// Apply per-tool timeout
+		timeout := DefaultToolTimeout
+		if r.toolTimeouts != nil {
+			if t, ok := r.toolTimeouts[tc.Name]; ok {
+				timeout = t
+			}
+		}
+		toolCtx, toolCancel := context.WithTimeout(ctx, timeout)
+		result, execErr := t.Executor.Execute(toolCtx, tc.Input)
+		toolCancel()
 		if execErr != nil {
+			errMsg := execErr.Error()
+			if toolCtx.Err() == context.DeadlineExceeded {
+				errMsg = fmt.Sprintf("tool %s timed out after %s", tc.Name, timeout)
+			}
 			exec.Result = provider.ToolResult{
 				CallID:  tc.ID,
-				Content: execErr.Error(),
+				Content: errMsg,
 				IsError: true,
 			}
 		} else {
@@ -89,9 +117,13 @@ func (r *Runner) executeSingleTool(ctx context.Context, req *RunRequest, tc prov
 		}
 	}
 
-	// Post-hooks
-	if hookResult, err := r.hooks.RunPost(ctx, tc.Name, exec.Result.Content); err == nil && hookResult != nil {
-		exec.Hooks = append(exec.Hooks, *hookResult)
+	// Post-hooks — log errors but don't block
+	postResult, postErr := r.hooks.RunPost(ctx, tc.Name, exec.Result.Content)
+	if postErr != nil {
+		fmt.Fprintf(os.Stderr, "[runner] post-hook error for tool %s: %v\n", tc.Name, postErr)
+	}
+	if postResult != nil {
+		exec.Hooks = append(exec.Hooks, *postResult)
 	}
 
 	return exec
