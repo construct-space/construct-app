@@ -62,16 +62,23 @@ export function isStreamSafe(blockType: string): boolean {
  */
 const BUFFERED_ASSISTANT_TYPES = new Set<string>([
   'architect',
+  'brainstorm',
 ])
 
 /**
  * Returns true if the given assistant type needs full-response buffering.
  * Checks both the hardcoded set and the registry (for finalSchema presence).
+ *
+ * Any assistant with a custom finalSchema produces structured output that
+ * must be parsed as a whole. The generic `assistant.v1` envelope is excluded
+ * because it wraps plain text responses (e.g. general assistant). Specific
+ * assistants that use assistant.v1 for structured JSON (brainstorm) must be
+ * added to BUFFERED_ASSISTANT_TYPES explicitly.
  */
 export function requiresBuffering(assistantType: string): boolean {
   if (BUFFERED_ASSISTANT_TYPES.has(assistantType)) return true
 
-  // Any assistant type with a non-null finalSchema needs structured output
+  // Any assistant type with a non-generic finalSchema needs structured output
   // and therefore must buffer until the full response is available.
   const config = getAssistantType(assistantType)
   if (config?.finalSchema && config.finalSchema !== 'assistant.v1') return true

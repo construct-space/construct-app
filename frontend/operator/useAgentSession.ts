@@ -141,7 +141,8 @@ export function useAgentSession() {
         ss.bufferContent += text
         const buf = ss.bufferContent.trim()
 
-        if (buf.startsWith('{') || buf.startsWith('[')) {
+        // Detect structured content: raw JSON or fenced ```json blocks
+        if (buf.startsWith('{') || buf.startsWith('[') || buf.startsWith('```')) {
           startBuffering(ss)
           // Remove any text blocks, show skeleton placeholder
           turn.response = turn.response.filter(b => b.type !== 'text' && b.type !== 'status')
