@@ -1,14 +1,22 @@
 /**
- * Core Space Registry — spaces that ship with the app.
+ * Core Space Registry — host-native spaces that ship with the app.
  *
- * Core spaces are compile-time dependencies: no IIFE eval, no checksum,
- * no disk loading. SpaceLoader checks this registry before falling back
- * to the active app spaces directory.
+ * There are exactly 4 host-native spaces: architect, brainstorm, coder, project.
+ * They are compile-time dependencies: no IIFE eval, no checksum, no disk loading.
+ * SpaceLoader.loadSpace() checks this registry first; if found, the space is
+ * returned directly without any disk I/O. If not found, it falls back to the
+ * dynamic loading path (IIFE bundles from the app data directory).
  *
- * To add a core space:
- *   1. Copy its source into src/spaces/{id}/
- *   2. Import its index page component and manifest here
- *   3. Add an entry to CORE_SPACES
+ * The canonical list of host-native space IDs lives in `types/space.ts`
+ * (HOST_NATIVE_SPACE_IDS). This file is the component registry that maps
+ * those IDs to their compiled Vue page components and manifest data.
+ *
+ * To add a host-native space:
+ *   1. Add its ID to HOST_NATIVE_SPACE_IDS in types/space.ts
+ *   2. Create its source in frontend/spaces/{id}/
+ *   3. Import its page components and manifest here
+ *   4. Add an entry to CORE_SPACES below
+ *   5. Add explicit routes in router/routes.ts
  */
 
 import type { LoadedSpace, SpaceManifest } from './SpaceLoader'

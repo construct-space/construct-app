@@ -49,20 +49,25 @@
 
 ### Spaces
 
-A Space is a self-contained module that plugs into the Construct shell. Each space has:
+A Space is a self-contained module that plugs into the Construct shell. Spaces come in two kinds:
 
-- `space.manifest.json` — identity, pages, toolbar, theme, navigation
-- `space.config.ts` — typed TypeScript config
+- **Host-native** (architect, brainstorm, coder, project) — compiled into the app, explicit routes, no runtime I/O
+- **Dynamic** — installed from marketplace, loaded as IIFE bundles at runtime
+
+Each space has:
+
+- `manifest.json` — identity, pages, widgets, navigation, scope
 - `pages/` — route components
 - `components/` — space-specific UI
 - `composables/` — shared logic
-- `stores/` — state management
 - `agent/` — AI config, tools, skills, hooks
 
 Spaces teleport their content into the shell:
 - **Sidebar icon** → from `navigation` in manifest
 - **Toolbar actions** → from `pages[].toolbar` in manifest
 - **Page content** → rendered in the main area
+
+See [spaces.md](spaces.md) for the full runtime model.
 
 ### Operator
 
@@ -136,10 +141,11 @@ src/
       Toolbar3D.vue   # 3D rotating toolbar
     ui/               # 29 UI components (Button, Modal, etc.)
 
-  spaces/             # Built-in spaces
-    vibe/             # Autonomous coding (Matrix-themed)
+  spaces/             # Host-native spaces (compiled into app)
     architect/        # Project planning (interview flow)
-    project/          # Project management
+    brainstorm/       # Chat — explore ideas
+    coder/            # Autonomous coding agent
+    project/          # Project management + navigation
 
   stores/             # Pinia stores
   composables/        # 50+ composables

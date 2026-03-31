@@ -4,6 +4,24 @@
   "description": "Project-aware agent that knows your codebase, tools, and context",
   "icon": "lucide:folder-open",
   "version": "1.0.0",
+  "scope": "app",
+  "navigation": {
+    "label": "Projects",
+    "icon": "lucide:folder-open",
+    "to": "projects",
+    "order": 10
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Projects",
+      "default": true
+    },
+    {
+      "path": ":id",
+      "label": "Project Detail"
+    }
+  ],
   "widgets": [
     {
       "id": "recent-projects",
