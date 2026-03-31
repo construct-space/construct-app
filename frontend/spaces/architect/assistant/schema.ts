@@ -1,5 +1,19 @@
 import { z } from 'zod'
 
+/**
+ * architect.v1 — Canonical UI contract for the Architect space.
+ *
+ * This is the SOLE output schema the Architect agent must produce.
+ * All LLM output must conform to the `architectEnvelopeSchema` discriminated
+ * union. The normalizer provides temporary fallback parsing for legacy shapes,
+ * but those paths are deprecated and will be removed.
+ *
+ * Contract invariants:
+ * - Exactly ONE question per `questions` state (single-question progression)
+ * - `plan.docs` is adaptive — the doc set varies by project type
+ * - All states require `version: "architect.v1"`
+ */
+
 const optionSchema = z.object({
   value: z.string(),
   label: z.string(),
@@ -14,10 +28,15 @@ const questionSchema = z.object({
   options: z.array(optionSchema),
 })
 
+/**
+ * Questions state: presents exactly ONE question at a time.
+ * The `questions` array contains a single element — the active question.
+ * The next question is determined by the user's answer to this one.
+ */
 export const architectQuestionsSchema = z.object({
   version: z.literal('architect.v1'),
   state: z.literal('questions'),
-  questions: z.array(questionSchema),
+  questions: z.array(questionSchema).min(1).max(1),
 })
 
 export const architectPlanSchema = z.object({

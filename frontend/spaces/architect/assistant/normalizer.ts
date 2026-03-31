@@ -99,9 +99,14 @@ export function normalizeArchitectOutput(raw: unknown): ResponseBlock[] {
     }
   }
 
-  // Fallback: detect format from shape (handles actual LLM output)
+  // ──────────────────────────────────────────────────────────────────────────
+  // @deprecated Legacy fallbacks — temporary compatibility for non-v1 output.
+  // TODO(0.8): Remove all fallback paths below. The agent MUST produce
+  // architect.v1 envelopes. These exist only to avoid breaking during the
+  // transition period.
+  // ──────────────────────────────────────────────────────────────────────────
 
-  // Questions array (top-level or nested)
+  /** @deprecated Legacy: questions array without architect.v1 envelope */
   const questions = (obj.questions || obj.interview) as Array<Record<string, unknown>> | undefined
   if (Array.isArray(questions) && questions.length > 0) {
     const withOptions = questions.filter(q => q.options || q.choices)
@@ -110,25 +115,21 @@ export function normalizeArchitectOutput(raw: unknown): ResponseBlock[] {
         questions: withOptions.map(normalizeQuestion),
       })]
     }
-    // Questions without options — render as text prompts
     return questions.map(q => textBlock((q.question as string) || (q.text as string) || (q.label as string) || ''))
   }
 
-  // Single question object: { question: 1, text: "What is..." } or { question: "What..." }
-  // This is the normal interview flow — one question at a time, user answers in text input
+  /** @deprecated Legacy: single question object without envelope */
   if (obj.text || (typeof obj.question === 'string')) {
     const questionText = (obj.text as string) || (obj.question as string) || ''
-    // If it has options/choices, render as interactive choice block
     if (obj.options || obj.choices) {
       return [customBlock('architect:questions', {
         questions: [normalizeQuestion(obj)],
       })]
     }
-    // Free-text question — just render as text, user answers in the input
     return [textBlock(questionText)]
   }
 
-  // Plan object
+  /** @deprecated Legacy: plan object without envelope */
   if (obj.name && (obj.decisions || obj.stack || obj.features || obj.phases)) {
     return [customBlock('architect:plan', {
       title: (obj.name as string) || 'Project Plan',
@@ -139,12 +140,12 @@ export function normalizeArchitectOutput(raw: unknown): ResponseBlock[] {
     })]
   }
 
-  // Clarify / answer
+  /** @deprecated Legacy: clarify/answer format */
   if (obj.answer) {
     return [textBlock(obj.answer as string)]
   }
 
-  // Review
+  /** @deprecated Legacy: review format */
   if (Array.isArray(obj.issues)) {
     const issues = obj.issues as Array<Record<string, unknown>>
     const text = issues.map(i => `**${i.severity}** [${i.area}]: ${i.problem}\n  → ${i.suggestion}`).join('\n\n')
