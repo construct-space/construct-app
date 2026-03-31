@@ -173,6 +173,82 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestRunPreBlockingCheckFuncStopsExecution(t *testing.T) {
+	reg := NewRegistry()
+
+	// Register a blocking Go-native hook
+	reg.Register(Hook{
+		ID:   "go-blocker",
+		Type: PreTool,
+		Check: func(ctx context.Context, toolName, input string) (bool, string) {
+			return true, "blocked by safety check"
+		},
+	})
+
+	result, err := reg.RunPre(context.Background(), "bash", "rm -rf /")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == nil || !result.Block {
+		t.Fatal("Go-native blocking hook should block execution")
+	}
+	if result.Message != "blocked by safety check" {
+		t.Fatalf("expected safety check message, got %q", result.Message)
+	}
+}
+
+func TestRunPreErrorPropagation(t *testing.T) {
+	reg := NewRegistry()
+
+	// Register a hook with a command that will fail in a way that produces an error
+	reg.Register(Hook{
+		ID:      "error-hook",
+		Type:    PreTool,
+		Command: "exit 1",
+	})
+
+	result, err := reg.RunPre(context.Background(), "bash", "anything")
+	if err != nil {
+		t.Fatalf("RunPre should not return error for non-zero exit: %v", err)
+	}
+	// Non-zero exit = block
+	if result == nil || !result.Block {
+		t.Fatal("non-zero exit should block")
+	}
+}
+
+func TestRunPreMultipleHooksFirstBlockStopsChain(t *testing.T) {
+	reg := NewRegistry()
+
+	called := false
+	reg.Register(Hook{
+		ID:   "blocker",
+		Type: PreTool,
+		Check: func(ctx context.Context, toolName, input string) (bool, string) {
+			return true, "first blocks"
+		},
+	})
+	reg.Register(Hook{
+		ID:   "second",
+		Type: PreTool,
+		Check: func(ctx context.Context, toolName, input string) (bool, string) {
+			called = true
+			return false, ""
+		},
+	})
+
+	result, err := reg.RunPre(context.Background(), "bash", "anything")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == nil || !result.Block {
+		t.Fatal("first hook should block")
+	}
+	if called {
+		t.Fatal("second hook should not be called when first hook blocks")
+	}
+}
+
 func TestLoadConfigNotFound(t *testing.T) {
 	hooks, err := LoadConfig("/nonexistent/hooks.json")
 	if err != nil {

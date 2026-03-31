@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -252,6 +253,7 @@ func (p *AnthropicProvider) readSSE(body io.ReadCloser, ch chan<- provider.Strea
 
 		var event map[string]any
 		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			log.Printf("[anthropic] SSE parse error: %v (data: %.200s)", err, data)
 			continue
 		}
 

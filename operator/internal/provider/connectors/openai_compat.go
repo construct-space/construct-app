@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -176,6 +177,7 @@ func (p *OpenAICompatProvider) readSSE(body io.ReadCloser, ch chan<- provider.St
 			} `json:"choices"`
 		}
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			log.Printf("[%s] SSE parse error: %v (data: %.200s)", p.config.Key, err, data)
 			continue
 		}
 

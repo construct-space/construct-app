@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -528,6 +529,7 @@ func (p *AnthropicOAuthProvider) readSSE(body io.ReadCloser, ch chan<- provider.
 
 		var event map[string]any
 		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			log.Printf("[anthropic-oauth] SSE parse error: %v (data: %.200s)", err, data)
 			continue
 		}
 

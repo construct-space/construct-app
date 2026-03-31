@@ -40,4 +40,75 @@ describe('useOperator', () => {
     expect(commands).not.toContain('oauth_read_keychain')
     expect(commands).not.toContain('codex_read_tokens')
   })
+
+  it('send() times out after configured timeout', async () => {
+    // Make invoke hang forever
+    invokeMock = vi.fn(() => new Promise(() => {}))
+    testGlobal.window = { __TAURI__: true }
+
+    const { useOperator } = await import('./client')
+    const operator = useOperator()
+
+    await expect(
+      operator.send('test.slow', {}, { timeout: 50 }),
+    ).rejects.toThrow(/timed out/)
+  })
+
+  it('send() emits error event on timeout', async () => {
+    // Make invoke hang
+    invokeMock = vi.fn(() => new Promise(() => {}))
+    testGlobal.window = { __TAURI__: true }
+
+    const { useOperator } = await import('./client')
+    const operator = useOperator()
+
+    const errors: Array<{ type: string; message: string; requestType?: string }> = []
+    operator.onError((err) => { errors.push(err) })
+
+    try {
+      await operator.send('test.timeout', {}, { timeout: 50 })
+    } catch { /* expected */ }
+
+    expect(errors.length).toBe(1)
+    expect(errors[0].type).toBe('timeout')
+    expect(errors[0].requestType).toBe('test.timeout')
+  })
+
+  it('send() emits error event on failure', async () => {
+    invokeMock = vi.fn(async () => { throw new Error('connection refused') })
+    testGlobal.window = { __TAURI__: true }
+
+    const { useOperator } = await import('./client')
+    const operator = useOperator()
+
+    const errors: Array<{ type: string; message: string; requestType?: string }> = []
+    operator.onError((err) => { errors.push(err) })
+
+    try {
+      await operator.send('test.fail', {})
+    } catch { /* expected */ }
+
+    expect(errors.length).toBe(1)
+    expect(errors[0].type).toBe('request_failed')
+    expect(errors[0].requestType).toBe('test.fail')
+  })
+
+  it('onError unsubscribe works', async () => {
+    invokeMock = vi.fn(async () => { throw new Error('fail') })
+    testGlobal.window = { __TAURI__: true }
+
+    const { useOperator } = await import('./client')
+    const operator = useOperator()
+
+    const errors: string[] = []
+    const unsubscribe = operator.onError((err) => { errors.push(err.type) })
+
+    try { await operator.send('test.1', {}) } catch { /* expected */ }
+    expect(errors.length).toBe(1)
+
+    unsubscribe()
+    try { await operator.send('test.2', {}) } catch { /* expected */ }
+    // Should still be 1 after unsubscribe
+    expect(errors.length).toBe(1)
+  })
 })

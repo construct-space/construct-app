@@ -200,6 +200,55 @@ func TestFindByAgentWithProject(t *testing.T) {
 	}
 }
 
+func TestSaveReturnsErrorOnReadOnlyDir(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(dir)
+
+	// Make the chat-sessions directory read-only
+	sessDir := filepath.Join(dir, "chat-sessions")
+	os.Chmod(sessDir, 0444)
+	defer os.Chmod(sessDir, 0755)
+
+	sess := &Session{
+		ID:      "fail-save",
+		AgentID: "agent",
+		Turns:   []Turn{{ID: "t1", Status: "done"}},
+	}
+
+	err := store.Save(sess)
+	if err == nil {
+		t.Fatal("Save should return error when directory is read-only")
+	}
+}
+
+func TestListLogsParseErrors(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(dir)
+
+	// Create a valid session
+	store.Save(&Session{
+		ID:      "valid",
+		AgentID: "agent",
+		Turns:   []Turn{{ID: "t1", Status: "done"}},
+	})
+
+	// Write invalid JSON file
+	invalidPath := filepath.Join(dir, "chat-sessions", "invalid.json")
+	os.WriteFile(invalidPath, []byte("{broken json"), 0644)
+
+	// List should still return the valid session (not crash)
+	metas, err := store.List()
+	if err != nil {
+		t.Fatalf("List should not error: %v", err)
+	}
+	if len(metas) != 1 {
+		t.Fatalf("expected 1 valid session, got %d", len(metas))
+	}
+	if metas[0].ID != "valid" {
+		t.Errorf("expected valid session, got %q", metas[0].ID)
+	}
+}
+
 func TestSaveUpdatesTimestamps(t *testing.T) {
 	dir := t.TempDir()
 	store := NewStore(dir)

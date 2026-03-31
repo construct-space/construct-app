@@ -68,26 +68,60 @@ function shouldReconnectStreamError(message: string) {
     || normalized.includes('connection closed')
 }
 
+// ─── Error event bus ───
+
+type OperatorErrorHandler = (error: { type: string; message: string; requestType?: string }) => void
+const errorHandlers: Set<OperatorErrorHandler> = new Set()
+
+/** Subscribe to operator error events (timeout, connection failures, etc.) */
+function onError(handler: OperatorErrorHandler): () => void {
+  errorHandlers.add(handler)
+  return () => { errorHandlers.delete(handler) }
+}
+
+function emitError(type: string, message: string, requestType?: string) {
+  const event = { type, message, requestType }
+  for (const handler of errorHandlers) {
+    try { handler(event) } catch { /* ignore handler errors */ }
+  }
+}
+
 // ─── Core send — uses existing Tauri bridge ───
+
+/** Default timeout for operator requests (30 seconds) */
+const SEND_TIMEOUT_MS = 30_000
 
 async function send<T = Record<string, unknown>>(
   requestType: string,
   payload?: Record<string, unknown>,
+  options?: { timeout?: number },
 ): Promise<T> {
   if (!isTauri.value) {
     throw new Error('Operator requires Construct desktop app')
   }
 
   const { invoke } = await import('@tauri-apps/api/core')
+  const timeoutMs = options?.timeout ?? SEND_TIMEOUT_MS
 
   try {
-    return await invoke<T>('send_context_request', {
-      requestType,
-      payload: payload || {},
-    })
+    const result = await Promise.race([
+      invoke<T>('send_context_request', {
+        requestType,
+        payload: payload || {},
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`Operator request timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        ),
+      ),
+    ])
+    return result
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     error.value = msg
+    const isTimeout = msg.includes('timed out')
+    emitError(isTimeout ? 'timeout' : 'request_failed', msg, requestType)
     throw new Error(`Operator: ${requestType} failed — ${msg}`, { cause: e })
   }
 }
@@ -423,6 +457,9 @@ export function useOperator() {
 
     // Raw access (replaces sendRequest)
     send,
+
+    // Error event bus
+    onError,
   }
 }
 
