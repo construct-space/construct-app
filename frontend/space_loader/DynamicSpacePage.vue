@@ -1,24 +1,24 @@
 <script setup lang="ts">
 /**
- * DynamicSpacePage — THE unified renderer for ALL spaces.
+ * DynamicSpacePage — renderer for dynamic (non-host-native) spaces.
  *
- * There are no built-in/hardcoded space routes anymore.
- * Every space (code, design, architect, etc.) goes through this component.
+ * Host-native spaces (architect, brainstorm, coder, project) have their own
+ * explicit routes in `router/routes.ts` and do NOT go through this component.
  *
- * Dev mode:  loads from src/spaces/ via Vite dynamic import
- * Prod mode: loads pre-built IIFE bundles from the active app spaces directory.
+ * Dynamic spaces — installed from the marketplace or linked via `construct dev` —
+ * are loaded at runtime from IIFE bundles on disk via SpaceLoader.
  *
  * Uses SpaceLoader to get Vue components, renders with <component :is>.
  * Falls back to agent-powered placeholder for config-only spaces (no Vue bundle).
  */
 
-import { loadSpace, watchSpace, type LoadedSpace } from '@/space_loader/SpaceLoader'
+import { loadSpace, watchSpace, getLastLoadError, clearLastLoadError, type LoadedSpace, type SpaceLoadError } from '@/space_loader/SpaceLoader'
 import { getSpace as getSpaceTheme } from '@/config/spaces'
 import { useSpaces } from '@/composables/useSpaces'
 import { useTelemetry } from '@/composables/useTelemetry'
 import { useSidebar, type SpaceNavItem } from '@/composables/useSidebar'
 import { detectErrorPhase, getErrorActions, type ErrorAction } from '@/space_loader/errorActions'
-import { Loader2, AlertCircle, ArrowRight } from 'lucide-vue-next'
+import { Loader2, AlertCircle, ArrowRight, RefreshCw, ShoppingBag, Wrench } from 'lucide-vue-next'
 import { shallowRef, markRaw } from 'vue'
 
 /**
@@ -66,6 +66,7 @@ const activeTracker = new ActiveTimeTracker()
 const space = shallowRef<LoadedSpace | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const loadError = ref<SpaceLoadError | null>(null)
 
 /** Actionable suggestions derived from the error message */
 const errorActions = computed<ErrorAction[]>(() => {
@@ -108,7 +109,53 @@ function applyLoaded(loaded: LoadedSpace | null) {
   }
   space.value = loaded
   if (!space.value) {
-    error.value = `Space "${props.spaceName}" is not installed.`
+    // Capture structured error from SpaceLoader if available
+    loadError.value = getLastLoadError()
+    clearLastLoadError()
+    if (loadError.value) {
+      error.value = loadError.value.message
+    } else {
+      error.value = `Space "${props.spaceName}" is not installed.`
+    }
+  } else {
+    loadError.value = null
+    error.value = null
+  }
+}
+
+/** Human-readable label for the error phase */
+function phaseLabel(phase: string): string {
+  const labels: Record<string, string> = {
+    manifest: 'Manifest',
+    validation: 'Validation',
+    version: 'Version Check',
+    checksum: 'Integrity Check',
+    bundle: 'Bundle Loading',
+    eval: 'Execution',
+    export: 'Module Export',
+  }
+  return labels[phase] || phase
+}
+
+/** Suggested actions based on the error phase */
+function suggestedActions(phase: string): string[] {
+  switch (phase) {
+    case 'manifest':
+      return ['Reinstall the space from the marketplace', 'Check if the space files are intact']
+    case 'validation':
+      return ['The space manifest is malformed — reinstall or contact the developer']
+    case 'version':
+      return ['Rebuild the space with the latest Construct SDK', 'Check for space updates in the marketplace']
+    case 'checksum':
+      return ['The bundle file may be corrupted — reinstall the space', 'If developing, rebuild the space']
+    case 'bundle':
+      return ['Reinstall the space', 'Check disk space and permissions']
+    case 'eval':
+      return ['The space code has a runtime error — contact the developer', 'If developing, check the console for details']
+    case 'export':
+      return ['The space bundle is missing page exports — contact the developer', 'Rebuild the space']
+    default:
+      return ['Try reinstalling the space']
   }
 }
 
@@ -247,40 +294,71 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Error state -->
-    <div v-else-if="error" class="flex-1 flex items-center justify-center">
-      <div class="text-center max-w-md">
-        <AlertCircle class="size-10 text-red-400 mx-auto mb-4" />
-        <p class="text-sm text-[var(--app-muted)] mb-6">{{ error }}</p>
-
-        <!-- Actionable suggestions -->
-        <div v-if="errorActions.length > 0" class="space-y-2 mb-6 text-left">
-          <p class="text-xs text-[var(--app-muted)] uppercase tracking-wider font-medium mb-2 text-center">Suggested fixes</p>
-          <button
-            v-for="action in errorActions"
-            :key="action.label"
-            class="w-full flex items-center gap-3 p-3 rounded-lg border border-[var(--app-border)] text-left transition-colors hover:border-[color-mix(in_srgb,var(--app-accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--app-accent)_3%,transparent)]"
-            @click="action.route ? router.push(action.route) : undefined"
-          >
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-[var(--app-foreground)]">{{ action.label }}</p>
-              <p class="text-xs text-[var(--app-muted)] mt-0.5">{{ action.description }}</p>
-            </div>
-            <ArrowRight v-if="action.route" class="size-4 text-[var(--app-muted)] shrink-0" />
-          </button>
+    <!-- Error state — detailed error boundary -->
+    <div v-else-if="error" class="flex-1 flex items-center justify-center p-6">
+      <div class="max-w-md w-full">
+        <!-- Error icon and title -->
+        <div class="text-center mb-6">
+          <div class="size-14 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle class="size-7 text-red-400" />
+          </div>
+          <h2 class="text-lg font-semibold text-[var(--app-foreground)] mb-1">
+            Failed to load {{ spaceName }}
+          </h2>
+          <p class="text-sm text-[var(--app-muted)]">{{ error }}</p>
         </div>
 
+        <!-- Detailed error info when available -->
+        <div v-if="loadError" class="mb-6 rounded-lg border border-[var(--app-border)] bg-[var(--app-background)] overflow-hidden">
+          <!-- Error phase badge -->
+          <div class="px-4 py-3 border-b border-[var(--app-border)] flex items-center gap-2">
+            <Wrench class="size-4 text-[var(--app-muted)]" />
+            <span class="text-xs font-medium text-[var(--app-muted)] uppercase tracking-wider">
+              {{ phaseLabel(loadError.phase) }}
+            </span>
+          </div>
+
+          <!-- Error details -->
+          <div v-if="loadError.details?.length" class="px-4 py-3 space-y-1">
+            <p
+              v-for="(detail, i) in loadError.details"
+              :key="i"
+              class="text-xs text-[var(--app-muted)] font-mono"
+            >
+              {{ detail }}
+            </p>
+          </div>
+
+          <!-- Suggested actions from error-to-action mapping -->
+          <div class="px-4 py-3 border-t border-[var(--app-border)] bg-[color-mix(in_srgb,var(--app-muted)_3%,transparent)]">
+            <p class="text-xs font-medium text-[var(--app-muted)] mb-2">Suggested actions:</p>
+            <ul class="space-y-1">
+              <li
+                v-for="(action, i) in suggestedActions(loadError.phase)"
+                :key="i"
+                class="text-xs text-[var(--app-muted)] flex items-start gap-1.5"
+              >
+                <span class="mt-0.5 shrink-0">&#x2022;</span>
+                <span>{{ action }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
         <div class="flex gap-3 justify-center">
           <button
-            class="px-4 py-2 rounded-lg border border-[var(--app-border)] text-sm text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--app-border)] text-sm text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors"
             @click="router.push('/app/marketplace')"
           >
-            Browse Marketplace
+            <ShoppingBag class="size-4" />
+            Marketplace
           </button>
           <button
-            class="px-4 py-2 rounded-lg border border-[var(--app-border)] text-sm text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--app-border)] text-sm text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors"
             @click="load"
           >
+            <RefreshCw class="size-4" />
             Retry
           </button>
         </div>

@@ -2,7 +2,7 @@
 /**
  * ProjectDetailPage - Project overview with spaces, stats, and deploy
  */
-import { computed } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useProjectStore } from '@/stores/project'
 import { getSpace } from '@/config/spaces'
@@ -25,10 +25,12 @@ const previewDoc = ref<{ title: string; content: string } | null>(null)
 async function openDoc(docTitle: string) {
   const path = projectPath.value
   if (!path) return
-  // Find the actual filename from the docs folder
-  const fileName = summary.value.docs.items.find((d: { title: string }) => d.title === docTitle)
-  if (!fileName) return
-  const filePath = `${path}/docs/${docTitle.replace(/ /g, '-')}.md`
+  // Find the actual doc entry from the summary
+  const docEntry = summary.value.docs.items.find((d: { title: string }) => d.title === docTitle)
+  if (!docEntry) return
+  // Derive filename from the doc title
+  const fileName = `${docEntry.title.replace(/ /g, '-')}.md`
+  const filePath = `${path}/docs/${fileName}`
   try {
     const result = await operator.callTool({
       id: `doc-${Date.now()}`,

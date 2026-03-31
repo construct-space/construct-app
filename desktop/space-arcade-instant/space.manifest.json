@@ -1,0 +1,51 @@
+{
+  "id": "arcade-instant",
+  "name": "Arcade Instant",
+  "version": "0.1.0",
+  "description": "Arcade Instant space for Construct",
+  "author": {
+    "name": "Your Name"
+  },
+  "icon": "i-lucide-box",
+  "scope": "both",
+  "minConstructVersion": "0.7.0",
+  "navigation": {
+    "label": "Arcade Instant",
+    "icon": "i-lucide-box",
+    "to": "arcade-instant",
+    "order": 100
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Home",
+      "icon": "i-lucide-home",
+      "default": true
+    }
+  ],
+  "toolbar": [
+    {
+      "id": "arcade-instant-new",
+      "icon": "i-lucide-plus",
+      "label": "New Arcade Instant",
+      "action": "createArcadeInstant"
+    }
+  ],
+  "keywords": ["arcade-instant"],
+  "agent": "agent/config.md",
+  "skills": ["agent/skills/default.md"],
+  "actions": "src/actions.ts",
+  "widgets": [
+    {
+      "id": "summary",
+      "name": "Arcade Instant Summary",
+      "description": "Quick summary widget for Arcade Instant",
+      "icon": "i-lucide-box",
+      "defaultSize": "4x1",
+      "sizes": {
+        "2x1": "widgets/summary/2x1.vue",
+        "4x1": "widgets/summary/4x1.vue"
+      }
+    }
+  ]
+}

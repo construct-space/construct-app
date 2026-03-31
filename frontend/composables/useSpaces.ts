@@ -21,7 +21,7 @@ const SCOPE_DEFAULTS: Record<string, SpaceScope> = {
   notes: 'project',
   terminal: 'project',
   calendar: 'project',
-  projects: 'app',
+  project: 'app',
   chat: 'app',
   ai: 'app',
   settings: 'app',

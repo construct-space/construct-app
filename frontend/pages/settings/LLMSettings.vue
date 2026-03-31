@@ -532,6 +532,8 @@ async function loadKeys() {
   } catch { /* ignore */ }
 }
 
+const providerLoadError = ref<string | null>(null)
+
 onMounted(async () => {
   try {
     if (route.query.connect === 'oauth' || route.query.connect === 'openai') {
@@ -541,14 +543,22 @@ onMounted(async () => {
     await loadProviders()
     await refreshOAuthProviders()
     await loadKeys()
-  } catch {
-    // silent
+    providerLoadError.value = null
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    providerLoadError.value = msg
+    toast.add({ title: `Failed to load providers: ${msg}`, color: 'error' })
   }
 })
 </script>
 
 <template>
   <div>
+    <!-- Provider load/auth error banner -->
+    <div v-if="providerLoadError" class="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+      <span class="font-medium">Provider connection error:</span> {{ providerLoadError }}
+    </div>
+
     <!-- Tabs -->
     <div class="flex gap-1 p-1 bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] rounded-lg w-fit mb-6">
       <button class="px-4 py-1.5 text-sm rounded-md transition-colors cursor-pointer"

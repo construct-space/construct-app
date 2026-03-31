@@ -5,9 +5,11 @@ package runner
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"construct-operator/internal/agent"
 	"construct-operator/internal/hook"
@@ -42,6 +44,7 @@ type Runner struct {
 	sessions      *session.Store
 	defaultModel  string
 	agentResolver AgentResolver
+	toolTimeouts  map[string]time.Duration // per-tool timeout overrides
 }
 
 const (
@@ -100,6 +103,17 @@ func WithSessionStore(s *session.Store) Option {
 // WithAgentResolver sets the function used to find agent configs for sub-agent spawning.
 func WithAgentResolver(resolver AgentResolver) Option {
 	return func(r *Runner) { r.agentResolver = resolver }
+}
+
+// WithToolTimeout sets a per-tool execution timeout override.
+// Tools not specified will use DefaultToolTimeout.
+func WithToolTimeout(toolName string, timeout time.Duration) Option {
+	return func(r *Runner) {
+		if r.toolTimeouts == nil {
+			r.toolTimeouts = make(map[string]time.Duration)
+		}
+		r.toolTimeouts[toolName] = timeout
+	}
 }
 
 // RunRequest is what you pass to Run().
@@ -280,7 +294,9 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 		if ctx.Err() != nil {
 			sess.SetError("cancelled")
 			sess.Messages = messages
-			r.sessions.Save(sess)
+			if saveErr := r.sessions.Save(sess); saveErr != nil {
+				log.Printf("[runner] session save failed (session=%s): %v", sess.ID, saveErr)
+			}
 			if req.Project != nil && req.Project.RootPath != "" {
 				appendProjectLog(req.Project.RootPath, req.Agent, "cancelled — client disconnected")
 			}
@@ -312,11 +328,18 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 			ToolChoice: "auto",
 			System:     system,
 		}
-		// Attach structured output schema when requested.
-		// Providers that support structured output will use it; others ignore it.
+		// Attach structured output schema when requested, but only if the
+		// provider actually supports it. Otherwise the schema is silently
+		// dropped and the agent gets plain text.
 		if req.OutputSchema != "" {
 			if schema := builtinOutputSchema(req.OutputSchema); schema != nil {
-				provReq.OutputSchema = schema
+				supportsStructured := true
+				if cp, ok := p.(provider.CapabilitiesProvider); ok {
+					supportsStructured = cp.Capabilities().SupportsStructuredOutput
+				}
+				if supportsStructured {
+					provReq.OutputSchema = schema
+				}
 			}
 		}
 		if requiresInitialToolUse(req.Agent) && !hasUsedTools && len(toolDefs) > 0 {
@@ -335,8 +358,8 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 		} else {
 			resp, err = p.Complete(ctx, provReq)
 		}
-		// On first turn auth failure, try fallback provider
-		if err != nil && turn == 0 && isAuthError(err) {
+		// On auth failure, try fallback provider (any turn, not just the first)
+		if err != nil && isAuthError(err) {
 			if fallbackP, fallbackModel, fallbackErr := r.fallbackProvider(p.ID()); fallbackErr == nil {
 				fmt.Printf("[runner] provider %s failed (%v), falling back to %s/%s\n", p.ID(), err, fallbackP.ID(), fallbackModel)
 				p = fallbackP
@@ -352,7 +375,9 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 		if err != nil {
 			sess.SetError(err.Error())
 			sess.Messages = messages
-			r.sessions.Save(sess)
+			if saveErr := r.sessions.Save(sess); saveErr != nil {
+				log.Printf("[runner] session save failed (session=%s): %v", sess.ID, saveErr)
+			}
 			return nil, fmt.Errorf("turn %d: %w", turn, err)
 		}
 		if len(resp.ToolCalls) == 0 {
@@ -368,6 +393,8 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 
 		totalUsage.InputTokens += resp.Usage.InputTokens
 		totalUsage.OutputTokens += resp.Usage.OutputTokens
+		totalUsage.CacheRead += resp.Usage.CacheRead
+		totalUsage.CacheWrite += resp.Usage.CacheWrite
 
 		// Log model text if present
 		if text := strings.TrimSpace(resp.Content); text != "" && req.Project != nil && req.Project.RootPath != "" {
@@ -402,8 +429,10 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 			req.Stream.Emit(stream.Event{Type: "token.usage", Data: map[string]any{
 				"input_tokens":  resp.Usage.InputTokens,
 				"output_tokens": resp.Usage.OutputTokens,
+				"total_tokens":  resp.Usage.Total(),
 				"total_input":   totalUsage.InputTokens,
 				"total_output":  totalUsage.OutputTokens,
+				"total_all":     totalUsage.Total(),
 			}})
 		}
 
@@ -419,7 +448,9 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 				if toolUseRetries >= toolUseRetryLimit(req.Agent, hasUsedTools) {
 					sess.SetError("model failed to use tools after multiple retries")
 					sess.Messages = messages
-					r.sessions.Save(sess)
+					if saveErr := r.sessions.Save(sess); saveErr != nil {
+						log.Printf("[runner] session save failed (session=%s): %v", sess.ID, saveErr)
+					}
 					return nil, fmt.Errorf("turn %d: model failed to use tools after %d retries", turn, toolUseRetries+1)
 				}
 				toolUseRetries++
@@ -456,7 +487,9 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 			})
 			sess.Complete()
 			sess.Messages = messages
-			r.sessions.Save(sess)
+			if saveErr := r.sessions.Save(sess); saveErr != nil {
+				log.Printf("[runner] session save failed (session=%s): %v", sess.ID, saveErr)
+			}
 			return &agent.RunResult{
 				AgentID:    req.Agent.ID,
 				SessionID:  sess.ID,
@@ -552,7 +585,9 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 			})
 			sess.Complete()
 			sess.Messages = messages
-			r.sessions.Save(sess)
+			if saveErr := r.sessions.Save(sess); saveErr != nil {
+				log.Printf("[runner] session save failed (session=%s): %v", sess.ID, saveErr)
+			}
 			return &agent.RunResult{
 				AgentID:    req.Agent.ID,
 				SessionID:  sess.ID,
@@ -592,7 +627,9 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 
 	sess.Complete()
 	sess.Messages = messages
-	r.sessions.Save(sess)
+	if saveErr := r.sessions.Save(sess); saveErr != nil {
+		log.Printf("[runner] session save failed (session=%s): %v", sess.ID, saveErr)
+	}
 	return &agent.RunResult{
 		AgentID:    req.Agent.ID,
 		SessionID:  sess.ID,

@@ -33,6 +33,8 @@ const architectV1Schema = `{
     "state": { "type": "string", "enum": ["questions", "plan", "progress"] },
     "questions": {
       "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
       "items": {
         "type": "object",
         "required": ["id", "question", "type", "options"],
@@ -43,6 +45,7 @@ const architectV1Schema = `{
           "type": { "type": "string", "enum": ["single", "multi"] },
           "options": {
             "type": "array",
+            "minItems": 1,
             "items": {
               "type": "object",
               "required": ["value", "label"],

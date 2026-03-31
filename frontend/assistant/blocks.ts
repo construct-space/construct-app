@@ -166,6 +166,17 @@ export type ResponseBlock =
   | DiffBlock
   | CustomBlock
 
+export interface TurnStreamState {
+  /** Current render phase for this turn */
+  renderState: import('./streamClassification').StreamRenderState
+  /** Whether we are buffering content behind a placeholder */
+  isBuffering: boolean
+  /** Accumulated raw content during buffering */
+  bufferContent: string
+  /** Timestamp when buffering started (for elapsed time display) */
+  bufferStartedAt: number | null
+}
+
 export interface Turn {
   id: string
   request: RequestBlock[]
@@ -174,6 +185,8 @@ export interface Turn {
   status: 'pending' | 'streaming' | 'done' | 'error'
   timestamp: number
   turns?: number
+  /** Streaming coordination state — tracks buffer/render phase */
+  streamState?: TurnStreamState
 }
 
 const OPTION_LINE = /^\s*(?:[-*]|\(?([a-z0-9])\)?[.):]\s*\*{0,2})(.+?)(?:\*{0,2}\s*[-—]\s*(.+))?$/i

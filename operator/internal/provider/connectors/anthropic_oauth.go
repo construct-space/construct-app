@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -153,6 +154,26 @@ func (p *AnthropicOAuthProvider) Models() []string {
 		"claude-sonnet-4-5",
 		"claude-haiku-4-5",
 	}
+}
+
+func (p *AnthropicOAuthProvider) Capabilities() provider.Capabilities {
+	return provider.Capabilities{
+		SupportsStructuredOutput: true,
+		SupportsTools:            true,
+		SupportsStreaming:         true,
+		MaxContextTokens:         200000,
+	}
+}
+
+func (p *AnthropicOAuthProvider) HealthCheck(ctx context.Context) error {
+	token, err := p.getToken()
+	if err != nil {
+		return fmt.Errorf("anthropic-oauth health check: %w", err)
+	}
+	// A lightweight request — the token refresh itself acts as a health check.
+	// We verify the token is valid by just checking we can get one.
+	_ = token
+	return nil
 }
 
 // getToken returns a valid access token, auto-refreshing if needed.
@@ -512,6 +533,7 @@ func (p *AnthropicOAuthProvider) readSSE(body io.ReadCloser, ch chan<- provider.
 	var currentToolCall *provider.ToolCall
 	var toolCalls []provider.ToolCall
 	var contentAccum strings.Builder
+	usage := provider.Usage{}
 
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
@@ -528,12 +550,22 @@ func (p *AnthropicOAuthProvider) readSSE(body io.ReadCloser, ch chan<- provider.
 
 		var event map[string]any
 		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			log.Printf("[anthropic-oauth] SSE parse error: %v (data: %.200s)", err, data)
 			continue
 		}
 
 		eventType, _ := event["type"].(string)
 
 		switch eventType {
+		case "message_start":
+			if msg, ok := event["message"].(map[string]any); ok {
+				if u, ok := msg["usage"].(map[string]any); ok {
+					if v, ok := u["input_tokens"].(float64); ok {
+						usage.InputTokens = int(v)
+					}
+				}
+			}
+
 		case "content_block_start":
 			if cb, ok := event["content_block"].(map[string]any); ok {
 				if bt, _ := cb["type"].(string); bt == "tool_use" {
@@ -566,7 +598,7 @@ func (p *AnthropicOAuthProvider) readSSE(body io.ReadCloser, ch chan<- provider.
 			}
 
 		case "message_stop":
-			resp := &provider.Response{Content: contentAccum.String()}
+			resp := &provider.Response{Content: contentAccum.String(), Usage: usage}
 			for _, tc := range toolCalls {
 				resp.ToolCalls = append(resp.ToolCalls, tc)
 			}
@@ -580,7 +612,13 @@ func (p *AnthropicOAuthProvider) readSSE(body io.ReadCloser, ch chan<- provider.
 			return
 
 		case "message_delta":
-			// Track usage if needed
+			if delta, ok := event["delta"].(map[string]any); ok {
+				if u, ok := delta["usage"].(map[string]any); ok {
+					if v, ok := u["output_tokens"].(float64); ok {
+						usage.OutputTokens = int(v)
+					}
+				}
+			}
 		}
 	}
 }

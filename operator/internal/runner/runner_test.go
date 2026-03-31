@@ -561,6 +561,108 @@ func TestRunRequest_AssistantTypeMetadataJSON(t *testing.T) {
 	}
 }
 
+func TestProviderFallbackOnNonZeroTurn(t *testing.T) {
+	// First provider succeeds on turn 0, then returns auth error on turn 1.
+	// Fallback provider should be used for turn 1.
+	primaryCalls := 0
+	fallbackCalls := 0
+	primary := &authFailAfterNProvider{
+		id:           "anthropic-oauth",
+		models:       []string{"claude-sonnet-4-6"},
+		failAfterN:   1, // fail on second call
+		primaryCalls: &primaryCalls,
+	}
+	fallback := &callCountProvider{
+		id:     "anthropic-fallback",
+		models: []string{"claude-sonnet-4-6"},
+		calls:  &fallbackCalls,
+	}
+
+	reg := tool.NewRegistry()
+	reg.Register(&tool.Tool{
+		Def: provider.ToolDef{
+			Name:        "bash",
+			Description: "Run shell commands",
+			InputSchema: map[string]any{"type": "object"},
+		},
+		Executor: &staticExecutor{content: "ok"},
+		Source:   "test",
+	})
+
+	r := New(
+		WithProvider(primary),
+		WithProvider(fallback),
+		WithTools(reg),
+	)
+
+	result, err := r.Run(context.Background(), &RunRequest{
+		Agent: &agent.Config{ID: "test", Name: "Test"},
+		Task:  "do something",
+		Model: "anthropic-oauth:claude-sonnet-4-6",
+	})
+	if err != nil {
+		t.Fatalf("expected run to succeed with fallback, got %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	// The primary should have been called at least once, then fallback should take over
+	if primaryCalls < 1 {
+		t.Fatalf("expected primary to be called at least once, got %d", primaryCalls)
+	}
+	if fallbackCalls < 1 {
+		t.Fatalf("expected fallback to be called at least once, got %d", fallbackCalls)
+	}
+}
+
+// authFailAfterNProvider succeeds for the first N calls, then returns auth errors.
+type authFailAfterNProvider struct {
+	id           string
+	models       []string
+	failAfterN   int
+	primaryCalls *int
+}
+
+func (p *authFailAfterNProvider) ID() string     { return p.id }
+func (p *authFailAfterNProvider) Models() []string { return p.models }
+func (p *authFailAfterNProvider) Complete(_ context.Context, req *provider.Request) (*provider.Response, error) {
+	*p.primaryCalls++
+	if *p.primaryCalls > p.failAfterN {
+		return nil, fmt.Errorf("auth: 401 unauthorized - refresh failed")
+	}
+	// First call succeeds with tool_use to trigger a second turn
+	return &provider.Response{
+		Content:    "",
+		StopReason: "tool_use",
+		ToolCalls: []provider.ToolCall{
+			{ID: "call_1", Name: "bash", Input: `{"command":"pwd"}`},
+		},
+	}, nil
+}
+func (p *authFailAfterNProvider) Stream(context.Context, *provider.Request) (<-chan provider.StreamEvent, error) {
+	return nil, errors.New("stream not implemented")
+}
+
+// callCountProvider succeeds and counts calls.
+type callCountProvider struct {
+	id     string
+	models []string
+	calls  *int
+}
+
+func (p *callCountProvider) ID() string     { return p.id }
+func (p *callCountProvider) Models() []string { return p.models }
+func (p *callCountProvider) Complete(_ context.Context, req *provider.Request) (*provider.Response, error) {
+	*p.calls++
+	return &provider.Response{
+		Content:    "done from fallback",
+		StopReason: "end_turn",
+	}, nil
+}
+func (p *callCountProvider) Stream(context.Context, *provider.Request) (<-chan provider.StreamEvent, error) {
+	return nil, errors.New("stream not implemented")
+}
+
 type staticExecutor struct {
 	content string
 	isError bool
@@ -571,4 +673,152 @@ func (e *staticExecutor) Execute(context.Context, string) (*tool.Result, error) 
 		Content: e.content,
 		IsError: e.isError,
 	}, nil
+}
+
+// capabilityProvider is a fake that implements CapabilitiesProvider.
+type capabilityProvider struct {
+	sequenceProvider
+	caps provider.Capabilities
+}
+
+func (p *capabilityProvider) Capabilities() provider.Capabilities { return p.caps }
+
+func TestRun_SkipsStructuredOutputWhenUnsupported(t *testing.T) {
+	prov := &capabilityProvider{
+		sequenceProvider: sequenceProvider{
+			id:     "codex",
+			models: []string{"gpt-5.4"},
+			responses: []*provider.Response{
+				{Content: `{"version":"architect.v1","state":"questions"}`, StopReason: "end_turn"},
+			},
+		},
+		caps: provider.Capabilities{
+			SupportsStructuredOutput: false,
+			SupportsTools:            true,
+			SupportsStreaming:         true,
+		},
+	}
+
+	r := New(WithProvider(prov))
+	_, err := r.Run(context.Background(), &RunRequest{
+		Agent:        &agent.Config{ID: "test", Name: "Test"},
+		Task:         "plan the architecture",
+		Model:        "codex:gpt-5.4",
+		OutputSchema: "architect.v1",
+	})
+	if err != nil {
+		t.Fatalf("expected run to succeed, got %v", err)
+	}
+
+	// Provider should NOT have received an output schema
+	if len(prov.requests) == 0 {
+		t.Fatal("expected at least one request")
+	}
+	if prov.requests[0].OutputSchema != nil {
+		t.Fatal("expected OutputSchema to be nil when provider does not support structured output")
+	}
+}
+
+func TestRun_IncludesStructuredOutputWhenSupported(t *testing.T) {
+	prov := &capabilityProvider{
+		sequenceProvider: sequenceProvider{
+			id:     "anthropic",
+			models: []string{"claude-sonnet-4-6"},
+			responses: []*provider.Response{
+				{Content: `{"version":"architect.v1","state":"questions"}`, StopReason: "end_turn"},
+			},
+		},
+		caps: provider.Capabilities{
+			SupportsStructuredOutput: true,
+			SupportsTools:            true,
+			SupportsStreaming:         true,
+		},
+	}
+
+	r := New(WithProvider(prov))
+	_, err := r.Run(context.Background(), &RunRequest{
+		Agent:        &agent.Config{ID: "test", Name: "Test"},
+		Task:         "plan the architecture",
+		Model:        "anthropic:claude-sonnet-4-6",
+		OutputSchema: "architect.v1",
+	})
+	if err != nil {
+		t.Fatalf("expected run to succeed, got %v", err)
+	}
+
+	if len(prov.requests) == 0 {
+		t.Fatal("expected at least one request")
+	}
+	if prov.requests[0].OutputSchema == nil {
+		t.Fatal("expected OutputSchema to be set when provider supports structured output")
+	}
+}
+
+func TestProviderHealth_ReturnsHealthStatus(t *testing.T) {
+	r := New(
+		WithProvider(fakeProvider{id: "test-provider", models: []string{"model-1"}}),
+	)
+
+	health := r.ProviderHealth(context.Background())
+	status, ok := health["test-provider"]
+	if !ok {
+		t.Fatal("expected test-provider in health results")
+	}
+	if status["healthy"] != true {
+		t.Fatalf("expected healthy=true, got %v", status["healthy"])
+	}
+	// fakeProvider doesn't implement HealthChecker, so it should have a note
+	if status["note"] != "no health check implemented" {
+		t.Fatalf("expected note about missing health check, got %v", status["note"])
+	}
+}
+
+func TestRun_AccumulatesTotalUsage(t *testing.T) {
+	prov := &sequenceProvider{
+		id:     "anthropic",
+		models: []string{"claude-sonnet-4-6"},
+		responses: []*provider.Response{
+			{
+				StopReason: "tool_use",
+				Usage:      provider.Usage{InputTokens: 100, OutputTokens: 50, CacheRead: 10},
+				ToolCalls: []provider.ToolCall{
+					{ID: "call_1", Name: "bash", Input: `{"cmd":"pwd"}`},
+				},
+			},
+			{
+				Content:    "done",
+				StopReason: "end_turn",
+				Usage:      provider.Usage{InputTokens: 200, OutputTokens: 75, CacheRead: 20},
+			},
+		},
+	}
+	reg := tool.NewRegistry()
+	reg.Register(&tool.Tool{
+		Def: provider.ToolDef{
+			Name:        "bash",
+			Description: "Run shell commands",
+			InputSchema: map[string]any{"type": "object"},
+		},
+		Executor: &staticExecutor{content: "/tmp"},
+		Source:   "test",
+	})
+
+	r := New(WithProvider(prov), WithTools(reg))
+	result, err := r.Run(context.Background(), &RunRequest{
+		Agent: &agent.Config{ID: "test", Name: "Test"},
+		Task:  "check directory",
+		Model: "anthropic:claude-sonnet-4-6",
+	})
+	if err != nil {
+		t.Fatalf("expected run to succeed, got %v", err)
+	}
+	if result.Usage.InputTokens != 300 {
+		t.Fatalf("expected total input=300, got %d", result.Usage.InputTokens)
+	}
+	if result.Usage.OutputTokens != 125 {
+		t.Fatalf("expected total output=125, got %d", result.Usage.OutputTokens)
+	}
+	if result.Usage.CacheRead != 30 {
+		t.Fatalf("expected total cache_read=30, got %d", result.Usage.CacheRead)
+	}
 }

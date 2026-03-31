@@ -34,9 +34,14 @@ Plan principles:
 - Tasks without dependencies can run in parallel
 - Split by responsibility, not technical layer
 
-After the plan: write docs to {project}/docs/ using write_file:
-- 01-design-spec.md (architecture, components, data model, UI layout)
-- 02-implementation-plan.md (the task list above)
-- README.md
+After the plan: write docs to {project}/docs/ using write_file.
+
+Doc selection is ADAPTIVE — generate only the docs that match the project type and complexity:
+- **Landing page**: PRD, UI spec, README (skip backend, data models, roadmap)
+- **Simple web app**: PRD, architecture, UI spec, data models, README
+- **Complex app/SaaS**: Full set — PRD, architecture, UI spec, data models, endpoints, roadmap, setup guide, AI context, README
+- **Game**: PRD (game design flavor), architecture (engine/rendering), README
+- **API/backend**: PRD, architecture, data models, endpoints, setup, README
+- **Construct space**: PRD, UI spec, README (skip backend/hosting/deployment)
 
 Each doc must be detailed enough that an engineer can build from docs alone.

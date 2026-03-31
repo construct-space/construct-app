@@ -74,6 +74,33 @@ func NewCodexOAuth(cfg CodexOAuthConfig) *CodexOAuthProvider {
 func (p *CodexOAuthProvider) ID() string       { return "openai-oauth" }
 func (p *CodexOAuthProvider) Models() []string { return p.config.Models }
 
+func (p *CodexOAuthProvider) Capabilities() provider.Capabilities {
+	return provider.Capabilities{
+		SupportsStructuredOutput: false, // Codex Responses API format differs
+		SupportsTools:            true,
+		SupportsStreaming:         true,
+		MaxContextTokens:         128000,
+	}
+}
+
+func (p *CodexOAuthProvider) HealthCheck(ctx context.Context) error {
+	// Verify the token works by checking the Codex endpoint is reachable
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", codexBaseURL, nil)
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.AccessToken)
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("openai-oauth health check failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		return fmt.Errorf("openai-oauth auth error: %d", resp.StatusCode)
+	}
+	return nil
+}
+
 func (p *CodexOAuthProvider) Complete(ctx context.Context, req *provider.Request) (*provider.Response, error) {
 	// Collect streaming response into a single response
 	ch, err := p.Stream(ctx, req)

@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"construct-operator/internal/transport"
 )
+
+// HandlerToolTimeout is the timeout for tool execution via the handler endpoint.
+const HandlerToolTimeout = 5 * time.Minute
 
 // handleList returns all registered tool names.
 func (m *ToolModule) handleList(_ context.Context, req transport.Request) transport.Response {
@@ -47,13 +51,23 @@ func (m *ToolModule) handleCall(reqCtx context.Context, req transport.Request) t
 		return transport.Response{ID: req.ID, Success: false, Error: "unknown tool: " + payload.Name}
 	}
 	if m.hooks != nil {
-		if hookResult, err := m.hooks.RunPre(reqCtx, payload.Name, payload.Input); err == nil && hookResult != nil && hookResult.Block {
+		hookResult, hookErr := m.hooks.RunPre(reqCtx, payload.Name, payload.Input)
+		if hookErr != nil {
+			return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("pre-hook execution failed: %v", hookErr)}
+		}
+		if hookResult != nil && hookResult.Block {
 			return transport.Response{ID: req.ID, Success: false, Error: fmt.Sprintf("blocked by hook: %s", hookResult.Message)}
 		}
 	}
-	result, err := t.Executor.Execute(reqCtx, payload.Input)
+	toolCtx, toolCancel := context.WithTimeout(reqCtx, HandlerToolTimeout)
+	defer toolCancel()
+	result, err := t.Executor.Execute(toolCtx, payload.Input)
 	if err != nil {
-		return transport.Response{ID: req.ID, Success: false, Error: err.Error()}
+		errMsg := err.Error()
+		if toolCtx.Err() == context.DeadlineExceeded {
+			errMsg = fmt.Sprintf("tool %s timed out after %s", payload.Name, HandlerToolTimeout)
+		}
+		return transport.Response{ID: req.ID, Success: false, Error: errMsg}
 	}
 	if m.hooks != nil {
 		m.hooks.RunPost(reqCtx, payload.Name, result.Content)

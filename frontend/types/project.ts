@@ -13,7 +13,7 @@ export const PROJECT_SCOPED_SPACES: SpaceType[] = [
 
 /** Spaces that live at the app/global level */
 export const APP_SCOPED_SPACES: string[] = [
-  'projects', 'chat', 'ai', 'settings', 'marketplace'
+  'project', 'chat', 'ai', 'settings', 'marketplace'
 ]
 
 /** Spaces that appear in both scopes */

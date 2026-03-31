@@ -8,6 +8,15 @@
  * Called once in main.ts before app mount.
  */
 
+// Re-export pure constants from the side-effect-free constants module.
+// Import from spaceHostConstants.ts when you only need the data (e.g. tests, validation).
+// Import from this file (spaceHost.ts) when you also need initSpaceHost().
+export {
+  HOST_API_VERSION,
+  HOST_PROVIDED_PACKAGES,
+  type HostExternalizationId,
+} from './spaceHostConstants'
+
 import * as Vue from 'vue'
 import * as VueRouter from 'vue-router'
 import * as Pinia from 'pinia'
@@ -147,7 +156,3 @@ export function initSpaceHost(): void {
   }
 }
 
-/**
- * Get the host API version for compatibility checking.
- */
-export const HOST_API_VERSION = '0.2.0'

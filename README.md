@@ -37,7 +37,7 @@ bun run dev
 
 **Operator** — Go sidecar running locally on `:60100`. Powers 10+ AI agents with 22+ tools. Supports Anthropic, OpenAI, DeepSeek, Ollama. Each space can have its own agent defined in markdown (no code needed).
 
-**Frontend** — Vue 3 with modular "Spaces" architecture. Each space is a self-contained module with pages, components, AI agent config, and theme. Built-in: Code, Design, AI, Chat, Git, Terminal, Tasks, Docs, Notes, Calendar.
+**Frontend** — Vue 3 with modular "Spaces" architecture. Each space is a self-contained module with pages, components, AI agent config, and theme. Host-native: Architect, Brainstorm (Chat), Coder, Project. Additional spaces are installed from the marketplace.
 
 **Desktop** — Tauri 2 native shell. 3D rotating sidebar, toolbar with breadcrumb transitions, operator sidecar management, window state, deep links.
 

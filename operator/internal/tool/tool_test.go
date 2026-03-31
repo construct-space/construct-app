@@ -3,6 +3,7 @@ package tool
 import (
 	"context"
 	"testing"
+	"time"
 
 	"construct-operator/internal/provider"
 )
@@ -249,6 +250,59 @@ func TestExecutor(t *testing.T) {
 	}
 	if result.IsError {
 		t.Error("expected IsError=false")
+	}
+}
+
+func TestExecutorTimeout(t *testing.T) {
+	r := NewRegistry()
+
+	// Register a tool that takes too long
+	slowTool := Func("slow_tool", "Takes forever", nil, func(ctx context.Context, input string) (*Result, error) {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(10 * time.Second):
+			return &Result{Content: "done"}, nil
+		}
+	})
+	r.Register(slowTool)
+
+	tool, ok := r.Get("slow_tool")
+	if !ok {
+		t.Fatal("expected slow_tool to be registered")
+	}
+
+	// Execute with a short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, err := tool.Executor.Execute(ctx, "{}")
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if ctx.Err() != context.DeadlineExceeded {
+		t.Fatalf("expected DeadlineExceeded, got %v", ctx.Err())
+	}
+}
+
+func TestExecutorRespectsContextCancellation(t *testing.T) {
+	r := NewRegistry()
+
+	blockingTool := Func("blocking", "blocks", nil, func(ctx context.Context, input string) (*Result, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	r.Register(blockingTool)
+
+	tool, _ := r.Get("blocking")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel immediately
+	cancel()
+
+	_, err := tool.Executor.Execute(ctx, "{}")
+	if err == nil {
+		t.Fatal("expected cancellation error")
 	}
 }
 

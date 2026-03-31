@@ -1,7 +1,10 @@
 package skill
 
 import (
+	"log"
+	"regexp"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -25,6 +28,11 @@ func (r *Registry) Register(s *Skill) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// Validate trigger regex patterns at registration time
+	if s.Trigger != "" {
+		validateTriggerPatterns(s.ID, s.Trigger)
+	}
+
 	r.skills[s.ID] = s
 	if s.Name == "" {
 		s.Name = s.ID
@@ -40,6 +48,18 @@ func (r *Registry) Register(s *Skill) {
 			LoadedAt:  now,
 			UpdatedAt: now,
 		}
+	}
+}
+
+// validateTriggerPatterns checks that trigger patterns compile as regex.
+// Keyword lists (comma-separated) are not regex, so only single triggers are checked.
+func validateTriggerPatterns(skillID, trigger string) {
+	if strings.Contains(trigger, ",") {
+		// Comma-separated keywords — not regex
+		return
+	}
+	if _, err := regexp.Compile("(?i)" + trigger); err != nil {
+		log.Printf("[skill] WARNING: skill %q has invalid regex trigger %q: %v", skillID, trigger, err)
 	}
 }
 

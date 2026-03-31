@@ -1,6 +1,8 @@
 package connectors
 
 import (
+	"io"
+	"strings"
 	"testing"
 
 	"construct-operator/internal/provider"
@@ -44,6 +46,64 @@ func TestOpenAICompatBuildBodySanitizesToolSchema(t *testing.T) {
 	}
 	if parameters["type"] != "object" {
 		t.Fatalf("expected object schema, got %#v", parameters["type"])
+	}
+}
+
+func TestReadSSEHandlesInvalidJSON(t *testing.T) {
+	// Simulate an SSE stream with valid data, invalid JSON, and valid data
+	sseData := strings.Join([]string{
+		`data: {"choices":[{"delta":{"content":"hello"},"finish_reason":null}]}`,
+		`data: {broken json!`,
+		`data: {"choices":[{"delta":{"content":" world"},"finish_reason":null}]}`,
+		`data: {"choices":[{"delta":{},"finish_reason":"stop"}]}`,
+		`data: [DONE]`,
+	}, "\n") + "\n"
+
+	prov := NewOpenAICompat(OpenAICompatConfig{Key: "test"})
+	ch := make(chan provider.StreamEvent, 64)
+
+	body := io.NopCloser(strings.NewReader(sseData))
+	prov.readSSE(body, ch)
+
+	var events []provider.StreamEvent
+	for ev := range ch {
+		events = append(events, ev)
+	}
+
+	// Should have received text deltas for "hello" and " world" plus "done"
+	// The broken JSON line should be logged and skipped
+	textDeltas := 0
+	doneCount := 0
+	for _, ev := range events {
+		if ev.Type == "text_delta" {
+			textDeltas++
+		}
+		if ev.Type == "done" {
+			doneCount++
+		}
+	}
+	if textDeltas != 2 {
+		t.Fatalf("expected 2 text_delta events, got %d (total events: %d)", textDeltas, len(events))
+	}
+	if doneCount != 1 {
+		t.Fatalf("expected 1 done event, got %d", doneCount)
+	}
+}
+
+func TestReadSSEHandlesEmptyStream(t *testing.T) {
+	prov := NewOpenAICompat(OpenAICompatConfig{Key: "test"})
+	ch := make(chan provider.StreamEvent, 64)
+
+	body := io.NopCloser(strings.NewReader(""))
+	prov.readSSE(body, ch)
+
+	var events []provider.StreamEvent
+	for ev := range ch {
+		events = append(events, ev)
+	}
+
+	if len(events) != 0 {
+		t.Fatalf("expected 0 events for empty stream, got %d", len(events))
 	}
 }
 

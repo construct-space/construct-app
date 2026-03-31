@@ -12,6 +12,7 @@
 import { ref, computed } from 'vue'
 import { getSpaceDirPath, getSpacesDirPath } from '@/lib/appPaths'
 import { appConfig } from '@/utils/config'
+import { HOST_NATIVE_SPACE_IDS } from '@/types/space'
 
 export interface RemoteSpace {
   id: string
@@ -482,17 +483,20 @@ export async function autoInstallRecommended(): Promise<void> {
   }
 }
 
-/** Spaces that are now native host pages — never install as dynamic spaces */
-export const NATIVE_SPACE_IDS = new Set(['architect', 'projects'])
+/**
+ * Spaces that are host-native pages — never install as dynamic spaces.
+ * Derived from the canonical list in types/space.ts.
+ */
+export const NATIVE_SPACE_IDS: Set<string> = new Set(HOST_NATIVE_SPACE_IDS)
 
 /**
  * Ensure essential spaces are always installed.
- * Currently no essential spaces remain (architect + projects are native).
+ * Currently no essential spaces remain — all 4 built-in spaces are host-native.
  */
 export const ESSENTIAL_SPACE_IDS: string[] = []
 
 export async function ensureEssentialSpaces(): Promise<void> {
-  // No essential spaces to ensure — architect + projects are native host pages
+  // No essential spaces to ensure — architect, brainstorm, coder, project are host-native
 }
 
 /** Compare semver strings — returns true if `remote` is newer than `local` */

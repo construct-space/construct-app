@@ -57,6 +57,19 @@ type OpenRouterProvider struct {
 func (p *OpenRouterProvider) ID() string       { return "openrouter" }
 func (p *OpenRouterProvider) Models() []string { return p.compat.Models() }
 
+func (p *OpenRouterProvider) Capabilities() provider.Capabilities {
+	return provider.Capabilities{
+		SupportsStructuredOutput: true,
+		SupportsTools:            true,
+		SupportsStreaming:         true,
+		MaxContextTokens:         128000,
+	}
+}
+
+func (p *OpenRouterProvider) HealthCheck(ctx context.Context) error {
+	return p.compat.HealthCheck(ctx)
+}
+
 // ModelsMeta implements ModelMetaProvider — returns per-model capabilities.
 func (p *OpenRouterProvider) ModelsMeta() []provider.ModelMeta { return p.meta }
 

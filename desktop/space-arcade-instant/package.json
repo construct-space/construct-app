@@ -1,0 +1,27 @@
+{
+  "name": "@construct-spaces/space-arcade-instant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate-entry": "construct build --entry-only",
+    "build": "construct build",
+    "dev": "construct dev",
+    "check": "construct check",
+    "validate": "construct validate"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0",
+    "pinia": "^3.0.0",
+    "@vueuse/core": "^14.0.0"
+  },
+  "devDependencies": {
+    "@construct-space/cli": "latest",
+    "@construct-space/sdk": "latest",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "lucide-vue-next": "^1.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.3.5",
+    "vue-tsc": "^3.2.5"
+  }
+}

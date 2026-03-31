@@ -6,10 +6,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	"construct-operator/internal/provider"
 	"construct-operator/internal/provider/helpers"
@@ -37,7 +41,54 @@ func (p *AnthropicProvider) Models() []string {
 	}
 }
 
+func (p *AnthropicProvider) Capabilities() provider.Capabilities {
+	return provider.Capabilities{
+		SupportsStructuredOutput: true,
+		SupportsTools:            true,
+		SupportsStreaming:         true,
+		MaxContextTokens:         200000,
+	}
+}
+
+func (p *AnthropicProvider) HealthCheck(ctx context.Context) error {
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/v1/messages", strings.NewReader(`{"model":"claude-haiku-4-5-20251001","max_tokens":1,"messages":[{"role":"user","content":"ping"}]}`))
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", p.apiKey)
+	httpReq.Header.Set("anthropic-version", "2025-01-01")
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("anthropic health check failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		return fmt.Errorf("anthropic auth error: %d", resp.StatusCode)
+	}
+	// 200 or 400 (invalid request) both mean the API is reachable
+	return nil
+}
+
 func (p *AnthropicProvider) Complete(ctx context.Context, req *provider.Request) (*provider.Response, error) {
+	resp, err := p.doComplete(ctx, req)
+	if err != nil {
+		// Rate limit: wait and retry once
+		var rlErr *provider.RateLimitError
+		if errors.As(err, &rlErr) && rlErr.RetryAfter > 0 {
+			fmt.Fprintf(os.Stderr, "[anthropic] rate limited, retrying after %s\n", rlErr.RetryAfter)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(rlErr.RetryAfter):
+			}
+			return p.doComplete(ctx, req)
+		}
+	}
+	return resp, err
+}
+
+func (p *AnthropicProvider) doComplete(ctx context.Context, req *provider.Request) (*provider.Response, error) {
 	// Convert to Anthropic format
 	body := p.buildBody(req)
 
@@ -65,6 +116,13 @@ func (p *AnthropicProvider) Complete(ctx context.Context, req *provider.Request)
 		return nil, err
 	}
 
+	if resp.StatusCode == 429 {
+		rlErr := helpers.CheckRateLimit("anthropic", resp, fmt.Errorf("%s", string(respData)))
+		if rlErr != nil {
+			return nil, rlErr
+		}
+	}
+
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("anthropic API error %d: %s", resp.StatusCode, string(respData))
 	}
@@ -73,6 +131,32 @@ func (p *AnthropicProvider) Complete(ctx context.Context, req *provider.Request)
 }
 
 func (p *AnthropicProvider) Stream(ctx context.Context, req *provider.Request) (<-chan provider.StreamEvent, error) {
+	resp, err := p.startStream(ctx, req)
+	if err != nil {
+		// Rate limit: wait and retry once
+		var rlErr *provider.RateLimitError
+		if errors.As(err, &rlErr) && rlErr.RetryAfter > 0 {
+			fmt.Fprintf(os.Stderr, "[anthropic] stream rate limited, retrying after %s\n", rlErr.RetryAfter)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(rlErr.RetryAfter):
+			}
+			resp, err = p.startStream(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	ch := make(chan provider.StreamEvent, 64)
+	go p.readSSE(resp.Body, ch)
+	return ch, nil
+}
+
+func (p *AnthropicProvider) startStream(ctx context.Context, req *provider.Request) (*http.Response, error) {
 	body := p.buildBody(req)
 	body["stream"] = true
 
@@ -94,15 +178,22 @@ func (p *AnthropicProvider) Stream(ctx context.Context, req *provider.Request) (
 		return nil, err
 	}
 
+	if resp.StatusCode == 429 {
+		respData, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		rlErr := helpers.CheckRateLimit("anthropic", resp, fmt.Errorf("%s", string(respData)))
+		if rlErr != nil {
+			return nil, rlErr
+		}
+	}
+
 	if resp.StatusCode != 200 {
 		respData, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		return nil, fmt.Errorf("anthropic stream error %d: %s", resp.StatusCode, string(respData))
 	}
 
-	ch := make(chan provider.StreamEvent, 64)
-	go p.readSSE(resp.Body, ch)
-	return ch, nil
+	return resp, nil
 }
 
 func (p *AnthropicProvider) buildBody(req *provider.Request) map[string]any {
@@ -236,6 +327,7 @@ func (p *AnthropicProvider) readSSE(body io.ReadCloser, ch chan<- provider.Strea
 	var currentToolCall *provider.ToolCall
 	var toolCalls []provider.ToolCall
 	var textContent string
+	usage := provider.Usage{}
 
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
@@ -252,12 +344,23 @@ func (p *AnthropicProvider) readSSE(body io.ReadCloser, ch chan<- provider.Strea
 
 		var event map[string]any
 		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			log.Printf("[anthropic] SSE parse error: %v (data: %.200s)", err, data)
 			continue
 		}
 
 		eventType, _ := event["type"].(string)
 
 		switch eventType {
+		case "message_start":
+			// Anthropic sends usage in the initial message_start event
+			if msg, ok := event["message"].(map[string]any); ok {
+				if u, ok := msg["usage"].(map[string]any); ok {
+					if v, ok := u["input_tokens"].(float64); ok {
+						usage.InputTokens = int(v)
+					}
+				}
+			}
+
 		case "content_block_start":
 			if cb, ok := event["content_block"].(map[string]any); ok {
 				if bt, _ := cb["type"].(string); bt == "tool_use" {
@@ -288,7 +391,7 @@ func (p *AnthropicProvider) readSSE(body io.ReadCloser, ch chan<- provider.Strea
 			}
 
 		case "message_stop":
-			resp := &provider.Response{Content: textContent}
+			resp := &provider.Response{Content: textContent, Usage: usage}
 			for _, tc := range toolCalls {
 				resp.ToolCalls = append(resp.ToolCalls, tc)
 			}
@@ -302,11 +405,10 @@ func (p *AnthropicProvider) readSSE(body io.ReadCloser, ch chan<- provider.Strea
 
 		case "message_delta":
 			if delta, ok := event["delta"].(map[string]any); ok {
-				if usage, ok := delta["usage"].(map[string]any); ok {
-					_ = usage // TODO: track usage
-				}
-				if sr, ok := delta["stop_reason"].(string); ok {
-					_ = sr
+				if u, ok := delta["usage"].(map[string]any); ok {
+					if v, ok := u["output_tokens"].(float64); ok {
+						usage.OutputTokens = int(v)
+					}
 				}
 			}
 		}

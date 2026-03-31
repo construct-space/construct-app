@@ -190,6 +190,40 @@ Do stuff.`
 	}
 }
 
+func TestRegisterValidatesTriggerRegex(t *testing.T) {
+	reg := NewRegistry()
+
+	// Valid regex trigger should register without issues
+	reg.Register(&Skill{ID: "valid-regex", Trigger: `fix\s+(bug|issue)`})
+	if _, ok := reg.Get("valid-regex"); !ok {
+		t.Fatal("valid regex skill should be registered")
+	}
+
+	// Invalid regex trigger should still register (warning only, not an error)
+	reg.Register(&Skill{ID: "bad-regex", Trigger: `[unclosed`})
+	if _, ok := reg.Get("bad-regex"); !ok {
+		t.Fatal("skill with invalid regex should still be registered (with warning)")
+	}
+
+	// Keyword triggers (comma-separated) should not be validated as regex
+	reg.Register(&Skill{ID: "keywords", Trigger: "commit,/commit,deploy"})
+	if _, ok := reg.Get("keywords"); !ok {
+		t.Fatal("keyword trigger skill should be registered")
+	}
+}
+
+func TestMatchInvalidRegexFallsBackToKeyword(t *testing.T) {
+	reg := NewRegistry()
+	reg.Register(&Skill{ID: "weird", Trigger: `[unclosed`})
+
+	// matchesTrigger should handle invalid regex gracefully
+	// (falls back to keyword matching)
+	matches := reg.Match("[unclosed bracket test")
+	if len(matches) != 1 || matches[0].ID != "weird" {
+		t.Fatal("invalid regex trigger should fall back to keyword match")
+	}
+}
+
 func TestBuiltinSkills(t *testing.T) {
 	reg := NewRegistry()
 	RegisterBuiltins(reg)

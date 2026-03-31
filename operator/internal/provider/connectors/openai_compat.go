@@ -7,12 +7,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"construct-operator/internal/provider"
 	"construct-operator/internal/provider/helpers"
@@ -72,7 +75,50 @@ func NewOpenAIFromCodex() (*OpenAICompatProvider, error) {
 func (p *OpenAICompatProvider) ID() string       { return p.config.Key }
 func (p *OpenAICompatProvider) Models() []string { return p.config.Models }
 
+func (p *OpenAICompatProvider) Capabilities() provider.Capabilities {
+	return provider.Capabilities{
+		SupportsStructuredOutput: true,
+		SupportsTools:            true,
+		SupportsStreaming:         true,
+		MaxContextTokens:         128000,
+	}
+}
+
+func (p *OpenAICompatProvider) HealthCheck(ctx context.Context) error {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", p.config.BaseURL+"/models", nil)
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("%s health check failed: %w", p.config.Name, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		return fmt.Errorf("%s auth error: %d", p.config.Name, resp.StatusCode)
+	}
+	return nil
+}
+
 func (p *OpenAICompatProvider) Complete(ctx context.Context, req *provider.Request) (*provider.Response, error) {
+	result, err := p.doComplete(ctx, req)
+	if err != nil {
+		var rlErr *provider.RateLimitError
+		if errors.As(err, &rlErr) && rlErr.RetryAfter > 0 {
+			fmt.Fprintf(os.Stderr, "[%s] rate limited, retrying after %s\n", p.config.Key, rlErr.RetryAfter)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(rlErr.RetryAfter):
+			}
+			return p.doComplete(ctx, req)
+		}
+	}
+	return result, err
+}
+
+func (p *OpenAICompatProvider) doComplete(ctx context.Context, req *provider.Request) (*provider.Response, error) {
 	body := p.buildBody(req)
 
 	data, err := json.Marshal(body)
@@ -98,6 +144,13 @@ func (p *OpenAICompatProvider) Complete(ctx context.Context, req *provider.Reque
 		return nil, err
 	}
 
+	if resp.StatusCode == 429 {
+		rlErr := helpers.CheckRateLimit(p.config.Name, resp, fmt.Errorf("%s", string(respData)))
+		if rlErr != nil {
+			return nil, rlErr
+		}
+	}
+
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("%s API error %d: %s", p.config.Name, resp.StatusCode, string(respData))
 	}
@@ -106,6 +159,31 @@ func (p *OpenAICompatProvider) Complete(ctx context.Context, req *provider.Reque
 }
 
 func (p *OpenAICompatProvider) Stream(ctx context.Context, req *provider.Request) (<-chan provider.StreamEvent, error) {
+	resp, err := p.startStream(ctx, req)
+	if err != nil {
+		var rlErr *provider.RateLimitError
+		if errors.As(err, &rlErr) && rlErr.RetryAfter > 0 {
+			fmt.Fprintf(os.Stderr, "[%s] stream rate limited, retrying after %s\n", p.config.Key, rlErr.RetryAfter)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(rlErr.RetryAfter):
+			}
+			resp, err = p.startStream(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	ch := make(chan provider.StreamEvent, 64)
+	go p.readSSE(resp.Body, ch)
+	return ch, nil
+}
+
+func (p *OpenAICompatProvider) startStream(ctx context.Context, req *provider.Request) (*http.Response, error) {
 	body := p.buildBody(req)
 	body["stream"] = true
 
@@ -126,15 +204,22 @@ func (p *OpenAICompatProvider) Stream(ctx context.Context, req *provider.Request
 		return nil, err
 	}
 
+	if resp.StatusCode == 429 {
+		respData, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		rlErr := helpers.CheckRateLimit(p.config.Name, resp, fmt.Errorf("%s", string(respData)))
+		if rlErr != nil {
+			return nil, rlErr
+		}
+	}
+
 	if resp.StatusCode != 200 {
 		respData, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		return nil, fmt.Errorf("%s stream error %d: %s", p.config.Name, resp.StatusCode, string(respData))
 	}
 
-	ch := make(chan provider.StreamEvent, 64)
-	go p.readSSE(resp.Body, ch)
-	return ch, nil
+	return resp, nil
 }
 
 func (p *OpenAICompatProvider) readSSE(body io.ReadCloser, ch chan<- provider.StreamEvent) {
@@ -176,6 +261,7 @@ func (p *OpenAICompatProvider) readSSE(body io.ReadCloser, ch chan<- provider.St
 			} `json:"choices"`
 		}
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			log.Printf("[%s] SSE parse error: %v (data: %.200s)", p.config.Key, err, data)
 			continue
 		}
 
