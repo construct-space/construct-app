@@ -328,11 +328,18 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 			ToolChoice: "auto",
 			System:     system,
 		}
-		// Attach structured output schema when requested.
-		// Providers that support structured output will use it; others ignore it.
+		// Attach structured output schema when requested, but only if the
+		// provider actually supports it. Otherwise the schema is silently
+		// dropped and the agent gets plain text.
 		if req.OutputSchema != "" {
 			if schema := builtinOutputSchema(req.OutputSchema); schema != nil {
-				provReq.OutputSchema = schema
+				supportsStructured := true
+				if cp, ok := p.(provider.CapabilitiesProvider); ok {
+					supportsStructured = cp.Capabilities().SupportsStructuredOutput
+				}
+				if supportsStructured {
+					provReq.OutputSchema = schema
+				}
 			}
 		}
 		if requiresInitialToolUse(req.Agent) && !hasUsedTools && len(toolDefs) > 0 {
@@ -386,6 +393,8 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 
 		totalUsage.InputTokens += resp.Usage.InputTokens
 		totalUsage.OutputTokens += resp.Usage.OutputTokens
+		totalUsage.CacheRead += resp.Usage.CacheRead
+		totalUsage.CacheWrite += resp.Usage.CacheWrite
 
 		// Log model text if present
 		if text := strings.TrimSpace(resp.Content); text != "" && req.Project != nil && req.Project.RootPath != "" {
@@ -420,8 +429,10 @@ func (r *Runner) Run(ctx context.Context, req *RunRequest) (*agent.RunResult, er
 			req.Stream.Emit(stream.Event{Type: "token.usage", Data: map[string]any{
 				"input_tokens":  resp.Usage.InputTokens,
 				"output_tokens": resp.Usage.OutputTokens,
+				"total_tokens":  resp.Usage.Total(),
 				"total_input":   totalUsage.InputTokens,
 				"total_output":  totalUsage.OutputTokens,
+				"total_all":     totalUsage.Total(),
 			}})
 		}
 

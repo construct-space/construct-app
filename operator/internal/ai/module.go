@@ -103,6 +103,7 @@ func (m *AIModule) Routes(r *module.Router) {
 	r.Handle("ai.providers", m.handleProviders)
 	r.Handle("providers.list", m.handleProviders)
 	r.Handle("stream.cancel", m.handleStreamCancel)
+	r.Handle("provider.health", m.handleProviderHealth)
 
 	r.HandleStream("agents.dispatch_stream", m.handleDispatchStream)
 	r.HandleStream("ai.chat_stream", m.handleChatStream)
@@ -291,6 +292,14 @@ func (m *AIModule) handleProviders(_ context.Context, req transport.Request) tra
 	return transport.Response{
 		ID: req.ID, Success: true,
 		Data: map[string]any{"providers": providerList},
+	}
+}
+
+func (m *AIModule) handleProviderHealth(ctx context.Context, req transport.Request) transport.Response {
+	health := m.runner.ProviderHealth(ctx)
+	return transport.Response{
+		ID: req.ID, Success: true,
+		Data: map[string]any{"providers": health},
 	}
 }
 

@@ -70,6 +70,23 @@ func NewGitHubCopilotOAuth(cfg GitHubCopilotOAuthConfig) *GitHubCopilotOAuthProv
 func (p *GitHubCopilotOAuthProvider) ID() string       { return "github-copilot" }
 func (p *GitHubCopilotOAuthProvider) Models() []string { return append([]string(nil), p.models...) }
 
+func (p *GitHubCopilotOAuthProvider) Capabilities() provider.Capabilities {
+	return provider.Capabilities{
+		SupportsStructuredOutput: false,
+		SupportsTools:            true,
+		SupportsStreaming:         true,
+		MaxContextTokens:         128000,
+	}
+}
+
+func (p *GitHubCopilotOAuthProvider) HealthCheck(ctx context.Context) error {
+	_, _, err := p.getToken()
+	if err != nil {
+		return fmt.Errorf("github-copilot health check: %w", err)
+	}
+	return nil
+}
+
 func (p *GitHubCopilotOAuthProvider) Complete(ctx context.Context, req *provider.Request) (*provider.Response, error) {
 	ch, err := p.Stream(ctx, req)
 	if err != nil {

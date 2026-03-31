@@ -5,7 +5,38 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"time"
 )
+
+// Capabilities declares what a provider/model supports.
+// Connectors report these at registration so the runner can make
+// informed decisions (e.g. skip structured output for providers
+// that do not support it).
+type Capabilities struct {
+	SupportsStructuredOutput bool `json:"supports_structured_output"`
+	SupportsTools            bool `json:"supports_tools"`
+	SupportsStreaming         bool `json:"supports_streaming"`
+	MaxContextTokens         int  `json:"max_context_tokens,omitempty"`
+}
+
+// RateLimitError is returned when a provider responds with HTTP 429.
+// It carries the suggested wait duration parsed from retry-after or
+// x-ratelimit-reset-ms headers.
+type RateLimitError struct {
+	Provider    string
+	RetryAfter  time.Duration
+	Underlying  error
+}
+
+func (e *RateLimitError) Error() string {
+	if e.RetryAfter > 0 {
+		return fmt.Sprintf("%s rate limited, retry after %s: %v", e.Provider, e.RetryAfter, e.Underlying)
+	}
+	return fmt.Sprintf("%s rate limited: %v", e.Provider, e.Underlying)
+}
+
+func (e *RateLimitError) Unwrap() error { return e.Underlying }
 
 // Message is a provider-agnostic chat message.
 type Message struct {
@@ -76,8 +107,17 @@ type Response struct {
 type Usage struct {
 	InputTokens  int `json:"input_tokens"`
 	OutputTokens int `json:"output_tokens"`
+	TotalTokens  int `json:"total_tokens,omitempty"`
 	CacheRead    int `json:"cache_read,omitempty"`
 	CacheWrite   int `json:"cache_write,omitempty"`
+}
+
+// Total returns InputTokens + OutputTokens (or TotalTokens if set).
+func (u Usage) Total() int {
+	if u.TotalTokens > 0 {
+		return u.TotalTokens
+	}
+	return u.InputTokens + u.OutputTokens
 }
 
 // StreamEvent is a chunk from a streaming response.
@@ -116,4 +156,16 @@ type ModelMeta struct {
 // supply per-model metadata beyond just the ID string.
 type ModelMetaProvider interface {
 	ModelsMeta() []ModelMeta
+}
+
+// CapabilitiesProvider is an optional interface providers can implement to
+// declare what features they support.
+type CapabilitiesProvider interface {
+	Capabilities() Capabilities
+}
+
+// HealthChecker is an optional interface providers can implement to
+// support health checks (e.g. API ping or model listing).
+type HealthChecker interface {
+	HealthCheck(ctx context.Context) error
 }
