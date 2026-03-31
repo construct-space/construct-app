@@ -174,4 +174,20 @@ describe('normalizeArchitectOutput', () => {
     expect(blocks[0]?.type).toBe('text')
     expect((blocks[0] as any).content).toContain('No auth')
   })
+
+  it('legacy path passes through multiple questions (diverges from v1 single-question contract)', () => {
+    // Legacy normalizer does NOT enforce single-question — it normalizes all questions.
+    // This is intentional: legacy output is best-effort, not contract-compliant.
+    // The v1 schema enforces max(1) question; legacy paths will be removed in 0.8.
+    const blocks = normalizeArchitectOutput({
+      questions: [
+        { id: 'q1', question: 'First?', type: 'single', options: [{ value: 'a', label: 'A' }] },
+        { id: 'q2', question: 'Second?', type: 'single', options: [{ value: 'b', label: 'B' }] },
+      ],
+    })
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]?.type).toBe('architect:questions')
+    const questions = (blocks[0] as any).data.questions
+    expect(questions).toHaveLength(2) // legacy: passes all through
+  })
 })

@@ -2,13 +2,33 @@
  * Architect Plan Types
  *
  * Type definitions for the Architect plan structure.
- * Document generation is now handled by the docs agent (space-docs)
+ * Document generation is handled by the docs agent (space-docs)
  * which writes numbered docs directly via write_file.
+ *
+ * The doc set is ADAPTIVE — the Architect selects which docs to generate
+ * based on what it learned during the interview. See `PROJECT_TYPE_DOCS`
+ * for the mapping of project types to recommended doc sets.
  */
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type DocumentType = 'prd' | 'readme' | 'architecture' | 'data-models' | 'ui-spec' | 'roadmap' | 'ai-context' | 'setup'
+export type DocumentType = 'prd' | 'readme' | 'architecture' | 'data-models' | 'ui-spec' | 'roadmap' | 'ai-context' | 'setup' | 'endpoints'
+
+/**
+ * Recommended doc sets per project type.
+ * The Architect agent uses this as a guide — it may add or remove docs
+ * based on the specific interview answers.
+ */
+export const PROJECT_TYPE_DOCS: Record<string, DocumentType[]> = {
+  'landing-page': ['prd', 'ui-spec', 'readme'],
+  'web-app': ['prd', 'architecture', 'ui-spec', 'data-models', 'readme'],
+  'web-app-complex': ['prd', 'architecture', 'ui-spec', 'data-models', 'endpoints', 'roadmap', 'setup', 'ai-context', 'readme'],
+  'mobile-app': ['prd', 'architecture', 'ui-spec', 'data-models', 'roadmap', 'readme'],
+  'api': ['prd', 'architecture', 'data-models', 'endpoints', 'setup', 'readme'],
+  'game': ['prd', 'architecture', 'readme'],
+  'cli-tool': ['prd', 'architecture', 'setup', 'readme'],
+  'construct-space': ['prd', 'ui-spec', 'readme'],
+}
 
 export interface ArchitectPlan {
   name: string
@@ -77,6 +97,12 @@ export interface DocumentOption {
   default: boolean
 }
 
+/**
+ * @deprecated Fixed doc menu — the Architect now selects docs adaptively
+ * based on project type. Kept for backward compatibility with existing UI
+ * that may reference it. Use PROJECT_TYPE_DOCS for new code.
+ * TODO(0.8): Remove this fixed list.
+ */
 export const DOCUMENT_OPTIONS: DocumentOption[] = [
   {
     type: 'prd',

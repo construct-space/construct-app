@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
- * Architect Space — describe a project, agent writes docs.
+ * Architect Space — adaptive interview → plan → doc generation.
  *
- * Flow: User describes → Architect writes docs to project/docs/ → "Open Project" button.
- * No questions step, no plan JSON, no templates, no scaffolding.
- * Architect ONLY writes markdown docs. Coder writes code.
+ * Flow: User describes project → Architect asks adaptive questions (one at a time)
+ * → generates plan with tailored doc set → delegates to docs agent → "Open Project" button.
+ * Interview uses architect.v1 schema (questions/plan/progress states).
+ * Architect plans and writes docs. Coder writes code.
  */
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -88,7 +89,7 @@ async function handleSend(blocks: RequestBlock[]) {
   if (path && !text.includes(path)) {
     taskOverride = `${text}\n\nProject path: ${path}\nThis is an existing project. Read the docs/ folder first to understand the current architecture before making changes. Update or add docs as needed.`
   } else if (!path && projectsRoot.value && turns.value.length === 0) {
-    taskOverride = `${text}\n\nProjects root: ${projectsRoot.value}\nDo NOT create any files or directories yet. Start by asking interview questions as structured JSON to understand the requirements first.`
+    taskOverride = `${text}\n\nProjects root: ${projectsRoot.value}\nDo NOT create any files or directories yet. Start the adaptive interview by asking ONE question using the architect.v1 questions state. Each subsequent question must depend on the user's prior answer.`
   }
 
   await session.send(blocks, {
