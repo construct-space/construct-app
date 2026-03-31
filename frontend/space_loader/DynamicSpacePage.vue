@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
- * DynamicSpacePage — THE unified renderer for ALL spaces.
+ * DynamicSpacePage — renderer for dynamic (non-host-native) spaces.
  *
- * There are no built-in/hardcoded space routes anymore.
- * Every space (code, design, architect, etc.) goes through this component.
+ * Host-native spaces (architect, brainstorm, coder, project) have their own
+ * explicit routes in `router/routes.ts` and do NOT go through this component.
  *
- * Dev mode:  loads from src/spaces/ via Vite dynamic import
- * Prod mode: loads pre-built IIFE bundles from the active app spaces directory.
+ * Dynamic spaces — installed from the marketplace or linked via `construct dev` —
+ * are loaded at runtime from IIFE bundles on disk via SpaceLoader.
  *
  * Uses SpaceLoader to get Vue components, renders with <component :is>.
  * Falls back to agent-powered placeholder for config-only spaces (no Vue bundle).

@@ -1,17 +1,22 @@
 /**
- * SpaceLoader — Runtime loader for pre-built space IIFE bundles.
+ * SpaceLoader — unified loader for all space types.
  *
- * All spaces are loaded from the active app spaces directory via Tauri FS.
- * In dev mode, if VITE_SPACE_DEV_DIR is set, that directory is also
- * checked (for `construct space dev` linking).
+ * Spaces are loaded in priority order:
+ *   1. **Host-native** — checked first via `getCoreSpace()` (coreSpaces.ts).
+ *      These are compiled into the app and return immediately with no I/O.
+ *   2. **Dev override** — if VITE_SPACE_DEV_DIR is set, checked next
+ *      (for `construct space dev` linking).
+ *   3. **Dynamic (disk)** — pre-built IIFE bundles in the user's app data
+ *      directory, loaded via Tauri FS.
  *
- * Flow:
+ * Dynamic space loading flow:
  *   1. Read manifest.json from space directory via Tauri FS
  *   2. Read the .iife.js bundle
- *   3. Execute via new Function() — IIFE assigns to window.__CONSTRUCT_SPACE_{id}
- *   4. Extract page components from the global
- *   5. Inject CSS via <style data-space="{id}">
- *   6. Cache in memory Map
+ *   3. Verify SHA-256 checksum against manifest.build.checksum
+ *   4. Execute via eval() — IIFE assigns to window.__CONSTRUCT_SPACE_{id}
+ *   5. Extract page components from the global
+ *   6. Inject CSS via <style data-space="{id}">
+ *   7. Cache in memory Map
  */
 
 import type { Component } from 'vue'

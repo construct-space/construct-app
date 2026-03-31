@@ -4,6 +4,20 @@
   "description": "Plans project structure and generates technical specifications",
   "icon": "lucide:drafting-compass",
   "version": "1.0.0",
+  "scope": "both",
+  "navigation": {
+    "label": "Architect",
+    "icon": "lucide:drafting-compass",
+    "to": "architect",
+    "order": 30
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Architect",
+      "default": true
+    }
+  ],
   "widgets": [
     {
       "id": "quick-architect",

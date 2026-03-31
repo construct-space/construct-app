@@ -2,11 +2,15 @@ import type { RouteRecordRaw } from 'vue-router'
 import { SETTINGS_DEFAULT_PATH, settingsRouteChildren } from './settingsNavigation'
 
 /**
- * Routes — fully dynamic space loading.
+ * Routes — hybrid space loading.
  *
- * There are NO hardcoded space routes. All spaces (code, design, architect, etc.)
- * are loaded at runtime via DynamicSpacePage + SpaceLoader.
- * This means spaces can be installed/uninstalled from the marketplace
+ * Host-native spaces (architect, brainstorm, coder, project) have explicit
+ * routes that import their page components at compile time. They are NOT
+ * loaded through DynamicSpacePage.
+ *
+ * Dynamic spaces (installed from marketplace or linked via `construct dev`)
+ * use the catch-all `:spaceName` route and render through DynamicSpacePage +
+ * SpaceLoader. This means dynamic spaces can be installed/uninstalled
  * without any code changes to the router.
  */
 
@@ -165,7 +169,7 @@ export const routes: RouteRecordRaw[] = [
       // ===== Dynamic space routes (company-scoped) =====
       // Remaining spaces (code, design, kanban, etc.) go through DynamicSpacePage.
       // SpaceLoader handles dev (Vite import) vs prod (IIFE bundle) loading.
-      // NOTE: "projects", "brainstorm", "architect" are native pages above.
+      // NOTE: host-native spaces (architect, brainstorm, coder, project) have explicit routes above.
       {
         path: ':spaceName',
         component: () => import('@/layouts/SpaceLayout.vue'),

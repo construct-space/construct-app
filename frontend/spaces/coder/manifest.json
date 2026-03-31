@@ -3,5 +3,19 @@
   "name": "Coder",
   "description": "Autonomous coding agent",
   "icon": "lucide:terminal",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "scope": "project",
+  "navigation": {
+    "label": "Coder",
+    "icon": "lucide:terminal",
+    "to": "coder",
+    "order": 20
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Coder",
+      "default": true
+    }
+  ]
 }

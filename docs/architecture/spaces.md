@@ -2,159 +2,104 @@
 
 ## What is a Space?
 
-A Space is a self-contained module that adds functionality to Construct. Think VS Code extensions, but richer — each space has its own UI, AI agent, tools, and theme.
+A Space is a self-contained module that adds functionality to Construct. Each space has its own UI pages, widgets, AI agent config, and theme. Spaces teleport their content into the shell: sidebar icon, toolbar actions, and page content.
 
-## Built-in Spaces
+## Space Kinds
 
-| Space | ID | Description | Agent |
+Spaces come in two kinds, distinguished by their loading mechanism:
+
+### Host-Native Spaces
+
+Ship with the app binary. Their page components are compiled into the frontend bundle, and they have explicit routes in `router/routes.ts`. No IIFE eval, no checksum verification, no disk I/O at runtime.
+
+| Space | ID | Description | Scope |
 |-------|----|-------------|-------|
-| Code | `code` | Editor, terminal, git | code-assistant |
-| Design | `design` | PixiJS canvas editor | design (+ sub-agents) |
-| AI | `ai` | Multi-model chat | — (uses general) |
-| Chat | `chat` | Team messaging | — |
-| Git | `git` | Visual VCS | git |
-| Terminal | `terminal` | PTY shell | — |
-| Tasks | `kanban` | Kanban boards | kanban |
-| Docs | `docs` | Markdown docs | docs |
-| Notes | `notes` | Sticky notes | — |
-| Calendar | `calendar` | Scheduling | calendar |
+| Projects | `project` | Project management and navigation | app |
+| Coder | `coder` | Autonomous coding agent | project |
+| Chat | `brainstorm` | Explore ideas and refine your vision | app |
+| Architect | `architect` | Plans project structure and specs | both |
+
+Key files:
+- `frontend/spaces/{id}/` — source code and manifest
+- `frontend/space_loader/coreSpaces.ts` — component registry
+- `frontend/types/space.ts` — canonical ID list (`HOST_NATIVE_SPACE_IDS`)
+- `frontend/space_loader/builtin.ts` — re-export for sidebar filtering
+
+### Dynamic Spaces
+
+Installed from the marketplace or linked via `construct dev`. Their IIFE bundles live in the user's app data directory. Loaded at runtime by `SpaceLoader`, verified via SHA-256 checksum, and rendered through `DynamicSpacePage.vue`.
+
+Key files:
+- `frontend/space_loader/SpaceLoader.ts` — runtime loader
+- `frontend/space_loader/DynamicSpacePage.vue` — catch-all renderer
+- `frontend/composables/useSpaceMarketplace.ts` — install/update/remove
 
 ## Space File Structure
 
 ```
-space-{name}/
-  space.manifest.json    ← identity, pages, toolbar, theme
-  space.config.ts        ← typed config (SpaceConfig interface)
-  pages/                 ← route components (one per page)
-  views/                 ← reusable view components
-  components/            ← space-specific UI
-  composables/           ← shared logic
-  stores/                ← state management
-  tests/                 ← space tests
-  agent/                 ← AI configuration
-    config.md            ← YAML frontmatter + Handlebars system prompt
-    tools/               ← custom tools (*.md with command templates)
-    skills/              ← prompt templates
-    hooks/               ← safety.json (pre/post tool hooks)
+frontend/spaces/{id}/          (host-native)
+  manifest.json                identity, pages, widgets, navigation, scope
+  pages/                       Vue page components
+  widgets/                     dashboard widget components
+  components/                  space-specific UI
+  composables/                 shared logic
+  agent/                       AI configuration
+    config.md                  YAML frontmatter + system prompt
+    tools/                     custom tools (*.md)
+    hooks/safety.json          pre/post tool hooks
 ```
 
-## Manifest (space.manifest.json)
+## Manifest Contract
+
+Every host-native space manifest MUST include:
 
 ```json
 {
-  "id": "code",
-  "name": "Code",
-  "version": "0.3.17",
-  "description": "Code editor with terminal and git",
-  "icon": "i-lucide-code",
-  "scope": "both",
+  "id": "string (matches HOST_NATIVE_SPACE_IDS)",
+  "name": "string (display name)",
+  "description": "string",
+  "icon": "string (Iconify ID, e.g. lucide:terminal)",
+  "version": "string (semver)",
+  "scope": "app | project | both",
   "navigation": {
-    "label": "Code",
-    "icon": "i-lucide-code",
-    "to": "code",
-    "order": 10
+    "label": "string",
+    "icon": "string",
+    "to": "string (route segment)",
+    "order": "number"
   },
   "pages": [
     {
-      "path": "",
-      "label": "Overview",
-      "default": true,
-      "toolbar": [
-        { "id": "code-new-file", "icon": "i-lucide-file-plus", "label": "New File", "action": "new-file" }
-      ]
-    },
-    { "path": "editor", "label": "Editor" },
-    { "path": "terminal", "label": "Terminal" }
-  ],
-  "theme": {
-    "color": "text-emerald-400",
-    "bg": "bg-emerald-400/10"
-  }
-}
-```
-
-## Agent Configuration (agent/config.md)
-
-```markdown
----
-id: code-assistant
-name: Code Space Assistant
-category: specialized
-maxIterations: 20
-blockedTools:
-  - create_event
-  - create_task
-  - create_ui_screen
----
-
-System prompt here. Uses Handlebars templates:
-
-{{#if context.project}}
-Project: **{{context.project.name}}**
-{{/if}}
-```
-
-### Key fields:
-- `blockedTools` — tools this agent cannot use
-- `canInvokeAgents` — sub-agents this agent can spawn
-- `maxIterations` — max turns before stopping
-
-## Custom Tools (agent/tools/*.md)
-
-```markdown
----
-id: build
-name: Build Project
-description: Build the project for production
-parameters:
-  - name: mode
-    type: string
-    enum: [production, development]
-command: |
-  cd {{project_dir}} && npm run build
-timeout: 300
-confirm: false
----
-
-Use this tool when the user asks to build.
-```
-
-## Safety Hooks (agent/hooks/safety.json)
-
-```json
-{
-  "hooks": [
-    {
-      "id": "code-no-rm-rf",
-      "type": "pre_tool",
-      "tools": ["bash"],
-      "command": "if echo \"$TOOL_INPUT\" | grep -qE 'rm\\s+-rf\\s+/'; then\n  echo '{\"block\":true,\"message\":\"Dangerous rm -rf blocked\"}'\nfi"
+      "path": "string",
+      "label": "string",
+      "default": "boolean (at least one must be true)"
     }
   ]
 }
 ```
 
-## Teleporting
+Dynamic space manifests extend this with optional fields: `build` (checksum, size, builtAt), `recommended`, `assistant`, `contextMenus`, `theme`, etc. See `SpaceManifest` in `SpaceLoader.ts` for the full schema.
 
-Spaces don't render the shell. They teleport content into it:
+## Routing
 
-1. **Sidebar icon** — `navigation` object tells the shell what icon, route, and sort order
-2. **Toolbar actions** — each page declares toolbar buttons, rendered in the toolbar zone
-3. **Sub-pages** — shown as icons on the sidebar's second panel (3D rotated)
+Host-native spaces have explicit routes in `router/routes.ts`:
+- `/app/brainstorm` — standalone brainstorm page
+- `/app/architect` — standalone architect page
+- `/app/coder` — standalone coder page
+- `/app/projects` — project list
+- `/app/projects/:id` — project detail
+- `/app/projects/:id/architect` — architect within project
+- `/app/projects/:id/coder` — coder within project
+
+Dynamic spaces use the catch-all route:
+- `/app/:spaceName` — any non-native space
+- `/app/projects/:id/:spaceName` — dynamic space within project
 
 ## Scope
 
-- `project` — only visible when a project is open
-- `company` — organization-wide, not project-specific
-- `both` — works in both contexts
+- `app` — global, not tied to a project (e.g. brainstorm, project)
+- `project` — only visible within a project context (e.g. coder)
+- `both` — works in either context (e.g. architect)
 
 ## SDK
 
-Spaces import shared UI from `@construct-space/ui` and host/runtime APIs from `@construct-space/sdk`:
-
-```ts
-import { Button, Modal, Notification, useNotification } from '@construct-space/ui'
-import { useToolbar, useConstructConfig } from '@construct-space/sdk'
-```
-
-The UI package provides shared components and UI composables at build time. The SDK provides host APIs and runtime context at build time. Runtime implementations are injected by the Construct host via `window.__CONSTRUCT__`.
+External spaces import shared UI from `@construct-space/ui` and host APIs from `@construct-space/sdk`. Runtime implementations are injected by the host via `window.__CONSTRUCT__`.
