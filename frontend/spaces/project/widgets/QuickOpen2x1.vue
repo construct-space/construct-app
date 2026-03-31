@@ -16,7 +16,8 @@ const filtered = computed(() => {
     .slice(0, 5)
 })
 
-function openProject(project: any) {
+function openProject(project: { name: string; path: string }) {
+  if (!project?.path) return
   projectStore.openProject(project.path)
   router.push(buildProjectRoutePath(project))
   query.value = ''
