@@ -17,7 +17,8 @@ import { getSpace as getSpaceTheme } from '@/config/spaces'
 import { useSpaces } from '@/composables/useSpaces'
 import { useTelemetry } from '@/composables/useTelemetry'
 import { useSidebar, type SpaceNavItem } from '@/composables/useSidebar'
-import { Loader2, AlertCircle } from 'lucide-vue-next'
+import { detectErrorPhase, getErrorActions, type ErrorAction } from '@/space_loader/errorActions'
+import { Loader2, AlertCircle, ArrowRight } from 'lucide-vue-next'
 import { shallowRef, markRaw } from 'vue'
 
 /**
@@ -65,6 +66,13 @@ const activeTracker = new ActiveTimeTracker()
 const space = shallowRef<LoadedSpace | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+/** Actionable suggestions derived from the error message */
+const errorActions = computed<ErrorAction[]>(() => {
+  if (!error.value) return []
+  const phase = detectErrorPhase(error.value)
+  return getErrorActions(phase)
+})
 
 /** The current page path ('' for index, 'editor', 'terminal', etc.) */
 const currentPagePath = computed(() => props.subPage ?? '')
@@ -241,9 +249,27 @@ onUnmounted(() => {
 
     <!-- Error state -->
     <div v-else-if="error" class="flex-1 flex items-center justify-center">
-      <div class="text-center max-w-sm">
+      <div class="text-center max-w-md">
         <AlertCircle class="size-10 text-red-400 mx-auto mb-4" />
-        <p class="text-sm text-[var(--app-muted)] mb-4">{{ error }}</p>
+        <p class="text-sm text-[var(--app-muted)] mb-6">{{ error }}</p>
+
+        <!-- Actionable suggestions -->
+        <div v-if="errorActions.length > 0" class="space-y-2 mb-6 text-left">
+          <p class="text-xs text-[var(--app-muted)] uppercase tracking-wider font-medium mb-2 text-center">Suggested fixes</p>
+          <button
+            v-for="action in errorActions"
+            :key="action.label"
+            class="w-full flex items-center gap-3 p-3 rounded-lg border border-[var(--app-border)] text-left transition-colors hover:border-[color-mix(in_srgb,var(--app-accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--app-accent)_3%,transparent)]"
+            @click="action.route ? router.push(action.route) : undefined"
+          >
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-[var(--app-foreground)]">{{ action.label }}</p>
+              <p class="text-xs text-[var(--app-muted)] mt-0.5">{{ action.description }}</p>
+            </div>
+            <ArrowRight v-if="action.route" class="size-4 text-[var(--app-muted)] shrink-0" />
+          </button>
+        </div>
+
         <div class="flex gap-3 justify-center">
           <button
             class="px-4 py-2 rounded-lg border border-[var(--app-border)] text-sm text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors"

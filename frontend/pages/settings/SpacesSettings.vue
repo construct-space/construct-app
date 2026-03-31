@@ -8,9 +8,12 @@
 
 import { useSpaceMarketplace } from '@/composables/useSpaceMarketplace'
 import { IS_DEV_INSTANCE } from '@/lib/appPaths'
+import { spaceDoctor, type SpaceHealthReport, type SpaceHealthStatus } from '@/space_loader/spaceDoctor'
+import { getErrorActions } from '@/space_loader/errorActions'
 import {
   RefreshCw, Trash2, ToggleLeft, ToggleRight,
   Download, Store, ExternalLink, Box,
+  HeartPulse, CheckCircle2, AlertTriangle, XCircle, Loader2,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -18,6 +21,52 @@ const toast = useNotification()
 const marketplace = useSpaceMarketplace()
 
 const confirmUninstall = ref<string | null>(null)
+
+// Space health state
+const healthReports = ref<SpaceHealthReport[]>([])
+const healthChecking = ref(false)
+const healthChecked = ref(false)
+
+const healthStatusIcon = (status: SpaceHealthStatus) => {
+  switch (status) {
+    case 'healthy': return CheckCircle2
+    case 'warning': return AlertTriangle
+    case 'error': return XCircle
+  }
+}
+
+const healthStatusColor = (status: SpaceHealthStatus) => {
+  switch (status) {
+    case 'healthy': return 'text-green-400'
+    case 'warning': return 'text-amber-400'
+    case 'error': return 'text-red-400'
+  }
+}
+
+async function handleCheckHealth() {
+  healthChecking.value = true
+  try {
+    healthReports.value = await spaceDoctor()
+    healthChecked.value = true
+    const errors = healthReports.value.filter(r => r.status === 'error').length
+    const warnings = healthReports.value.filter(r => r.status === 'warning').length
+    if (errors > 0) {
+      toast.add({ title: `${errors} space(s) with errors`, color: 'error' })
+    } else if (warnings > 0) {
+      toast.add({ title: `${warnings} space(s) with warnings`, color: 'warning' })
+    } else {
+      toast.add({ title: 'All spaces healthy', color: 'success' })
+    }
+  } catch (e) {
+    toast.add({ title: 'Health check failed', color: 'error' })
+  } finally {
+    healthChecking.value = false
+  }
+}
+
+function handleFixAction(route?: string) {
+  if (route) router.push(route)
+}
 
 onMounted(async () => {
   await marketplace.fetchInstalled()
@@ -75,6 +124,14 @@ async function handleOpenConstructDev() {
         </button>
         <button
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-[var(--app-border)] text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors"
+          :disabled="healthChecking"
+          @click="handleCheckHealth">
+          <Loader2 v-if="healthChecking" class="size-3 animate-spin" />
+          <HeartPulse v-else class="size-3" />
+          Check Health
+        </button>
+        <button
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-[var(--app-border)] text-[var(--app-foreground)] hover:bg-[color-mix(in_srgb,var(--app-muted)_5%,transparent)] transition-colors"
           @click="handleCheckUpdates">
           <RefreshCw class="size-3" />
           Check Updates
@@ -85,6 +142,53 @@ async function handleOpenConstructDev() {
           <Store class="size-3" />
           Browse Marketplace
         </button>
+      </div>
+    </div>
+
+    <!-- Space Health Results -->
+    <div v-if="healthChecked && healthReports.length > 0" class="space-y-2">
+      <div class="flex items-center gap-2 mb-3">
+        <HeartPulse class="size-4 text-[var(--app-accent)]" />
+        <p class="text-sm font-medium text-[var(--app-foreground)]">Space Health</p>
+      </div>
+      <div v-for="report in healthReports" :key="report.spaceId"
+        class="p-3 rounded-lg border border-[var(--app-border)]">
+        <div class="flex items-center gap-3">
+          <component :is="healthStatusIcon(report.status)" class="size-4 shrink-0" :class="healthStatusColor(report.status)" />
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-[var(--app-foreground)]">{{ report.name }}</span>
+              <span class="text-[10px] text-[var(--app-muted)] bg-[color-mix(in_srgb,var(--app-muted)_8%,transparent)] px-1.5 py-0.5 rounded">
+                v{{ report.version }}
+              </span>
+              <span v-if="report.isCore" class="text-[10px] text-[var(--app-accent)] bg-[color-mix(in_srgb,var(--app-accent)_8%,transparent)] px-1.5 py-0.5 rounded">
+                core
+              </span>
+            </div>
+            <!-- Issues -->
+            <div v-if="report.issues.length > 0" class="mt-2 space-y-1.5">
+              <div v-for="(issue, idx) in report.issues" :key="idx" class="text-xs">
+                <p :class="issue.severity === 'error' ? 'text-red-400' : 'text-amber-400'">
+                  {{ issue.message }}
+                </p>
+                <div class="flex flex-wrap gap-1.5 mt-1">
+                  <button
+                    v-for="action in getErrorActions(issue.phase)"
+                    :key="action.label"
+                    class="px-2 py-0.5 rounded text-[10px] font-medium border transition-colors"
+                    :class="action.type === 'navigate'
+                      ? 'border-[var(--app-accent)]/30 text-[var(--app-accent)] hover:bg-[color-mix(in_srgb,var(--app-accent)_10%,transparent)]'
+                      : 'border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-foreground)]'"
+                    :title="action.description"
+                    @click="handleFixAction(action.route)"
+                  >
+                    {{ action.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
