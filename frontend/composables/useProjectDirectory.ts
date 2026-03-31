@@ -280,6 +280,13 @@ export function useProjectDirectory() {
       const dirName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       const projectPath = useDirectPath ? root : `${root}/${dirName}`
 
+      // Enforce confinement: project must be within the configured projects root
+      const configuredRoot = normalizePath(state.projectsRoot)
+      if (configuredRoot && !projectPath.startsWith(configuredRoot)) {
+        console.error(`Project path "${projectPath}" is outside the configured projects root "${configuredRoot}"`)
+        return null
+      }
+
       // Create project directory + docs subdirectory
       // Flat layout — no .construct/, no code/ subdirectory
       const allDirs = [

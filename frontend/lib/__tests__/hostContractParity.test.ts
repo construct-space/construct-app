@@ -68,22 +68,29 @@ describe('HOST_PROVIDED_PACKAGES parity', () => {
   })
 
   it('HOST_API_VERSION is exported and follows semver', async () => {
-    // Import in test environment fails because spaceHost.ts imports heavy
-    // browser-only dependencies. Parse the source directly instead.
+    // HOST_API_VERSION is defined in spaceHostConstants.ts (canonical source)
+    // and re-exported from spaceHost.ts. Check the constants file directly.
     const { readFileSync } = await import('fs')
     const { resolve } = await import('path')
-    const source = readFileSync(
-      resolve(__dirname, '..', 'spaceHost.ts'),
+    const constantsSource = readFileSync(
+      resolve(__dirname, '..', 'spaceHostConstants.ts'),
       'utf-8',
     )
 
-    // Verify the export exists
-    expect(source).toContain('HOST_API_VERSION')
+    // Verify the export exists in the canonical source
+    expect(constantsSource).toContain('HOST_API_VERSION')
 
     // Extract the version string and verify semver format
-    const match = source.match(/HOST_API_VERSION\s*=\s*'(\d+\.\d+\.\d+)'/)
+    const match = constantsSource.match(/HOST_API_VERSION\s*=\s*'(\d+\.\d+\.\d+)'/)
     expect(match).not.toBeNull()
     expect(match![1]).toMatch(/^\d+\.\d+\.\d+$/)
+
+    // Verify spaceHost.ts re-exports it
+    const hostSource = readFileSync(
+      resolve(__dirname, '..', 'spaceHost.ts'),
+      'utf-8',
+    )
+    expect(hostSource).toContain('HOST_API_VERSION')
   })
 })
 
