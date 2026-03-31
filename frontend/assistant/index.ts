@@ -1,6 +1,13 @@
 export type * from './blocks'
 export { extractQuestion } from './blocks'
 export {
+  STREAMABLE_BLOCK_TYPES,
+  BUFFERED_BLOCK_TYPES,
+  isStreamSafe,
+  requiresBuffering,
+} from './streamClassification'
+export type { StreamRenderState } from './streamClassification'
+export {
   assistantContentBlockSchema,
   assistantEnvelopeSchema,
   tryParseAssistantEnvelope,

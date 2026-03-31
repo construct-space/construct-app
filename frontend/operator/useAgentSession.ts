@@ -18,6 +18,7 @@ import {
   normalizeAssistantEnvelope,
   tryParseAssistantEnvelope,
   normalize,
+  requiresBuffering,
 } from '@/assistant'
 import type {
   RequestBlock,
@@ -25,12 +26,37 @@ import type {
   TextBlock,
   ToolBlock,
   Turn,
+  TurnStreamState,
+  StreamRenderState,
 } from '@/assistant'
 
 // ─── Session State ───
 
 let turnCounter = 0
 const nextTurnId = () => `turn-${++turnCounter}`
+
+function createStreamState(): TurnStreamState {
+  return {
+    renderState: 'streaming',
+    isBuffering: false,
+    bufferContent: '',
+    bufferStartedAt: null,
+  }
+}
+
+function startBuffering(state: TurnStreamState): void {
+  state.renderState = 'buffering'
+  state.isBuffering = true
+  if (!state.bufferStartedAt) state.bufferStartedAt = Date.now()
+}
+
+function setRenderState(turn: Turn, renderState: StreamRenderState): void {
+  if (!turn.streamState) turn.streamState = createStreamState()
+  turn.streamState.renderState = renderState
+  if (renderState === 'rendered' || renderState === 'fallback') {
+    turn.streamState.isBuffering = false
+  }
+}
 
 export function useAgentSession() {
   const operator = useOperator()
@@ -102,32 +128,37 @@ export function useAgentSession() {
     const type = chunk.type
     const data = chunk.data || {}
 
+    // Ensure stream state exists on the turn
+    if (!turn.streamState) turn.streamState = createStreamState()
+    const ss = turn.streamState
+
     // Text content — append to current or new text block
     const text = chunk.content || (data.text as string) || ''
     if (text && type !== StreamType.ToolCall && type !== StreamType.ToolResult && type !== StreamType.Status) {
-      // When an assistantType is set, buffer text silently if it looks like JSON.
+      // When an assistantType requires buffering, accumulate text silently.
       // Show a skeleton placeholder instead of raw JSON streaming.
-      if (assistantType) {
-        // Accumulate in a hidden buffer on the turn
-        if (!(turn as any)._buffer) (turn as any)._buffer = ''
-        ;(turn as any)._buffer += text
+      if (assistantType && requiresBuffering(assistantType)) {
+        ss.bufferContent += text
+        const buf = ss.bufferContent.trim()
 
-        const buf = ((turn as any)._buffer as string).trim()
         if (buf.startsWith('{') || buf.startsWith('[')) {
-          // Remove any text blocks, show skeleton
-          turn.response = turn.response.filter(b => b.type !== 'text' && !(b as any)._skeleton)
-          turn.response.push({ type: 'status', message: 'Thinking...', _skeleton: true } as any)
+          startBuffering(ss)
+          // Remove any text blocks, show skeleton placeholder
+          turn.response = turn.response.filter(b => b.type !== 'text' && b.type !== 'status')
+          turn.response.push({ type: 'status', state: 'thinking', message: 'Generating response...' })
           triggerRef(turns)
           return
         }
       }
 
+      // Streamable: render text incrementally
+      if (!ss.isBuffering) ss.renderState = 'streaming'
       appendTextToResponse(turn, text)
       triggerRef(turns)
       return
     }
 
-    // Tool call — insert tool block
+    // Tool call — insert tool block (always streamable)
     if (type === StreamType.ToolCall) {
       turn.response.push({
         type: 'tool',
@@ -227,6 +258,10 @@ export function useAgentSession() {
           turn.turns = result.turns
           if (result.session_id) runnerSessionId.value = result.session_id
 
+          // Ensure stream state exists
+          if (!turn.streamState) turn.streamState = createStreamState()
+          const ss = turn.streamState
+
           // Mark any remaining running tool blocks as done
           for (const block of turn.response) {
             if (block.type === 'tool' && (block as ToolBlock).state === 'running') {
@@ -236,8 +271,8 @@ export function useAgentSession() {
 
           // Append final content if it wasn't already streamed
           if (result.content) {
-            // Gather text from buffer (if skeleton was active) or from text blocks
-            const buffered = ((turn as any)._buffer as string) || ''
+            // Gather text from buffer or from text blocks
+            const buffered = ss.bufferContent
             const existingText = buffered.trim()
               ? buffered
               : turn.response
@@ -246,30 +281,58 @@ export function useAgentSession() {
                 .join('')
 
             // Use per-type normalizer when an assistantType is known.
-            const textToParse = existingText.trim() ? existingText : result.content
+            // Prefer result.content for normalization when available (it's the complete response).
+            // Only use buffered content if result.content is absent.
+            const textToParse = result.content || existingText
             const appendedStructured = options?.assistantType
               ? (() => {
-                  // Remove skeleton and any raw text blocks
-                  turn.response = turn.response.filter(b => !(b as any)._skeleton && b.type !== 'text')
-                  delete (turn as any)._buffer
-                  const blocks = normalize(options.assistantType!, textToParse)
-                  // If the normalizer only returned a plain text block identical to input, skip
-                  if (blocks.length === 1 && blocks[0].type === 'text' && (blocks[0] as TextBlock).content === textToParse) {
-                    return false
+                  // Transition: buffering → normalizing
+                  setRenderState(turn, 'normalizing')
+
+                  // Remove placeholder and any raw text blocks
+                  turn.response = turn.response.filter(b => b.type !== 'status' && b.type !== 'text')
+
+                  try {
+                    const blocks = normalize(options.assistantType!, textToParse)
+                    // If the normalizer only returned a plain text block identical to input,
+                    // treat as fallback — still show the text so we never show nothing.
+                    if (blocks.length === 1 && blocks[0].type === 'text' && (blocks[0] as TextBlock).content === textToParse) {
+                      setRenderState(turn, 'fallback')
+                      turn.response.push(...blocks)
+                      return true
+                    }
+                    // Replace streamed text blocks with properly normalized blocks
+                    if (existingText.trim()) {
+                      turn.response = turn.response.filter(b => b.type !== 'text')
+                    }
+                    turn.response.push(...blocks)
+                    setRenderState(turn, 'rendered')
+                    return true
+                  } catch {
+                    // Normalization failed — fall back to showing raw text
+                    setRenderState(turn, 'fallback')
+                    turn.response.push({ type: 'text', content: textToParse })
+                    return true
                   }
-                  // Replace streamed text blocks with properly normalized blocks
-                  if (existingText.trim()) {
-                    turn.response = turn.response.filter(b => b.type !== 'text')
-                  }
-                  turn.response.push(...blocks)
-                  return true
                 })()
               : !existingText.trim() && appendNormalizedFinalResponse(turn, result.content)
 
             if (!appendedStructured && !existingText.includes(result.content.slice(0, 50))) {
               turn.response.push({ type: 'text', content: result.content })
             }
+
+            // Set final render state if not already set by the structured path
+            if (ss.renderState === 'streaming' || ss.renderState === 'normalizing') {
+              setRenderState(turn, 'rendered')
+            }
+          } else {
+            // No content — mark as rendered
+            setRenderState(turn, 'rendered')
           }
+
+          // Clear buffer
+          ss.bufferContent = ''
+          ss.isBuffering = false
 
           extractQuestionFromLastText(turn)
 
