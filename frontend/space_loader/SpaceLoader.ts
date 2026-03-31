@@ -26,6 +26,31 @@ import { getCoreSpace, isCoreSpace } from './coreSpaces'
 import { registerAutomationProvider } from '@/lib/spaceContextBus'
 import type { AutomationProvider, AutomationAction, ActionResult } from '@/types/automation'
 import { loadSpaceAssistantTypes } from '@/assistant/loader'
+import { HOST_API_VERSION } from '@/lib/spaceHostConstants'
+import {
+  validateSpaceManifest,
+  checkVersionCompatibility,
+  scanBundleForUnsupportedImports,
+  buildDoctorReport,
+  type ManifestValidationResult,
+  type VersionCompatibility,
+  type SpaceHealthCheck,
+  type SpaceDoctorReport,
+  type SpaceLoadError,
+} from './validation'
+
+// Re-export validation types and functions for consumers
+export {
+  validateSpaceManifest,
+  parseSemver,
+  checkVersionCompatibility,
+  scanBundleForUnsupportedImports,
+  type ManifestValidationResult,
+  type VersionCompatibility,
+  type SpaceHealthCheck,
+  type SpaceDoctorReport,
+  type SpaceLoadError,
+} from './validation'
 
 export interface LoadedSpace {
   id: string
@@ -103,6 +128,122 @@ export interface SpaceManifest {
     hostApiVersion: string
     builtAt: string
   }
+}
+
+/**
+ * Run health checks on all installed spaces.
+ *
+ * Checks each space for:
+ * - Valid manifest structure
+ * - Bundle checksum integrity
+ * - Host API version compatibility
+ * - Agent asset existence (if declared)
+ *
+ * This is the `construct doctor` equivalent for the app runtime.
+ */
+export async function spaceDoctor(): Promise<SpaceDoctorReport> {
+  const spaces: SpaceHealthCheck[] = []
+
+  try {
+    const { readTextFile, readDir, exists } = await import('@tauri-apps/plugin-fs')
+    const { getSpacesDirPath } = await import('@/lib/appPaths')
+    const { homeDir } = await import('@tauri-apps/api/path')
+    const home = await homeDir()
+    const spacesDir = getSpacesDirPath(home)
+
+    if (!spacesDir || !(await exists(spacesDir))) {
+      return buildDoctorReport(spaces)
+    }
+
+    const entries = await readDir(spacesDir)
+
+    for (const entry of entries) {
+      if (!entry.isDirectory) continue
+      const spaceId = entry.name
+      const spaceDir = `${spacesDir}/${spaceId}`
+      const check: SpaceHealthCheck = {
+        spaceId,
+        manifestValid: false,
+        manifestErrors: [],
+        manifestWarnings: [],
+        checksumMatch: null,
+        versionCompatibility: 'unknown',
+        agentAssetsValid: true,
+        agentAssetWarnings: [],
+      }
+
+      try {
+        // 1. Read and validate manifest
+        const manifestPath = `${spaceDir}/manifest.json`
+        if (!(await exists(manifestPath))) {
+          check.manifestErrors.push('manifest.json not found')
+          spaces.push(check)
+          continue
+        }
+
+        const manifestJson = await readTextFile(manifestPath)
+        let manifest: Record<string, unknown>
+        try {
+          manifest = JSON.parse(manifestJson)
+        } catch {
+          check.manifestErrors.push('manifest.json is not valid JSON')
+          spaces.push(check)
+          continue
+        }
+
+        const validation = validateSpaceManifest(manifest)
+        check.manifestValid = validation.valid
+        check.manifestErrors = validation.errors
+        check.manifestWarnings = validation.warnings
+
+        // 2. Checksum verification
+        const build = manifest.build as Record<string, unknown> | undefined
+        if (build?.checksum && typeof build.checksum === 'string') {
+          const bundlePath = `${spaceDir}/space-${spaceId}.iife.js`
+          if (await exists(bundlePath)) {
+            const jsContent = await readTextFile(bundlePath)
+            const actual = await sha256Hex(jsContent)
+            check.checksumMatch = actual === build.checksum
+          } else {
+            check.checksumMatch = false
+            check.manifestErrors.push('IIFE bundle file not found')
+          }
+        }
+
+        // 3. Version compatibility
+        const hostApiVersion = (build as Record<string, unknown> | undefined)?.hostApiVersion as string | undefined
+        check.versionCompatibility = checkVersionCompatibility(hostApiVersion)
+
+        // 4. Agent asset verification
+        if (manifest.agent && typeof manifest.agent === 'string') {
+          const agentConfigPath = `${spaceDir}/${manifest.agent}`
+          if (!(await exists(agentConfigPath))) {
+            check.agentAssetsValid = false
+            check.agentAssetWarnings.push(`Agent config not found: ${manifest.agent}`)
+          }
+        }
+        if (Array.isArray(manifest.skills)) {
+          for (const skill of manifest.skills) {
+            if (typeof skill === 'string') {
+              const skillPath = `${spaceDir}/${skill}`
+              if (!(await exists(skillPath))) {
+                check.agentAssetsValid = false
+                check.agentAssetWarnings.push(`Skill not found: ${skill}`)
+              }
+            }
+          }
+        }
+      } catch (err) {
+        check.manifestErrors.push(`Unexpected error: ${err}`)
+      }
+
+      spaces.push(check)
+    }
+  } catch (err) {
+    console.error('[SpaceDoctor] Failed to run health checks:', err)
+  }
+
+  return buildDoctorReport(spaces)
 }
 
 /** In-memory cache of loaded space bundles */
@@ -196,55 +337,159 @@ async function loadSpaceFromDisk(spaceId: string): Promise<LoadedSpace | null> {
   }
 }
 
+/** Module-level last error — read by DynamicSpacePage for detailed error display */
+let _lastLoadError: SpaceLoadError | null = null
+
+export function getLastLoadError(): SpaceLoadError | null {
+  return _lastLoadError
+}
+
+export function clearLastLoadError(): void {
+  _lastLoadError = null
+}
+
 /**
  * Load a space from an arbitrary directory path.
+ *
+ * Enhanced with:
+ * - Manifest validation (Slice C.2) — validates structure before loading bundle
+ * - Version compatibility (Slice B.4) — blocks on major mismatch, warns on minor
+ * - Bundle import scanning (Slice C.1) — best-effort detection of unsupported imports
+ * - Agent asset validation (Slice C.3) — verifies agent config/skills paths exist
+ * - Structured errors — sets _lastLoadError for detailed error UI
  */
 async function loadSpaceFromDir(spaceId: string, baseDir: string): Promise<LoadedSpace | null> {
+  _lastLoadError = null
+
   try {
     const { readTextFile, exists } = await import('@tauri-apps/plugin-fs')
 
     const spaceDir = baseDir.endsWith(`/${spaceId}`) ? baseDir : `${baseDir}/${spaceId}`
 
-    // Read manifest
+    // --- Phase: manifest ---
     const manifestPath = `${spaceDir}/manifest.json`
     if (!(await exists(manifestPath))) {
       return null
     }
-    const manifestJson = await readTextFile(manifestPath)
-    const manifest: SpaceManifest = JSON.parse(manifestJson)
+    let manifestJson: string
+    let manifest: SpaceManifest
+    try {
+      manifestJson = await readTextFile(manifestPath)
+      manifest = JSON.parse(manifestJson)
+    } catch (err) {
+      _lastLoadError = {
+        spaceId,
+        phase: 'manifest',
+        message: `Failed to read or parse manifest.json`,
+        details: [String(err)],
+      }
+      console.error(`[SpaceLoader] ${_lastLoadError.message} for "${spaceId}":`, err)
+      return null
+    }
 
-    // Read JS bundle
+    // --- Phase: validation (Slice C.2) ---
+    const validation = validateSpaceManifest(manifest as unknown as Record<string, unknown>)
+    if (!validation.valid) {
+      _lastLoadError = {
+        spaceId,
+        phase: 'validation',
+        message: `Manifest validation failed`,
+        details: validation.errors,
+      }
+      console.error(`[SpaceLoader] Manifest validation failed for "${spaceId}":`, validation.errors)
+      return null
+    }
+    if (validation.warnings.length > 0) {
+      console.warn(`[SpaceLoader] Manifest warnings for "${spaceId}":`, validation.warnings)
+    }
+
+    // --- Phase: version compatibility (Slice B.4) ---
+    const compat = checkVersionCompatibility(manifest.build?.hostApiVersion)
+    if (compat === 'incompatible') {
+      _lastLoadError = {
+        spaceId,
+        phase: 'version',
+        message: `Incompatible host API version`,
+        details: [
+          `Space was built for host API v${manifest.build?.hostApiVersion}`,
+          `Current host API is v${HOST_API_VERSION}`,
+          `Major version mismatch — this space needs to be rebuilt`,
+        ],
+      }
+      console.error(`[SpaceLoader] ${_lastLoadError.message} for "${spaceId}": space=${manifest.build?.hostApiVersion}, host=${HOST_API_VERSION}`)
+      return null
+    }
+    if (compat === 'minor-mismatch') {
+      console.warn(`[SpaceLoader] Minor host API version mismatch for "${spaceId}": space=${manifest.build?.hostApiVersion}, host=${HOST_API_VERSION}. Some features may not be available.`)
+    }
+
+    // --- Phase: bundle read ---
     const bundlePath = `${spaceDir}/space-${spaceId}.iife.js`
     if (!(await exists(bundlePath))) {
+      _lastLoadError = {
+        spaceId,
+        phase: 'bundle',
+        message: `IIFE bundle not found`,
+        details: [`Expected: ${bundlePath}`],
+      }
       return null
     }
     const jsContent = await readTextFile(bundlePath)
 
-    // Verify bundle integrity against manifest checksum
+    // --- Phase: checksum ---
     if (manifest.build?.checksum) {
       const actual = await sha256Hex(jsContent)
       if (actual !== manifest.build.checksum) {
+        _lastLoadError = {
+          spaceId,
+          phase: 'checksum',
+          message: `Bundle checksum mismatch — file may be corrupted or tampered`,
+          details: [
+            `Expected: ${manifest.build.checksum}`,
+            `Actual: ${actual}`,
+          ],
+        }
         console.error(`[SpaceLoader] Checksum mismatch for "${spaceId}": expected ${manifest.build.checksum}, got ${actual}`)
         return null
       }
     }
 
-    // Ensure host globals are ready before executing space code
+    // --- Phase: bundle import scanning (Slice C.1) ---
+    const unsupported = scanBundleForUnsupportedImports(jsContent)
+    if (unsupported.length > 0) {
+      console.warn(`[SpaceLoader] Space "${spaceId}" references non-host packages: ${unsupported.join(', ')}. These may fail at runtime.`)
+    }
+
+    // --- Phase: eval ---
     await ensureSpaceHost()
 
-    // Set current space context for SDK composables
     if ((window as any).construct) {
       (window as any).construct.space = { id: spaceId }
     }
 
-    // Execute IIFE — sets window.__CONSTRUCT_SPACE_{id}
-    // Indirect eval runs in global scope so `var` creates a window property
-    ;(0, eval)(jsContent)
+    try {
+      ;(0, eval)(jsContent)
+    } catch (err) {
+      _lastLoadError = {
+        spaceId,
+        phase: 'eval',
+        message: `Bundle execution failed`,
+        details: [String(err)],
+      }
+      console.error(`[SpaceLoader] eval() failed for "${spaceId}":`, err)
+      return null
+    }
 
-    // Extract the space export
+    // --- Phase: export ---
     const globalKey = toGlobalKey(spaceId)
     const spaceExport = (window as any)[globalKey]
     if (!spaceExport?.pages) {
+      _lastLoadError = {
+        spaceId,
+        phase: 'export',
+        message: `Bundle did not export pages`,
+        details: [`Expected window.${globalKey}.pages to be defined`],
+      }
       console.warn(`[SpaceLoader] Space "${spaceId}" bundle did not export pages`)
       return null
     }
@@ -259,6 +504,24 @@ async function loadSpaceFromDir(spaceId: string, baseDir: string): Promise<Loade
     // Auto-register actions as automation provider
     if (spaceExport.actions && typeof spaceExport.actions === 'object') {
       registerSpaceActions(spaceId, spaceExport.actions)
+    }
+
+    // --- Agent asset validation (Slice C.3) ---
+    if (manifest.agent && typeof manifest.agent === 'string') {
+      const agentConfigPath = `${spaceDir}/${manifest.agent}`
+      if (!(await exists(agentConfigPath))) {
+        console.warn(`[SpaceLoader] Space "${spaceId}" declares agent config "${manifest.agent}" but file not found`)
+      }
+    }
+    if (manifest.skills && Array.isArray(manifest.skills)) {
+      for (const skill of manifest.skills) {
+        if (typeof skill === 'string') {
+          const skillPath = `${spaceDir}/${skill}`
+          if (!(await exists(skillPath))) {
+            console.warn(`[SpaceLoader] Space "${spaceId}" declares skill "${skill}" but file not found`)
+          }
+        }
+      }
     }
 
     // Inject CSS if present
@@ -281,6 +544,14 @@ async function loadSpaceFromDir(spaceId: string, baseDir: string): Promise<Loade
       cssInjected,
     }
   } catch (err) {
+    if (!_lastLoadError) {
+      _lastLoadError = {
+        spaceId,
+        phase: 'bundle',
+        message: `Unexpected error loading space`,
+        details: [String(err)],
+      }
+    }
     console.error(`[SpaceLoader] Failed to load space "${spaceId}" from dir:`, err)
     return null
   }
