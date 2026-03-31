@@ -69,11 +69,12 @@ export interface HostNativeManifest {
   version: string
   /**
    * Where this space operates.
-   * - "app": global, not project-specific (e.g. brainstorm)
+   * - "app": company-wide, not project-specific (e.g. brainstorm)
    * - "project": only within a project context
-   * - "both": works in either context (e.g. architect)
+   * - "standalone": per-user, independent of any project or company
+   * - "both": works in app and project contexts (e.g. architect)
    */
-  scope: 'app' | 'project' | 'both'
+  scope: 'app' | 'project' | 'standalone' | 'both'
   /** Sidebar navigation entry */
   navigation: {
     label: string
@@ -131,7 +132,7 @@ export function validateHostNativeManifest(manifest: Record<string, unknown>): s
   }
 
   // scope
-  const validScopes = ['app', 'project', 'both']
+  const validScopes = ['app', 'project', 'standalone', 'both']
   if (typeof manifest.scope !== 'string' || !validScopes.includes(manifest.scope)) {
     errors.push(`Missing or invalid "scope" (must be one of: ${validScopes.join(', ')})`)
   }
