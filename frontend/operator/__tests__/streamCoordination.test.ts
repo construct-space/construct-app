@@ -81,6 +81,12 @@ describe('streamClassification', () => {
     it('returns false for unknown assistant type', () => {
       expect(requiresBuffering('unknown')).toBe(false)
     })
+
+    it('returns true for brainstorm (uses assistant.v1 but emits structured JSON)', () => {
+      // brainstorm declares assistant.v1 in config.ts but emits structured
+      // output that must be buffered, so it's in BUFFERED_ASSISTANT_TYPES
+      expect(requiresBuffering('brainstorm')).toBe(true)
+    })
   })
 })
 
@@ -561,6 +567,7 @@ describe('stream coordination in useAgentSession', () => {
 
       await nextTick()
 
+      // architect.v1 enforces exactly 1 question per turn (0.7.2 contract)
       const fullJson = JSON.stringify({
         version: 'architect.v1',
         state: 'questions',
@@ -573,15 +580,6 @@ describe('stream coordination in useAgentSession', () => {
               { value: 'vue', label: 'Vue 3' },
               { value: 'react', label: 'React' },
               { value: 'svelte', label: 'Svelte' },
-            ],
-          },
-          {
-            id: 'q2',
-            question: 'Which database?',
-            type: 'single',
-            options: [
-              { value: 'pg', label: 'PostgreSQL' },
-              { value: 'mongo', label: 'MongoDB' },
             ],
           },
         ],
@@ -607,11 +605,10 @@ describe('stream coordination in useAgentSession', () => {
       const turnAfter = session.turns.value[0]!
       expect(turnAfter.response.filter(b => b.type === 'architect:questions')).toHaveLength(1)
 
-      // Verify the full questions data is present
+      // Verify the question data is present
       const qBlock = turnAfter.response.find(b => b.type === 'architect:questions') as any
-      expect(qBlock.data.questions).toHaveLength(2)
+      expect(qBlock.data.questions).toHaveLength(1)
       expect(qBlock.data.questions[0].options).toHaveLength(3)
-      expect(qBlock.data.questions[1].options).toHaveLength(2)
 
       await sendPromise
     })
@@ -649,6 +646,47 @@ describe('stream coordination in useAgentSession', () => {
       // streamState should indicate buffering
       expect(turn.streamState?.isBuffering).toBe(true)
       expect(turn.streamState?.bufferStartedAt).toBeTypeOf('number')
+    })
+
+    it('buffers fenced JSON blocks (```json), not just raw JSON', async () => {
+      let onChunk: (chunk: any) => void
+      let onDone: (result: any) => void
+
+      dispatchStreamMock.mockImplementation(
+        (_agent: string, _task: string, chunkCb: Function, doneCb: Function) => {
+          onChunk = chunkCb as any
+          onDone = doneCb as any
+          return Promise.resolve(() => {})
+        },
+      )
+
+      const { useAgentSession } = await import('@/operator/useAgentSession')
+      const session = useAgentSession()
+
+      const sendPromise = session.send(
+        [{ type: 'text', content: 'plan' }],
+        { assistantType: 'architect' },
+      )
+
+      await nextTick()
+
+      // Stream fenced JSON — starts with ``` not { or [
+      onChunk!({ content: '```json\n{"version":', type: 'stream', done: false, data: {} })
+      onChunk!({ content: '"architect.v1","state":"progress","message":"OK"}', type: 'stream', done: false, data: {} })
+
+      const turn = session.turns.value[0]!
+      // Must be buffering even though content starts with ``` not {
+      expect(turn.streamState?.isBuffering).toBe(true)
+      expect(turn.response.filter(b => b.type === 'text')).toHaveLength(0)
+
+      onDone!({
+        agent_id: 'architect',
+        session_id: 'sess-1',
+        content: '```json\n{"version":"architect.v1","state":"progress","message":"OK"}\n```',
+        turns: 1,
+      })
+
+      await sendPromise
     })
   })
 })
