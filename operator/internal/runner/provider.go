@@ -176,11 +176,49 @@ func (r *Runner) ListProviders() []map[string]any {
 				models[i] = map[string]any{"id": m, "label": m}
 			}
 		}
-		result = append(result, map[string]any{
+		entry := map[string]any{
 			"id":     p.ID(),
 			"label":  p.ID(),
 			"models": models,
-		})
+		}
+		// Include structured capabilities if available
+		if cp, ok := p.(provider.CapabilitiesProvider); ok {
+			entry["capabilities"] = cp.Capabilities()
+		}
+		result = append(result, entry)
+	}
+	return result
+}
+
+// ProviderHealth checks health of all registered providers.
+// Returns a map of provider ID to health status.
+func (r *Runner) ProviderHealth(ctx context.Context) map[string]map[string]any {
+	r.providersMu.RLock()
+	providers := make([]provider.Provider, 0, len(r.providers))
+	for _, p := range r.providers {
+		providers = append(providers, p)
+	}
+	r.providersMu.RUnlock()
+
+	result := make(map[string]map[string]any, len(providers))
+	for _, p := range providers {
+		status := map[string]any{
+			"id":     p.ID(),
+			"models": len(p.Models()),
+		}
+		if hc, ok := p.(provider.HealthChecker); ok {
+			if err := hc.HealthCheck(ctx); err != nil {
+				status["healthy"] = false
+				status["error"] = err.Error()
+			} else {
+				status["healthy"] = true
+			}
+		} else {
+			// No health check implemented — assume healthy if registered
+			status["healthy"] = true
+			status["note"] = "no health check implemented"
+		}
+		result[p.ID()] = status
 	}
 	return result
 }

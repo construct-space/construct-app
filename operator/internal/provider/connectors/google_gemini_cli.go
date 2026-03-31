@@ -69,6 +69,23 @@ func NewGoogleGeminiCLIOAuth(cfg GoogleGeminiCLIOAuthConfig) *GoogleGeminiCLIOAu
 func (p *GoogleGeminiCLIOAuthProvider) ID() string       { return "google-gemini-cli" }
 func (p *GoogleGeminiCLIOAuthProvider) Models() []string { return append([]string(nil), p.models...) }
 
+func (p *GoogleGeminiCLIOAuthProvider) Capabilities() provider.Capabilities {
+	return provider.Capabilities{
+		SupportsStructuredOutput: true,
+		SupportsTools:            true,
+		SupportsStreaming:         true,
+		MaxContextTokens:         1000000,
+	}
+}
+
+func (p *GoogleGeminiCLIOAuthProvider) HealthCheck(ctx context.Context) error {
+	_, err := p.getToken()
+	if err != nil {
+		return fmt.Errorf("google-gemini-cli health check: %w", err)
+	}
+	return nil
+}
+
 func (p *GoogleGeminiCLIOAuthProvider) Complete(ctx context.Context, req *provider.Request) (*provider.Response, error) {
 	ch, err := p.Stream(ctx, req)
 	if err != nil {
