@@ -1,0 +1,42 @@
+{
+  // Construct desktop frontend — multi-entry Tauri app analyzed by fallow.
+  //
+  // entry: both HTML entries are declared in vite.config.ts rollupOptions.input.
+  //   Without listing both, fallow only sees one and reports the entire
+  //   browser/* subtree (reached from browser-main.ts) as dead.
+  //   Test files are roots for the vitest runner, so they are entry points too —
+  //   declaring them stops ~80 *.test.ts from being reported as unused files and
+  //   lets type-only modules (types/api.ts etc.) be seen as reachable via tests.
+  "entry": [
+    "index.html",
+    "browser.html",
+    "main.ts",
+    "browser-main.ts",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**/*.ts"
+  ],
+
+  // The app uses unplugin-auto-import (see auto-imports.d.ts); without this,
+  // auto-imported composables look unused.
+  "autoImports": true,
+
+  // Known-good files fallow can't trace a runtime edge to:
+  // - type-only modules consumed exclusively via `import type` (erased at runtime)
+  // - useProjectContext: consumed by brain/client.ts via the operator bridge
+  "dynamicallyLoaded": [
+    "types/activity.ts",
+    "types/api.ts",
+    "types/event.ts",
+    "spaces/project/composables/useProjectContext.ts"
+  ],
+
+  // These files are the host's runtime implementation of the @construct/sdk
+  // surface, exposed to space IIFE bundles via window.__CONSTRUCT__. Space
+  // bundles are eval'd, so fallow can't see them import these symbols — every
+  // export here is consumed at runtime and must NOT be reported as dead.
+  "ignoreExports": [
+    { "file": "lib/constructSdk.ts", "exports": ["*"] },
+    { "file": "lib/spaceHost.ts", "exports": ["*"] }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "id": "org",
+  "name": "Organization",
+  "version": "1.0.0",
+  "description": "Manage your organization — members, departments, teams, roles, and invitations",
+  "icon": "i-lucide-building-2",
+  "navigation": {
+    "label": "Organization",
+    "icon": "i-lucide-building-2",
+    "to": "org",
+    "order": 40
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Dashboard",
+      "icon": "i-lucide-layout-dashboard",
+      "default": true
+    },
+    {
+      "path": "members",
+      "label": "Members",
+      "icon": "i-lucide-users"
+    },
+    {
+      "path": "members/:id",
+      "label": "Member Detail",
+      "hidden": true
+    },
+    {
+      "path": "departments",
+      "label": "Departments",
+      "icon": "i-lucide-briefcase"
+    },
+    {
+      "path": "departments/:id",
+      "label": "Department Detail",
+      "hidden": true
+    },
+    {
+      "path": "teams/:id",
+      "label": "Team Detail",
+      "hidden": true
+    },
+    {
+      "path": "invitations",
+      "label": "Invitations",
+      "icon": "i-lucide-mail"
+    },
+    {
+      "path": "activity",
+      "label": "Activity",
+      "icon": "i-lucide-history"
+    },
+    {
+      "path": "settings",
+      "label": "Settings",
+      "icon": "i-lucide-settings"
+    }
+  ],
+  "toolbar": [
+    {
+      "id": "add-member",
+      "icon": "i-lucide-user-plus",
+      "label": "Add Member",
+      "action": "createMember"
+    },
+    {
+      "id": "add-department",
+      "icon": "i-lucide-briefcase",
+      "label": "Add Department",
+      "action": "createDepartment"
+    },
+    {
+      "id": "send-invite",
+      "icon": "i-lucide-mail",
+      "label": "Send Invite",
+      "action": "sendInvite"
+    }
+  ],
+  "scopes": [
+    "app"
+  ],
+  "projectAware": false
+}

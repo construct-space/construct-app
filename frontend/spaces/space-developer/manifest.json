@@ -1,0 +1,24 @@
+{
+  "id": "space-developer",
+  "name": "Space Developer",
+  "description": "Plans, builds, and verifies Construct Spaces. Claude-Code-style autonomous loop, specialized for Spaces.",
+  "icon": "lucide:boxes",
+  "version": "1.0.0",
+  "navigation": {
+    "label": "Space Developer",
+    "icon": "lucide:boxes",
+    "to": "space-developer",
+    "order": 35
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Space Developer",
+      "default": true
+    }
+  ],
+  "scopes": [
+    "app"
+  ],
+  "projectAware": true
+}

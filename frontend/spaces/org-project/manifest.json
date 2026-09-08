@@ -1,0 +1,25 @@
+{
+  "id": "org-project",
+  "name": "Projects",
+  "description": "Org-wide project management — track, clone, and coordinate shared projects",
+  "icon": "lucide:folder-kanban",
+  "version": "1.0.0",
+  "navigation": {
+    "label": "Projects",
+    "icon": "lucide:folder-kanban",
+    "to": "org-project",
+    "order": 25
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Projects",
+      "icon": "lucide:folder-kanban",
+      "default": true
+    }
+  ],
+  "scopes": [
+    "org"
+  ],
+  "projectAware": false
+}

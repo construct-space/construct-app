@@ -1,0 +1,29 @@
+{
+  "hooks": [
+    {
+      "id": "ask-only",
+      "name": "Ask Only",
+      "description": "Ask is a chat-only agent. Only web_search and web_fetch are allowed.",
+      "type": "pre_tool",
+      "tools": [
+        "write_file",
+        "edit_file",
+        "read_file",
+        "bash",
+        "glob",
+        "grep",
+        "list_dir",
+        "git_commit",
+        "lsp",
+        "task",
+        "memory",
+        "ask_user",
+        "coordinate",
+        "get_project_context"
+      ],
+      "command": "echo '{\"block\":true,\"message\":\"Chat is chat-only. Only web_search and web_fetch are available. Switch to Builder to act on the project.\"}'",
+      "timeout": 5,
+      "source": "space:ask"
+    }
+  ]
+}

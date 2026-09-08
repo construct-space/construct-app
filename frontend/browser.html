@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Construct Browser</title>
+  <style>
+    html,
+    body,
+    #browser-app {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    /* Boot background follows the resolved host theme (set below) so the
+       window — including the title-bar drag region — never flashes a fixed
+       dark colour in a light theme. The Vue shell paints var(--app-*) over
+       this once it mounts. */
+    html,
+    body {
+      background: var(--boot-bg, #0f172a);
+    }
+  </style>
+  <script>
+    // Match the main app theme before CSS first paint, otherwise the browser
+    // shell flashes unthemed. The host stores the theme id profile-scoped
+    // (`${profileId}:app-theme-id`); fall back to the legacy unprefixed key.
+    (function () {
+      var id = null;
+      try {
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.slice(-13) === ':app-theme-id') { id = localStorage.getItem(k); break; }
+        }
+      } catch (e) { /* ignore */ }
+      id = id || localStorage.getItem('app-theme-id') || 'auto';
+      var light = (id === 'vs' || id === 'hc-light' ||
+        (id === 'auto' && window.matchMedia('(prefers-color-scheme: light)').matches));
+      document.documentElement.style.setProperty('--boot-bg', light ? '#f1f5f9' : '#0f172a');
+      if (!light) document.documentElement.classList.add('dark');
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="browser-app"></div>
+  <script type="module" src="./browser-main.ts"></script>
+</body>
+
+</html>

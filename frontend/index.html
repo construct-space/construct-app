@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
+  <!-- Auto-upgrade every insecure subresource (http -> https) before the
+       request is made. Fixes macOS App Transport Security blocking http images
+       like TuneIn station logos (cdn-profiles.tunein.com/...logoq.jpg). Scheme-
+       only rewrite; doesn't block anything, so it's safe app-wide. NOT added to
+       browser.html, which loads arbitrary user sites that may be http-only. -->
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
+  <title>Construct</title>
+  <style>
+    html, body { overflow: hidden; height: 100%; margin: 0; }
+    #app { height: 100%; overflow: hidden; position: relative; z-index: 1; }
+    #splash { pointer-events: none; }
+  </style>
+  <script>
+    // Set background + dark class before first paint to prevent flash
+    (function() {
+      var id = localStorage.getItem('app-theme-id') || 'auto';
+      var light = (id === 'vs' || id === 'hc-light' || (id === 'auto' && window.matchMedia('(prefers-color-scheme: light)').matches));
+      document.documentElement.style.background = light ? '#f1f5f9' : '#0f172a';
+      if (!light) document.documentElement.classList.add('dark');
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="splash" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9999">
+    <svg width="48" height="48" viewBox="0 0 533 533" fill="#E63946" style="opacity:0.7">
+      <path d="M266.5 410.156C230.912 410.156 199.106 402.203 171.081 386.297C143.056 370.39 121.036 348.519 105.022 320.684C89.0072 292.848 81 261.256 81 225.909C81 190.12 89.0072 158.308 105.022 130.472C121.036 102.636 143.056 80.7655 171.081 64.8593C199.106 48.9531 230.912 41 266.5 41C302.087 41 333.671 48.9531 361.252 64.8593C389.277 80.7655 411.297 102.636 427.311 130.472C443.326 158.308 451.555 190.12 452 225.909C452 261.256 443.77 292.848 427.311 320.684C411.297 348.519 389.277 370.39 361.252 386.297C333.671 402.203 302.087 410.156 266.5 410.156ZM266.5 363.763C292.301 363.763 315.433 357.798 335.896 345.868C356.359 333.939 372.373 317.591 383.939 296.824C395.505 276.058 401.288 252.42 401.288 225.909C401.288 199.399 395.505 175.761 383.939 154.994C372.373 133.786 356.359 117.217 335.896 105.287C315.433 93.3579 292.301 87.393 266.5 87.393C240.699 87.393 217.567 93.3579 197.104 105.287C176.641 117.217 160.405 133.786 148.394 154.994C136.828 175.761 131.045 199.399 131.045 225.909C131.045 252.42 136.828 276.058 148.394 296.824C160.405 317.591 176.641 333.939 197.104 345.868C217.567 357.798 240.699 363.763 266.5 363.763Z"/>
+      <path d="M378.22 451.578C393.077 451.578 405.121 460.85 405.121 472.289C405.121 483.727 393.077 493 378.22 493H160.945C146.089 493 134.044 483.727 134.044 472.289C134.044 460.85 146.089 451.578 160.945 451.578H378.22Z"/>
+    </svg>
+  </div>
+  <div id="app"></div>
+  <script type="module" src="./main.ts"></script>
+</body>
+
+</html>

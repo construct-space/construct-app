@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Construct — brain prompt flow</title>
+  <style>
+    :root {
+      --bg: #0e1116;
+      --surface: #161a22;
+      --border: #232a36;
+      --text: #d6dde8;
+      --muted: #8a93a3;
+      --accent: #6c8eef;
+      --frontend: #c0c4cc;
+      --http: #7fa570;
+      --brain: #5d83d6;
+      --agent: #6c8eef;
+      --tool: #b078d6;
+      --sse: #d68fc1;
+      --provider: #d68f55;
+      --upstream: #d65555;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif;
+      padding: 32px 16px 64px;
+    }
+    main { max-width: 760px; margin: 0 auto; }
+    h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+    p.lede { color: var(--muted); margin: 0 0 24px; }
+    .flow { display: flex; flex-direction: column; gap: 0; }
+    .arrow {
+      align-self: center;
+      color: #fff;
+      font-size: 18px;
+      line-height: 1;
+      margin: 6px 0;
+      opacity: 0.7;
+    }
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--c, var(--accent));
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: background .12s ease, transform .12s ease;
+    }
+    .step:hover { background: #1c2230; }
+    .step.open { background: #1a212d; }
+    .step header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .step .title { display: flex; align-items: center; gap: 10px; }
+    .step .badge {
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--c);
+      color: #0e1116;
+      font-weight: 600;
+    }
+    .step h2 { font-size: 14px; font-weight: 600; margin: 0; }
+    .step .summary { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .step .toggle {
+      color: var(--muted);
+      transition: transform .12s ease;
+      font-size: 16px;
+    }
+    .step.open .toggle { transform: rotate(90deg); }
+    .step .body {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border);
+      font-size: 13px;
+    }
+    .step.open .body { display: block; }
+    .step .body p { margin: 0 0 8px; color: var(--text); }
+    .step .body code {
+      background: #0b0e13;
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #e6e6e6;
+      font-size: 12px;
+    }
+    .step .body ul { margin: 6px 0 10px; padding-left: 18px; color: var(--text); }
+    .step .body li { margin: 3px 0; }
+    .step .body .files {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #0c1018;
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .step .body .files .file { display: block; }
+    .step .body .files .file .name { color: #aac4ff; }
+    .step .body .label {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 4px 0 2px;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    .controls {
+      margin-bottom: 16px;
+    }
+    .controls button {
+      background: #1a212d;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      margin-right: 6px;
+    }
+    .controls button:hover { background: #232a36; }
+    .prompt-card { background: var(--frontend); border-left-color: var(--frontend); color: #15181f; }
+    .typed {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #15181f;
+    }
+    .typed .send {
+      margin-left: 4px;
+      padding: 2px 8px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 4px;
+    }
+    .pi-note {
+      background: #14202a;
+      border: 1px solid #1f3140;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 20px 0;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .pi-note strong { color: #b8d6ff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Construct prompt flow — brain</h1>
+    <p class="lede">What happens between the chat box and the model when brain is the sidecar. Click a step to expand.</p>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--frontend)"></span>Frontend (Vue/Tauri)</span>
+      <span><span class="swatch" style="background:var(--http)"></span>HTTP fetch</span>
+      <span><span class="swatch" style="background:var(--brain)"></span>Brain (Go)</span>
+      <span><span class="swatch" style="background:var(--agent)"></span>Agent loop</span>
+      <span><span class="swatch" style="background:var(--tool)"></span>Tool exec</span>
+      <span><span class="swatch" style="background:var(--sse)"></span>SSE back-channel</span>
+      <span><span class="swatch" style="background:var(--provider)"></span>Provider</span>
+      <span><span class="swatch" style="background:var(--upstream)"></span>Upstream</span>
+    </div>
+
+    <div class="controls">
+      <button onclick="toggleAll(true)">Expand all</button>
+      <button onclick="toggleAll(false)">Collapse all</button>
+    </div>
+
+    <div class="pi-note">
+      <strong>Pi-shape note.</strong> Brain ships only 8 tool schemas per turn (~5KB): <code>read</code>, <code>write</code>, <code>edit</code>, <code>bash</code>, <code>list_tools</code>, <code>call_tool</code>, <code>list_skills</code>, <code>load_skill</code>. Every other capability (git, grep/glob, lsp, graph, web, space.*, dispatch_subagent, etc.) is registered hidden — the model finds it via <code>list_tools</code> and invokes via <code>call_tool(name, args)</code>. Skills follow the same pattern. Operator's per-turn payload was ~91KB.
+    </div>
+
+    <div class="flow">
+
+      <!-- ─── 1. Chat composer ─── -->
+      <div class="step prompt-card" data-c="--frontend">
+        <header>
+          <div class="title">
+            <h2 style="color:#15181f">Chat composer</h2>
+          </div>
+          <div class="toggle" style="color:#15181f">›</div>
+        </header>
+        <div class="typed" style="margin-top:10px">
+          <span>PROMPT</span>
+          <span class="send">↑</span>
+        </div>
+        <div class="body">
+          <p>User types in <code>AssistantModal</code> + presses send. Vue reads the selected model from <code>useAIModel()</code> and builds the brain prompt payload.</p>
+          <p><span class="label">Attached payload</span></p>
+          <ul>
+            <li><code>prompt</code> — the user's message</li>
+            <li><code>model</code> — <code>currentModel.id</code> from useAIModel</li>
+            <li><code>provider</code> — <code>currentProvider.id</code> (anthropic / google / deepseek / alibaba / ...)</li>
+            <li><code>session_id</code> — first turn assigns a new id, subsequent reuse</li>
+            <li><code>agent_id</code> — optional, selects a built-in agent prompt (coder, ask, builder, etc.)</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">frontend/components/ai/AssistantModal.vue</span> — modal + send</span>
+            <span class="file"><span class="name">frontend/brain/client.ts</span> — useBrain composable (HTTP+SSE)</span>
+            <span class="file"><span class="name">frontend/composables/useAIModel.ts</span> — current provider/model selection</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <!-- ─── 2. HTTP fetch ─── -->
+      <div class="step" data-c="--http" style="--c:var(--http)">
+        <header>
+          <div class="title">
+            <span class="badge">HTTP</span>
+            <h2>POST /v1/stream → brain</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Direct webview fetch — no Tauri IPC marshalling for the prompt path</div>
+        <div class="body">
+          <p>Webview's <code>fetch()</code> opens an SSE stream to brain at <code>127.0.0.1:60182</code>. No length-prefixed framing, no Rust hop — the JS body is the raw <code>{id, type:"prompt", payload}</code> envelope.</p>
+          <p><span class="label">Why this is cheaper than operator</span></p>
+          <ul>
+            <li>Webview → loopback HTTP: 1 hop. Operator went webview → Rust IPC → TCP framing → operator: 3 hops.</li>
+            <li>Same stream serves tool callbacks (see SSE back-channel below); no second connection.</li>
+            <li>CORS allows <code>http://localhost:60200</code> (Vite dev) so the same client works without Tauri.</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">brain/sidecar/http.go</span> — POST /v1/request, /v1/stream, /v1/tool_response</span>
+            <span class="file"><span class="name">frontend/brain/client.ts</span> — fetch + ReadableStream SSE parser</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <!-- ─── 3. Brain dispatch ─── -->
+      <div class="step" data-c="--brain" style="--c:var(--brain)">
+        <header>
+          <div class="title">
+            <span class="badge">GO</span>
+            <h2>Brain dispatch — sidecar.Server</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Routes <code>prompt</code> (or stream alias) → <code>runPrompt</code> → <code>handlePrompt</code></div>
+        <div class="body">
+          <p>HTTP server reads the wire envelope, looks up the handler keyed by <code>type</code>, and calls it with an <code>emit</code> callback that flushes each chunk as an SSE <code>data:</code> line.</p>
+          <p><span class="label">Stream aliases (operator-compat)</span></p>
+          <ul>
+            <li><code>ai.chat_stream</code>, <code>experimental.run.small_stream</code>, <code>architect_stream</code>, <code>vibe_stream</code>, <code>agents.dispatch_stream</code> — all adapter shims that translate to the canonical <code>{prompt, model, ...}</code> shape and call <code>runPrompt</code>.</li>
+            <li><code>cancel</code> wire op fires the per-request <code>context.CancelFunc</code> tracked in <code>cancelTracker</code>.</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">brain/wire_register.go</span> — registerBuiltins fan-out</span>
+            <span class="file"><span class="name">brain/wire_prompt.go</span> — registerPromptHandlers + runPrompt</span>
+            <span class="file"><span class="name">brain/cancels.go</span> — cancelTracker</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <!-- ─── 4. handlePrompt assembly ─── -->
+      <div class="step" data-c="--brain" style="--c:var(--brain)">
+        <header>
+          <div class="title">
+            <span class="badge">GO</span>
+            <h2>handlePrompt — assemble request</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Picks provider, builds system prompt, binds session, persists user turn</div>
+        <div class="body">
+          <p>Single function. No "runner" / "context" / "morpheus" indirections — the whole request setup is linear.</p>
+          <p><span class="label">In order</span></p>
+          <ul>
+            <li><strong>Provider routing.</strong> If payload had no provider, <code>inferProviderFromModel</code> walks the catalog snapshot for a slug owning that model id; falls back to family prefix (<code>claude-*</code>, <code>gpt-*</code>, <code>gemini-*</code>).</li>
+            <li><strong>Model default.</strong> If no model, ask the catalog for the provider's default; else <code>defaultModel</code>.</li>
+            <li><strong>System prompt.</strong> Explicit pl.System wins; else agent.SystemPrompt by <code>agent_id</code>; else <code>defaultSystemPrompt</code>. <code>skill.BuildSystemPrompt</code> appends a "N skills loaded — call list_skills" pointer (no per-skill catalog inline).</li>
+            <li><strong>Provider build.</strong> <code>buildProvider</code> resolves credentials: enforced org key → <code>provider_key:&lt;slug&gt;</code> in settings → env vars → non-enforced org key. Bespoke clients for Anthropic / Google / OpenAI-Codex; everyone else is the OpenAI-compat client with catalog <code>BaseURL</code>.</li>
+            <li><strong>Caps.</strong> Catalog lookup returns model capabilities (caching, structured, tools, vision, reasoning) — passed to the provider so it opts into the right API features.</li>
+            <li><strong>Session.</strong> Load history JSONL; assign id if new. Bind <code>taskStore.SetSession(id)</code> so task_create/_update/_list bucket correctly.</li>
+            <li><strong>Frontend SSE channel.</strong> <code>bindFrontend</code> installs an emitter so any in-process tool can push a <code>tool_request</code> down the same stream the prompt is streaming back on.</li>
+            <li><strong>Persist user turn</strong> before calling the model so an abort still leaves a complete log.</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">brain/wire_prompt.go</span> — handlePrompt + bindFrontend + promptDeps</span>
+            <span class="file"><span class="name">brain/providers.go</span> — buildProvider, inferProviderFromModel, buildSummarizer</span>
+            <span class="file"><span class="name">brain/skill/prompt.go</span> — BuildSystemPrompt (no skill catalog inline)</span>
+            <span class="file"><span class="name">brain/skill/cache_split.go</span> — static/dynamic boundary for Anthropic cache_control</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <!-- ─── 5. Agent loop ─── -->
+      <div class="step" data-c="--agent" style="--c:var(--agent)">
+        <header>
+          <div class="title">
+            <span class="badge">LOOP</span>
+            <h2>agent.Agent.Run — turn loop</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Compact → stream → execute tools → loop until <code>end_turn</code> or max iterations</div>
+        <div class="body">
+          <p>The single agent loop. Decorated with hooks, an LLM-summarised compactor, and a permission gate; the body itself is ~80 lines.</p>
+          <p><span class="label">Each iteration</span></p>
+          <ul>
+            <li><code>CompactIfNeeded</code> — if char count over <code>0.85 × MaxChars</code>, summarise elided middle via a cheap model from <code>buildSummarizer</code>. <code>EmergencyCompact</code> strips tool_result bodies as a last resort.</li>
+            <li>Provider <code>Stream</code> with the visible tool schemas (just 8 of them).</li>
+            <li>For each <code>tool_use</code> block: run hooks (pre), permission gate (deny/ask/allow), execute the tool, truncate result to ≤15K (10K head + 4K tail), run hooks (post).</li>
+            <li>Append assistant message + tool_result message to history.</li>
+            <li>Stop when <code>stop_reason ≠ "tool_use"</code>.</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">brain/agent/agent.go</span> — Agent + Run loop</span>
+            <span class="file"><span class="name">brain/agent/compact.go</span> — CompactIfNeeded, EmergencyCompact, truncateToolResult</span>
+            <span class="file"><span class="name">brain/permissions.go</span> — buildPermissionGate (default/yolo/strict/ask)</span>
+            <span class="file"><span class="name">brain/hook/hook.go</span> — Pre/Post shell hooks</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <!-- ─── 6. Provider call ─── -->
+      <div class="step" data-c="--provider" style="--c:var(--provider)">
+        <header>
+          <div class="title">
+            <span class="badge">API</span>
+            <h2>Provider.Stream — SSE to upstream</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Translates the agent's request shape to the upstream's wire format</div>
+        <div class="body">
+          <p>Five provider implementations, all behind the same <code>Stream(ctx, req, emit) error</code> interface. Each one translates SSE events into brain's <code>provider.Event</code> shape so the agent loop is provider-agnostic.</p>
+          <p><span class="label">Implementations</span></p>
+          <ul>
+            <li><code>Anthropic</code> — Messages API + OAuth (Claude Pro/Max). Prompt cache split: static prefix gets <code>cache_control: ephemeral</code>, dynamic suffix does not. Adds the Claude Code identifier as a leading system block for OAuth traffic.</li>
+            <li><code>Google</code> — Gemini <code>streamGenerateContent</code>. Sanitizes input schemas (drops <code>$schema</code>, <code>additionalProperties</code>) so functionDeclarations accept brain's tool shapes.</li>
+            <li><code>OpenAI</code> — chat-completions. Used for plain OpenAI + DeepSeek / Xiaomi / OpenRouter / Kimi / xAI / Alibaba / any catalog provider with a BaseURL.</li>
+            <li><code>OpenAICodex</code> — ChatGPT Plus/Pro via <code>chatgpt.com/backend-api/codex/responses</code>. Responses API event types translated to brain's Event types.</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">brain/provider/anthropic.go</span> — Messages API + OAuth headers + cache split</span>
+            <span class="file"><span class="name">brain/provider/google.go</span> — Gemini SSE + schema sanitization</span>
+            <span class="file"><span class="name">brain/provider/openai.go</span> — chat-completions (OpenAI-compat backend for many slugs)</span>
+            <span class="file"><span class="name">brain/provider/openai_codex.go</span> — Codex Responses API</span>
+            <span class="file"><span class="name">brain/provider/orgkeys.go</span> — org-supplied API keys from source gateway</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <!-- ─── 7. Tool execution ─── -->
+      <div class="step" data-c="--tool" style="--c:var(--tool)">
+        <header>
+          <div class="title">
+            <span class="badge">EXEC</span>
+            <h2>Tool execution — 3 paths</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Native Go / call_tool dispatch / SSE back-channel — picked by tool kind</div>
+        <div class="body">
+          <p>Every tool call lands in <code>tool.Registry.Execute</code>; what happens next depends on the tool.</p>
+          <p><span class="label">Path A — Native, in-process</span></p>
+          <ul>
+            <li><code>read</code>, <code>write</code>, <code>edit</code>, <code>bash</code> — direct syscalls.</li>
+            <li>Hidden tools via <code>call_tool(name, args)</code> — registry lookup, execute. The model uses these after discovering them via <code>list_tools</code>.</li>
+          </ul>
+          <p><span class="label">Path B — SSE back-channel to frontend</span></p>
+          <ul>
+            <li><code>space_list_actions</code>, <code>space_run_action</code>, <code>ask_user</code>, <code>start_preview</code>, <code>request_project_setup</code>, <code>permission.request</code>.</li>
+            <li>Brain emits a <code>tool_request</code> chunk on the active prompt's SSE stream. The frontend's <code>bridgeListener</code> dispatches against live Pinia/DOM state and POSTs the result to <code>/v1/tool_response</code>. Brain's <code>bridge.Frontend.Resolve</code> unblocks the waiting call.</li>
+            <li>2 hops (brain ↔ frontend). No Tauri shell in the loop.</li>
+          </ul>
+          <p><span class="label">Path C — HTTP bridge fallback (native OS ops)</span></p>
+          <ul>
+            <li><code>space.screenshot</code>, <code>browser.*</code>, <code>construct.mouse_*</code>.</li>
+            <li>Routes to the legacy desktop bridge listener on :60101 (operator's old shape). HTTP POST with bearer token. Webview can't reach screenshots / native automation, so this path stays.</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">brain/tool/tool.go</span> — Registry, visible vs hidden</span>
+            <span class="file"><span class="name">brain/tool/meta.go</span> — list_tools, call_tool, list_skills</span>
+            <span class="file"><span class="name">brain/bridge/frontend.go</span> — SSE back-channel + pending-call map</span>
+            <span class="file"><span class="name">brain/bridge/bridge.go</span> — HTTP fallback (operator's :60101 listener)</span>
+            <span class="file"><span class="name">frontend/lib/bridgeListener.ts</span> — dispatch table for bridge methods</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <!-- ─── 8. Stream chunks back ─── -->
+      <div class="step" data-c="--sse" style="--c:var(--sse)">
+        <header>
+          <div class="title">
+            <span class="badge">SSE</span>
+            <h2>Stream chunks → webview</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Same SSE response — carries text deltas, tool calls, tool results, and bridge requests</div>
+        <div class="body">
+          <p>The provider stream pushes <code>text_delta</code> / <code>tool_use_start</code> / <code>tool_use_input_delta</code> / <code>block_stop</code> events into brain's emit fn. Brain forwards them as <code>wire.Response</code> chunks on the active SSE stream, mixed with:</p>
+          <ul>
+            <li><code>session</code> — issued once at start with the resolved session_id</li>
+            <li><code>tool_call</code> / <code>tool_result</code> — for the UI's tool-card rendering</li>
+            <li><code>tool_request</code> — brain asking the frontend to run a bridge method (Path B above)</li>
+            <li><code>usage</code> — token accounting per round</li>
+            <li><code>end</code> — final stop with stop_reason</li>
+          </ul>
+          <p><span class="label">Frontend rendering</span></p>
+          <ul>
+            <li><code>useBrain().stream()</code> reads <code>data:</code> lines and dispatches each chunk to onChunk/onDone/onError handlers.</li>
+            <li><code>AssistantModal</code> appends text deltas to the live bubble, surfaces tool calls as bracketed lines, scrolls.</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">brain/wire/wire.go</span> — Request/Response shape</span>
+            <span class="file"><span class="name">brain/sidecar/http.go</span> — handleStream emit fn</span>
+            <span class="file"><span class="name">frontend/brain/client.ts</span> — useBrain().stream + chunk parser</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <!-- ─── 9. Persist ─── -->
+      <div class="step" data-c="--brain" style="--c:var(--brain)">
+        <header>
+          <div class="title">
+            <span class="badge">GO</span>
+            <h2>Session persisted</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">JSONL per session — assistant turn + tool_result turn appended each round</div>
+        <div class="body">
+          <p><code>OnMessages</code> callback fires after each provider round; brain appends the assistant message and (optional) tool-result message to <code>&lt;sessions-dir&gt;/&lt;session_id&gt;.jsonl</code>. Telemetry sink records token usage per turn.</p>
+          <div class="files">
+            <span class="file"><span class="name">brain/session/store.go</span> — append-only JSONL session log</span>
+            <span class="file"><span class="name">brain/telemetry/sink.go</span> — usage JSONL for insights</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="lede" style="margin-top:32px">
+      Files referenced: <code>brain/</code> = sidecar (Go), <code>frontend/</code> = webview (Vue + TS).
+      See <a href="prompt-flow-operator.html" style="color:var(--accent)">prompt-flow-operator.html</a> for the legacy operator path (deprecated).
+    </p>
+  </main>
+
+  <script>
+    document.querySelectorAll('.step').forEach(s => {
+      s.addEventListener('click', e => {
+        if (e.target.tagName === 'A') return;
+        s.classList.toggle('open');
+      });
+    });
+    function toggleAll(open) {
+      document.querySelectorAll('.step').forEach(s => {
+        s.classList.toggle('open', open);
+      });
+    }
+  </script>
+</body>
+</html>

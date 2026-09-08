@@ -1,0 +1,24 @@
+{
+  "id": "tui",
+  "name": "TUI",
+  "description": "Run interactive CLI tools — Claude Code, Codex, OpenCode, or any TUI app.",
+  "icon": "lucide:terminal-square",
+  "version": "1.0.0",
+  "navigation": {
+    "label": "TUI",
+    "icon": "lucide:terminal-square",
+    "to": "tui",
+    "order": 40
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "TUI",
+      "default": true
+    }
+  ],
+  "scopes": [
+    "app"
+  ],
+  "projectAware": true
+}

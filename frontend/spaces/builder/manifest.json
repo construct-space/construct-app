@@ -1,0 +1,24 @@
+{
+  "id": "builder",
+  "name": "Builder",
+  "description": "Plans, builds, and verifies general software — landing pages, sites, apps.",
+  "icon": "lucide:hammer",
+  "version": "1.0.0",
+  "navigation": {
+    "label": "Builder",
+    "icon": "lucide:hammer",
+    "to": "builder",
+    "order": 36
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Builder",
+      "default": true
+    }
+  ],
+  "scopes": [
+    "app"
+  ],
+  "projectAware": true
+}

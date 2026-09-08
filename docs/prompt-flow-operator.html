@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Construct — prompt flow</title>
+  <style>
+    :root {
+      --bg: #0e1116;
+      --surface: #161a22;
+      --border: #232a36;
+      --text: #d6dde8;
+      --muted: #8a93a3;
+      --accent: #6c8eef;
+      --frontend: #c0c4cc;
+      --ipc: #7fa570;
+      --operator: #5d83d6;
+      --runner: #6c8eef;
+      --enrich: #b078d6;
+      --provider: #d68f55;
+      --upstream: #d65555;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif;
+      padding: 32px 16px 64px;
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+    p.lede {
+      color: var(--muted);
+      margin: 0 0 24px;
+    }
+    .flow {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+    }
+    .arrow {
+      align-self: center;
+      color: #fff;
+      font-size: 18px;
+      line-height: 1;
+      margin: 6px 0;
+      opacity: 0.7;
+    }
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--c, var(--accent));
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: background .12s ease, transform .12s ease;
+    }
+    .step:hover { background: #1c2230; }
+    .step.open { background: #1a212d; }
+    .step header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .step .title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .step .badge {
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--c);
+      color: #0e1116;
+      font-weight: 600;
+    }
+    .step h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .step .summary {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .step .toggle {
+      color: var(--muted);
+      font-size: 16px;
+      transition: transform .15s ease;
+    }
+    .step.open .toggle { transform: rotate(90deg); }
+    .step .body {
+      display: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border);
+      font-size: 13px;
+    }
+    .step.open .body { display: block; }
+    .step .body p { margin: 0 0 8px; color: var(--text); }
+    .step .body code {
+      background: #0a0d12;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: "SF Mono", ui-monospace, Menlo, monospace;
+      font-size: 12px;
+      color: #f1c98b;
+    }
+    .step .body ul {
+      margin: 6px 0;
+      padding-left: 18px;
+    }
+    .step .body li {
+      margin: 3px 0;
+      color: var(--text);
+    }
+    .step .body .files {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #0a0d12;
+      border-radius: 6px;
+      font-family: "SF Mono", ui-monospace, Menlo, monospace;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.7;
+      word-break: break-all;
+    }
+    .step .body .files .file { display: block; }
+    .step .body .files .file .name { color: #aac4ff; }
+    .step .body .label {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin: 0 0 18px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .legend .swatch {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .controls button {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .controls button:hover { background: #1c2230; }
+    .prompt-card {
+      background: #c5cad3;
+      color: #15181f;
+      border-radius: 14px;
+      padding: 14px;
+      border-left: none;
+      cursor: pointer;
+    }
+    .prompt-card:hover { background: #cfd4dc; }
+    .prompt-card .typed {
+      background: #888c95;
+      color: #15181f;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      letter-spacing: .04em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .prompt-card .typed .send {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: #6c727b;
+      display: grid;
+      place-items: center;
+      color: #15181f;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Construct prompt flow</h1>
+    <p class="lede">What happens between the chat box and the model — and what gets added at every stop. Click a step to expand.</p>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--frontend)"></span>Frontend (Vue/Tauri)</span>
+      <span><span class="swatch" style="background:var(--ipc)"></span>IPC (Rust)</span>
+      <span><span class="swatch" style="background:var(--operator)"></span>Operator (Go)</span>
+      <span><span class="swatch" style="background:var(--enrich)"></span>Enrichment</span>
+      <span><span class="swatch" style="background:var(--provider)"></span>Provider connector</span>
+      <span><span class="swatch" style="background:var(--upstream)"></span>Upstream</span>
+    </div>
+
+    <div class="controls">
+      <button onclick="toggleAll(true)">Expand all</button>
+      <button onclick="toggleAll(false)">Collapse all</button>
+    </div>
+
+    <div class="flow">
+
+      <div class="step prompt-card" data-c="--frontend">
+        <header>
+          <div class="title">
+            <h2 style="color:#15181f">Chat composer</h2>
+          </div>
+          <div class="toggle" style="color:#15181f">›</div>
+        </header>
+        <div class="typed" style="margin-top:10px">
+          <span>PROMPT</span>
+          <span class="send">↑</span>
+        </div>
+        <div class="body">
+          <p>User types a message + presses send. Vue stitches the prompt onto the in-memory chat history (Pinia store) and calls the operator client.</p>
+          <p><span class="label">Already attached</span></p>
+          <ul>
+            <li>Active agent id (e.g. <code>coordinator</code>, <code>coder</code>)</li>
+            <li>Selected provider + model (from useAIModel)</li>
+            <li>Active project + working directory</li>
+            <li>Conversation history (prior turns including tool results)</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">frontend/components/agent/ChatComposer.vue</span> — input + send</span>
+            <span class="file"><span class="name">frontend/operator/useAgentSession.ts</span> — wraps the operator client</span>
+            <span class="file"><span class="name">frontend/composables/useAIModel.ts</span> — current provider/model selection</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--ipc" style="--c:var(--ipc)">
+        <header>
+          <div class="title">
+            <span class="badge">RUST</span>
+            <h2>Tauri bridge → operator socket</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">JS invoke → Rust IPC → TCP framing to operator on :60100</div>
+        <div class="body">
+          <p>Tauri's <code>invoke()</code> on the JS side marshals to a Rust command. The bridge connects to the local operator over TCP <code>127.0.0.1:60100</code> and writes a length-prefixed JSON request <code>{ method: "ai.chat_stream", payload: {...} }</code>.</p>
+          <p><span class="label">Added here</span></p>
+          <ul>
+            <li>Request id + correlation for streaming events</li>
+            <li>Active profile id (so operator picks the right <code>profiles/&lt;id&gt;/</code> dir for keys, settings, memory)</li>
+          </ul>
+          <div class="files">
+            <span class="file"><span class="name">desktop/src/lib.rs</span> — Tauri runtime, operator spawn, bridge listener</span>
+            <span class="file"><span class="name">frontend/operator/client.ts</span> — JS-side stream client</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--operator" style="--c:var(--operator)">
+        <header>
+          <div class="title">
+            <span class="badge">GO</span>
+            <h2>Operator dispatch (ai module)</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Routes <code>ai.chat_stream</code> → AIModule → runner.Run</div>
+        <div class="body">
+          <p>The operator's transport accepts the request and the registered handler for <code>ai.chat_stream</code> picks it up. The AIModule packages it as a <code>RunRequest</code> and hands off to the runner.</p>
+          <p><span class="label">No prompt enrichment yet</span> — this layer wires the request together; assembly happens in the runner.</p>
+          <div class="files">
+            <span class="file"><span class="name">operator/main.go</span> — boots modules, listens on TCP :60100</span>
+            <span class="file"><span class="name">operator/internal/ai/module.go:162</span> — <code>r.HandleStream("ai.chat_stream", m.handleChatStream)</code></span>
+            <span class="file"><span class="name">operator/internal/ai/module.go:732</span> — <code>handleChatStream</code></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--runner" style="--c:var(--runner)">
+        <header>
+          <div class="title">
+            <span class="badge">RUNNER</span>
+            <h2>setupRun — assemble runState</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Builds system prompt, messages, tools, schema, turn caps</div>
+        <div class="body">
+          <p>The single biggest enrichment layer. Everything between the user's typed words and the HTTP body to the model is built here.</p>
+          <div class="files">
+            <span class="file"><span class="name">operator/internal/runner/runner.go:436</span> — <code>Run(ctx, req)</code></span>
+            <span class="file"><span class="name">operator/internal/runner/run_setup.go</span> — assembly steps below</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--enrich" style="--c:var(--enrich)">
+        <header>
+          <div class="title">
+            <span class="badge">+ENRICH</span>
+            <h2>System prompt assembly</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Base prompt + project ctx + CLAUDE.md + memory hint + skills index</div>
+        <div class="body">
+          <p>Concatenated into one system message in this order:</p>
+          <ul>
+            <li><b>Base agent prompt</b> — e.g. <code>configs/coder.md</code> body</li>
+            <li><b>Project context</b> — working dir, active project name, repo info</li>
+            <li><b>CLAUDE.md</b> — user + project-level instructions</li>
+            <li><b>Memory hint</b> — recently-edited files / topics from the file tracker</li>
+            <li><b>Skills index</b> — compact one-line per skill (NOT the full body); agent calls <code>load_skill</code> on demand</li>
+            <li><b>Request instructions</b> — any system-role messages from the chat history get appended</li>
+          </ul>
+          <p>Cache split: the static prefix (base + project + CLAUDE.md) sits before a boundary marker so providers with prompt caching (Anthropic) can hit the cache.</p>
+          <div class="files">
+            <span class="file"><span class="name">operator/internal/runner/run_setup.go:131</span> — <code>buildSystemWithContextAndState</code></span>
+            <span class="file"><span class="name">operator/internal/runner/system_prompt.go</span> — section assembly</span>
+            <span class="file"><span class="name">operator/internal/runner/system_prompt_cache.go</span> — cache boundary</span>
+            <span class="file"><span class="name">operator/internal/coreagents/configs/*.md</span> — agent base prompts</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--enrich" style="--c:var(--enrich)">
+        <header>
+          <div class="title">
+            <span class="badge">+ENRICH</span>
+            <h2>Tool assembly</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">ForAgent (allow/block) + skill tools + sub-agent tools + spawn filter + synthetic schema</div>
+        <div class="body">
+          <p>Steps in <code>run_setup.go:169–184</code>:</p>
+          <ul>
+            <li><code>ForAgent(allowed, blocked)</code> — registry filter. <b>Default excludes <code>space:*</code></b> tools (added 2026-05-13 to fix xAI 200-tool overflow); they're opt-in via the agent's tools list.</li>
+            <li><code>addSkillTools</code> — pulls in tools listed by skills the agent already loaded</li>
+            <li><code>addSubAgentTools</code> — sub-agents the file tracker reports as active</li>
+            <li><code>filterSpawnTool</code> — drops <code>spawn_agent</code> if the agent's <code>canSpawn</code> is false</li>
+            <li><code>injectDynamicSchema</code> / <code>InjectSyntheticOutputTool</code> — when caller wants structured output but the model doesn't support native <code>response_format: json_schema</code>, we inject a tool that wraps the schema</li>
+          </ul>
+          <p>Each tool is then OpenAI-sanitized (<code>buildToolDefs</code>) — name characters cleaned, schema fields normalized.</p>
+          <div class="files">
+            <span class="file"><span class="name">operator/internal/runner/run_setup.go:169</span> — assembly</span>
+            <span class="file"><span class="name">operator/internal/tool/tool.go:131</span> — <code>ForAgent</code></span>
+            <span class="file"><span class="name">operator/internal/runner/synthetic_output_tool.go</span> — schema-as-tool fallback</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--enrich" style="--c:var(--enrich)">
+        <header>
+          <div class="title">
+            <span class="badge">+ENRICH</span>
+            <h2>Routing — coordinator vs direct</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">No separate classifier — the active agent's prompt is the router</div>
+        <div class="body">
+          <p>There's no standalone "prompt classifier" service. Routing is a property of whichever agent the user picked:</p>
+          <ul>
+            <li><b>coordinator</b> (<code>configs/coordinator.md</code>, <code>maxIterations: 50</code>, <code>canSpawn: true</code>) — decides per turn whether to answer directly or call <code>spawn_agent</code> for a worker</li>
+            <li><b>coder / architect / verifier / ask</b> — domain-specialized prompts, no spawning</li>
+          </ul>
+          <p>The "decision" lives in the model's first response: if it emits a <code>spawn_agent</code> tool call, a child <code>Runner.Run</code> kicks off; otherwise the runner streams the assistant message and continues the turn loop.</p>
+          <div class="files">
+            <span class="file"><span class="name">operator/internal/coreagents/configs/coordinator.md</span></span>
+            <span class="file"><span class="name">operator/internal/runner/spawn.go</span> — child runner spawn</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--provider" style="--c:var(--provider)">
+        <header>
+          <div class="title">
+            <span class="badge">CONNECTOR</span>
+            <h2>Provider buildBody</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Translates the assembled state into a wire request</div>
+        <div class="body">
+          <p>Per-provider connector takes <code>{ system, messages, tools, outputSchema, maxTokens }</code> and produces an HTTP body:</p>
+          <ul>
+            <li><b>OpenAI-compat</b> (DeepSeek, xAI, MiMo, Qwen, Z.ai, Kimi, OpenRouter) — flat <code>messages</code>, <code>tools</code> as functions, <code>response_format: json_schema</code> when schema present</li>
+            <li><b>Anthropic</b> — separate <code>system</code>, content blocks for messages, prompt cache markers</li>
+            <li><b>Codex (OpenAI OAuth)</b> — bearer = ChatGPT Plus access token</li>
+            <li><b>OpenRouter</b> — same shape as OpenAI-compat plus model routing flags</li>
+          </ul>
+          <p><span class="label">Capabilities matter here</span>: if the model's <code>SupportsStructuredOutput</code> is false (per probe matrix — DeepSeek, MiMo today), schema is NOT sent as <code>response_format</code>; instead the synthetic-output tool was injected upstream.</p>
+          <div class="files">
+            <span class="file"><span class="name">operator/internal/provider/connectors/openai_compat.go</span> — buildBody, parseResponse, readSSE</span>
+            <span class="file"><span class="name">operator/internal/provider/connectors/anthropic.go</span></span>
+            <span class="file"><span class="name">operator/internal/provider/bootstrap/bootstrap_providers.go</span> — which connector + base URL per provider</span>
+            <span class="file"><span class="name">docs/structured-output-matrix.md</span> — per-model capability evidence</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--upstream" style="--c:var(--upstream)">
+        <header>
+          <div class="title">
+            <span class="badge">HTTP/SSE</span>
+            <h2>Upstream chat completion</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">POST /chat/completions (or /v1/messages for Anthropic), streamed</div>
+        <div class="body">
+          <p>Auth header set per request:</p>
+          <ul>
+            <li><b>API-key providers</b>: <code>Authorization: Bearer &lt;key&gt;</code> resolved via <code>resolveKey()</code> — env > settings.json (<code>provider_key:&lt;id&gt;</code>) > org-shared key</li>
+            <li><b>OAuth providers</b>: live access token from <code>profiles/&lt;id&gt;/providers/auth.json</code>, refreshed on demand</li>
+            <li><b>Construct managed</b>: live <code>cat_*</code> session token forwarded; gateway applies the upstream key + credit ledger</li>
+          </ul>
+          <p>Stream body is parsed line-by-line; each <code>data: {...}</code> chunk is converted to a <code>StreamEvent</code> (<code>text_delta</code>, <code>tool_call_start</code>, <code>tool_call_delta</code>, <code>done</code>).</p>
+          <div class="files">
+            <span class="file"><span class="name">openai_compat.go::startStream / readSSE</span></span>
+            <span class="file"><span class="name">operator/internal/provider/bootstrap/bootstrap_providers.go::resolveKey</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--runner" style="--c:var(--runner)">
+        <header>
+          <div class="title">
+            <span class="badge">LOOP</span>
+            <h2>Tool exec + turn loop</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Stream events drive: emit text, run tools, feed results back, decide next turn</div>
+        <div class="body">
+          <p>Per turn:</p>
+          <ul>
+            <li><b>text_delta</b> → forwarded as a stream chunk to UI</li>
+            <li><b>tool_call</b> → looked up in the registry, executed (with safety hooks); result becomes a <code>tool</code>-role message on the next turn</li>
+            <li><b>done</b> → if <code>stop_reason == "tool_use"</code>, run another turn; otherwise finish</li>
+          </ul>
+          <p>Caps: <code>maxTurns</code> (per agent) and <code>hardCap = min(maxTurns*4, 500)</code> kill runaway loops. The stuck-loop detector (<code>stuck_loop.go</code>) bails if the same tool runs with the same input N times.</p>
+          <div class="files">
+            <span class="file"><span class="name">operator/internal/runner/runner.go:436+</span> — turn loop</span>
+            <span class="file"><span class="name">operator/internal/runner/tool_exec.go</span> — invokes tools</span>
+            <span class="file"><span class="name">operator/internal/runner/stuck_loop.go</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-c="--operator" style="--c:var(--operator)">
+        <header>
+          <div class="title">
+            <span class="badge">STREAM OUT</span>
+            <h2>Back through Tauri to the UI</h2>
+          </div>
+          <div class="toggle">›</div>
+        </header>
+        <div class="summary">Every event reverses the path — operator → Rust → JS → Vue render</div>
+        <div class="body">
+          <p>Each stream chunk emitted by the runner is sent back over the same TCP connection, repackaged by Rust as a Tauri event, picked up by the JS client, and dispatched into the Pinia chat store. The composer renders incremental tokens, tool cards, and final messages.</p>
+          <div class="files">
+            <span class="file"><span class="name">frontend/operator/useAgentSession.ts</span> — event consumer</span>
+            <span class="file"><span class="name">frontend/components/agent/*</span> — TextBlock, ToolCard, PlanBlock, etc.</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    document.querySelectorAll('.step').forEach(el => {
+      el.addEventListener('click', () => el.classList.toggle('open'));
+      const c = el.dataset.c;
+      if (c) el.style.setProperty('--c', `var(${c})`);
+    });
+    function toggleAll(open) {
+      document.querySelectorAll('.step').forEach(el => {
+        el.classList.toggle('open', open);
+      });
+    }
+  </script>
+</body>
+</html>

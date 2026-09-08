@@ -1,0 +1,4 @@
+[workspace]
+resolver = "2"
+members = ["desktop"]
+exclude = ["browser", "browser/src-tauri"]

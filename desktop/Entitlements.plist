@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+		Hardened-runtime entitlements. Without these, macOS silently
+		denies the WKWebView's getUserMedia / SFSpeechRecognizer / camera
+		calls AND skips registering the app under System Settings →
+		Privacy & Security, so the user has no toggle to grant access
+		manually. The matching NSXxxUsageDescription strings live in
+		Info.plist — both files must be present for the prompt to show.
+	-->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	<key>com.apple.security.device.camera</key>
+	<true/>
+	<key>com.apple.security.device.microphone</key>
+	<true/>
+
+	<!--
+		Allow loading the bundled operator sidecar + future native
+		binaries we ship alongside the app. JIT keeps Tauri's V8
+		runtime and Vite-built JS happy on macOS 11+.
+	-->
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<true/>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+
+	<!--
+		Network access for the operator + spaces hitting localhost dev
+		servers, in-app browser, marketplace, etc. Server-side outbound
+		is enabled by default; client (incoming) covers any local server
+		spawned from a space.
+	-->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
+	<true/>
+
+	<!--
+		File access — the app already prompts for Documents/Downloads/
+		Desktop via the NSXxxUsageDescription strings, but the
+		user-selected file scope is what lets Tauri dialog/open results
+		round-trip into the webview.
+	-->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+</dict>
+</plist>

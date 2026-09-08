@@ -1,0 +1,37 @@
+{
+  "id": "ask",
+  "name": "Ask",
+  "description": "Ask questions and get answers from LLMs.",
+  "icon": "lucide:message-circle-question-mark",
+  "version": "1.0.0",
+  "navigation": {
+    "label": "Ask",
+    "icon": "lucide:message-circle-question-mark",
+    "to": "ask",
+    "order": 25
+  },
+  "pages": [
+    {
+      "path": "",
+      "label": "Ask",
+      "default": true
+    }
+  ],
+  "widgets": [
+    {
+      "id": "quick-chat",
+      "name": "Ask LLM",
+      "description": "Ask questions and get answers from LLMs.",
+      "icon": "lucide:message-circle-question-mark",
+      "defaultSize": "2x1",
+      "sizes": {
+        "2x1": "widgets/QuickChat2x1.vue",
+        "4x2": "widgets/QuickChat4x2.vue"
+      }
+    }
+  ],
+  "scopes": [
+    "app"
+  ],
+  "projectAware": false
+}
